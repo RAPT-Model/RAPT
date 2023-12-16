@@ -7,8 +7,7 @@ The structure of this folder is as follows：
 - RAPT: Contains the source code and dataset to reproduce the result of RAPT model.
 - CodeT5: Contains the source code and dataset to reproduce the result of CodeT5 baseline.
 - GPT2: Contains the source code and dataset to reproduce the result of GPT2 baseline.
-- RAT: Contains the source code and dataset to reproduce the result of RAT.
-- Tracescore: Contains the source code and dataset to reproduce the result of Tracescore.
+- RAT: Contains the source code and dataset to reproduce the result of RAT baseline.
 
 ## Environment Requirements
 
