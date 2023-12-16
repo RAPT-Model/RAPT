@@ -1,0 +1,746 @@
+bug_report_id,bug_report_desc,bug_report_time
+RESTEASY-3341,"RESTEASY-3282 ported some fixes from upstream RESTEasy back to 3.15 to resolve a CVE. With this backport, for multipart messages the data was always binary data and now is base64 encoded data in the response. This is due to the commenting of of [this|https://github.com/resteasy/resteasy/pull/1890/files#diff-1784e87fb47d6622cdcd78b59050f6a356d9c697ce9fbdaf8b26212b8b499c53R164-R172] code.
+
+This was already done upstream and missed in the backport, see RESTEASY-2480.",2023/06/07 6:54 PM
+RESTEASY-3316,NoData,2023/04/14 4:34 PM
+RESTEASY-3315,NoData,2023/04/14 4:33 PM
+RESTEASY-3310,"[https://github.com/resteasy/resteasy/pull/3406] added org.jboss.resteasy.core.registry.ConstantResourceInvoker that implements ResourceInvoker.   However a corresponding change was not added to org.jboss.resteasy.core.ResourceLocatorInvoker.invokeOnTargetObject() to account for this newly added Invoker.   So during processing of a Sub-Resource locator method the following exception occurs:
+{code:java}
+[4/3/23, 11:46:39:393 CDT] 00000056 g.jboss.resteasy.core.providerfactory.DefaultExceptionMapper E RESTEASY002375: Error processing request OPTIONS /patchapp/rest/test/SubResource/1
+java.lang.ClassCastException: org.jboss.resteasy.core.registry.ConstantResourceInvoker incompatible with org.jboss.resteasy.core.ResourceMethodInvoker
+    at org.jboss.resteasy.core.ResourceLocatorInvoker.invokeOnTargetObject(ResourceLocatorInvoker.java:211)
+    at org.jboss.resteasy.core.ResourceLocatorInvoker.invoke(ResourceLocatorInvoker.java:160)
+    at org.jboss.resteasy.core.ResourceLocatorInvoker.invoke(ResourceLocatorInvoker.java:51)
+    at org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:492)
+    at org.jboss.resteasy.core.SynchronousDispatcher.lambda$invoke$4(SynchronousDispatcher.java:261)
+    at org.jboss.resteasy.core.SynchronousDispatcher.lambda$preprocess$0(SynchronousDispatcher.java:161)
+    at org.jboss.resteasy.core.interception.jaxrs.PreMatchContainerRequestContext.filter(PreMatchContainerRequestContext.java:370)
+    at org.jboss.resteasy.core.SynchronousDispatcher.preprocess(SynchronousDispatcher.java:164)
+    at org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:247)
+    at org.jboss.resteasy.plugins.server.servlet.ServletContainerDispatcher.service(ServletContainerDispatcher.java:255)
+    at org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:60)
+    at org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:55)
+    at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:614)
+    at com.ibm.ws.webcontainer.servlet.ServletWrapper.service(ServletWrapper.java:1260)
+    at com.ibm.ws.webcontainer.servlet.ServletWrapper.handleRequest(ServletWrapper.java:748)
+    at com.ibm.ws.webcontainer.servlet.ServletWrapper.handleRequest(ServletWrapper.java:445)
+    at com.ibm.ws.webcontainer.filter.WebAppFilterManager.invokeFilters(WebAppFilterManager.java:1365)
+    at com.ibm.ws.webcontainer.webapp.WebApp.handleRequest(WebApp.java:5080)
+    at com.ibm.ws.webcontainer.osgi.DynamicVirtualHost$2.handleRequest(DynamicVirtualHost.java:318)
+    at com.ibm.ws.webcontainer.WebContainer.handleRequest(WebContainer.java:1038)
+    at com.ibm.ws.webcontainer.osgi.DynamicVirtualHost$2.run(DynamicVirtualHost.java:283)
+    at com.ibm.ws.http.dispatcher.internal.channel.HttpDispatcherLink$TaskWrapper.run(HttpDispatcherLink.java:1248)
+    at com.ibm.ws.http.dispatcher.internal.channel.HttpDispatcherLink.wrapHandlerAndExecute(HttpDispatcherLink.java:470)
+    at com.ibm.ws.http.dispatcher.internal.channel.HttpDispatcherLink.ready(HttpDispatcherLink.java:429)
+    at com.ibm.ws.http.channel.internal.inbound.HttpInboundLink.handleDiscrimination(HttpInboundLink.java:569)
+    at com.ibm.ws.http.channel.internal.inbound.HttpInboundLink.handleNewRequest(HttpInboundLink.java:503)
+    at com.ibm.ws.http.channel.internal.inbound.HttpInboundLink.processRequest(HttpInboundLink.java:363)
+    at com.ibm.ws.http.channel.internal.inbound.HttpICLReadCallback.complete(HttpICLReadCallback.java:72)
+    at com.ibm.ws.channel.ssl.internal.SSLReadServiceContext$SSLReadCompletedCallback.complete(SSLReadServiceContext.java:1826)
+    at com.ibm.ws.tcpchannel.internal.WorkQueueManager.requestComplete(WorkQueueManager.java:516)
+    at com.ibm.ws.tcpchannel.internal.WorkQueueManager.attemptIO(WorkQueueManager.java:586)
+    at com.ibm.ws.tcpchannel.internal.WorkQueueManager.workerRun(WorkQueueManager.java:970)
+    at com.ibm.ws.tcpchannel.internal.WorkQueueManager$Worker.run(WorkQueueManager.java:1059)
+    at com.ibm.ws.threading.internal.ExecutorServiceImpl$RunnableWrapper.run(ExecutorServiceImpl.java:247)
+    at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+    at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+    at java.base/java.lang.Thread.run(Thread.java:840){code}
+ ",2023/04/03 8:05 PM
+RESTEASY-3303,"[This change|https://github.com/resteasy/resteasy/pull/2794] created the following weird-ish behavior:
+{code:java}
+webTarget
+     .path(""/some-path"")
+     .request()
+     .header(HttpHeaders.CONTENT_TYPE, ""foo"")
+     .post(Entity.entity(""bar"", ""text/plain""));{code}
+will send {{{}Content-Type: foo{}}}. You could argue this is understandable, but I think many will think 'last wins', which is the behavior before the change above. Of course, that policy essentially means you can't use {{header(String, String)}} to set the Content-Type when you are submitting an {{{}Entity{}}}.
+
+I do think it's debatable what should be done.  I think this is some weirdness with the API.  However, this represents a possible breaking change for us, so need to make sure this was intended behavior that will stay.
+
+Update: Also, based on a quick glance, I believe the current code works differently if you use the `headers(map)` method.  It will still have the old behavior (i.e. produce `Content-Type: text/plain` in the case above if you use `headers` instead of `header`).
+
+Added AffectsVersion of 5.0.6.Final as that's where we first noticed it. ",2023/03/22 1:26 PM
+RESTEASY-3300,"RESTEasy is considering empty collections in query parameters for building the URL. This leads to strange results. E.g. {{[http://www.something.org/someResource?&]}} in the example below:
+{code:java}
+public class Reproducer {
+
+    @Path(""someResource"")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public interface SomeResource {
+
+        @GET
+        void methodWIthList(@QueryParam(""listA"") List<String> listA, @QueryParam(""listB"") List<String> listB);
+    }
+
+    public static void main(String[] args) {
+        ResteasyClientBuilder builder = (ResteasyClientBuilder) ClientBuilder.newBuilder();
+        builder.httpEngine(new ClientHttpEngine() {
+
+            @Override
+            public Response invoke(Invocation request) {
+                System.out.println(((ClientInvocation) request).getUri());
+
+                // http://www.something.org/someResource?&
+
+                return new AbortedResponse(null, new ServerResponse());
+            }
+
+            @Override
+            public SSLContext getSslContext() {
+                return null;
+            }
+
+            @Override
+            public HostnameVerifier getHostnameVerifier() {
+                return null;
+            }
+
+            @Override
+            public void close() {}
+        }).build().target(""http://www.something.org"").proxy(SomeResource.class).methodWIthList(List.of(), List.of());
+    }
+}{code}
+ ",2023/03/13 1:23 PM
+RESTEASY-3291,"The change made in RESTEASY-2845 breaks clients that have a method with more than 1 path param in the template as they will ALWAYS be encoded (i.e. / will be replaced) - even if you do not want it.
+
+Here is an example trait that has 2 path params and it worked fine until recent upgrade. It seems that as of this PR it will always encode '/' in id path param:
+
+ 
+{code:java}
+@Path(""something"")
+@Consumes(Array(MediaType.APPLICATION_JSON))
+@Produces(Array(MediaType.APPLICATION_JSON))
+trait Resource { 
+
+@POST
+@Path(""{id:.+}/commands/{commandId:.+}/confirm"")
+def confirmCommand(@PathParam(""id"") id: String, @PathParam(""commandId"") commandId: String): Response
+}{code}
+There is also @Encoded and PathParamProcessor but it looks like they have no impact after the following change was done as part of this ticket:
+{code:java}
+// in org.jboss.resteasy.client.jaxrs.internal.proxy.ClientInvoker#createRequest:
+
+if (pathParamsMap.size() > 1) {
+   target = target.resolveTemplates(pathParamsMap);
+} {code}
+why is > 1 a special case here? If path param has to be encoded then condition should be > 0?
+
+Other than that, how can one instruct it not to encode pathparam?
+
+ 
+
+ ",2023/02/20 4:25 PM
+RESTEASY-3290,"After upgrading to 4.7.8.Final, using org.jboss.resteasy.plugins.providers.multipart.MultiPartInput on a REST API endpoint results in the following exception:
+
+ {code:java}
+org.jboss.resteasy.spi.ReaderException: java.lang.NullPointerException
+  at org.jboss.resteasy.core.MessageBodyParameterInjector.inject(MessageBodyParameterInjector.java:250)
+  at org.jboss.resteasy.core.MethodInjectorImpl.injectArguments(MethodInjectorImpl.java:95)
+  at org.jboss.resteasy.core.MethodInjectorImpl.invoke(MethodInjectorImpl.java:128)
+  at org.jboss.resteasy.core.ResourceMethodInvoker.internalInvokeOnTarget(ResourceMethodInvoker.java:660)
+  at org.jboss.resteasy.core.ResourceMethodInvoker.invokeOnTargetAfterFilter(ResourceMethodInvoker.java:524)
+  at org.jboss.resteasy.core.ResourceMethodInvoker.lambda$invokeOnTarget$2(ResourceMethodInvoker.java:474)
+  at org.jboss.resteasy.core.interception.jaxrs.PreMatchContainerRequestContext.filter(PreMatchContainerRequestContext.java:364)
+  at org.jboss.resteasy.core.ResourceMethodInvoker.invokeOnTarget(ResourceMethodInvoker.java:476)
+  at org.jboss.resteasy.core.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:434)
+  at org.jboss.resteasy.core.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:408)
+  at org.jboss.resteasy.core.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:69)
+  at org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:492)
+  at org.jboss.resteasy.core.SynchronousDispatcher.lambda$invoke$4(SynchronousDispatcher.java:261)
+  at org.jboss.resteasy.core.SynchronousDispatcher.lambda$preprocess$0(SynchronousDispatcher.java:161)
+  at org.jboss.resteasy.core.interception.jaxrs.PreMatchContainerRequestContext.filter(PreMatchContainerRequestContext.java:364)
+  at org.jboss.resteasy.core.SynchronousDispatcher.preprocess(SynchronousDispatcher.java:164)
+  at org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:247)
+  at org.jboss.resteasy.plugins.server.servlet.ServletContainerDispatcher.service(ServletContainerDispatcher.java:249)
+  at org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:60)
+  at org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:55)
+  at javax.servlet.http.HttpServlet.service(HttpServlet.java:764)
+  at com.google.inject.servlet.ServletDefinition.doServiceImpl(ServletDefinition.java:290)
+  at com.google.inject.servlet.ServletDefinition.doService(ServletDefinition.java:280)
+  at com.google.inject.servlet.ServletDefinition.service(ServletDefinition.java:184)
+  at com.google.inject.servlet.ManagedServletPipeline.service(ManagedServletPipeline.java:89)
+  at com.google.inject.servlet.FilterChainInvocation.doFilter(FilterChainInvocation.java:85)
+  at org.candlepin.servlet.filter.EventFilter.doFilter(EventFilter.java:65)
+  at com.google.inject.servlet.FilterChainInvocation.doFilter(FilterChainInvocation.java:82)
+  at org.candlepin.servlet.filter.logging.LoggingFilter.doFilter(LoggingFilter.java:123)
+  at com.google.inject.servlet.FilterChainInvocation.doFilter(FilterChainInvocation.java:82)
+  at org.candlepin.servlet.filter.CandlepinPersistFilter.doFilter(CandlepinPersistFilter.java:48)
+  at com.google.inject.servlet.FilterChainInvocation.doFilter(FilterChainInvocation.java:82)
+  at org.candlepin.servlet.filter.CandlepinScopeFilter.doFilter(CandlepinScopeFilter.java:68)
+  at com.google.inject.servlet.FilterChainInvocation.doFilter(FilterChainInvocation.java:82)
+  at org.candlepin.servlet.filter.CandlepinContentTypeFilter.doFilter(CandlepinContentTypeFilter.java:67)
+  at com.google.inject.servlet.FilterChainInvocation.doFilter(FilterChainInvocation.java:82)
+  at com.google.inject.servlet.ManagedFilterPipeline.dispatch(ManagedFilterPipeline.java:121)
+  at com.google.inject.servlet.GuiceFilter.doFilter(GuiceFilter.java:133)
+  at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:190)
+  at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:163)
+  at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:202)
+  at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:97)
+  at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:542)
+  at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:143)
+  at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:92)
+  at org.apache.catalina.valves.AbstractAccessLogValve.invoke(AbstractAccessLogValve.java:687)
+  at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:78)
+  at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:357)
+  at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:382)
+  at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:65)
+  at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:893)
+  at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1724)
+  at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:49)
+  at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+  at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+  at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+  at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.NullPointerException: null
+  at org.jboss.resteasy.plugins.providers.multipart.Mime4JWorkaround$CustomTempFileStorageProvider.createStorageOutputStream(Mime4JWorkaround.java:146)
+  at org.apache.james.mime4j.storage.ThresholdStorageProvider$ThresholdStorageOutputStream.write0(ThresholdStorageProvider.java:113)
+  at org.apache.james.mime4j.storage.StorageOutputStream.write(StorageOutputStream.java:119)
+  at org.apache.james.mime4j.util.ContentUtil.copy(ContentUtil.java:84)
+  at org.apache.james.mime4j.storage.AbstractStorageProvider.store(AbstractStorageProvider.java:57)
+  at org.apache.james.mime4j.storage.StorageBodyFactory.binaryBody(StorageBodyFactory.java:94)
+  at org.jboss.resteasy.plugins.providers.multipart.Mime4jWorkaroundBinaryEntityBuilder.body(Mime4jWorkaroundBinaryEntityBuilder.java:159)
+  at org.apache.james.mime4j.parser.MimeStreamParser.parse(MimeStreamParser.java:133)
+  at org.jboss.resteasy.plugins.providers.multipart.Mime4JWorkaround.parseMessage(Mime4JWorkaround.java:83)
+  at org.jboss.resteasy.plugins.providers.multipart.MultipartInputImpl.parse(MultipartInputImpl.java:104)
+  at org.jboss.resteasy.plugins.providers.multipart.MultipartReader.readFrom(MultipartReader.java:51)
+  at org.jboss.resteasy.plugins.providers.multipart.MultipartReader.readFrom(MultipartReader.java:23)
+  at org.jboss.resteasy.core.interception.jaxrs.AbstractReaderInterceptorContext.readFrom(AbstractReaderInterceptorContext.java:101)
+  at org.jboss.resteasy.core.interception.jaxrs.ServerReaderInterceptorContext.readFrom(ServerReaderInterceptorContext.java:63)
+  at org.jboss.resteasy.core.interception.jaxrs.AbstractReaderInterceptorContext.proceed(AbstractReaderInterceptorContext.java:80)
+  at org.jboss.resteasy.core.MessageBodyParameterInjector.inject(MessageBodyParameterInjector.java:213)
+  ... 56 common frames omitted
+{code}
+
+This is possible when using the no-arg constructor CustomTempFileStorageProvider() and then dereferencing the directory here: https://github.com/resteasy/resteasy/blob/f4b2a83d339bcdb5ea5a3e01603d47c5c1910719/providers/multipart/src/main/java/org/jboss/resteasy/plugins/providers/multipart/Mime4JWorkaround.java#L146
+
+I haven't looked at other major versions, but looks like they might also be affected because RESTEASY-3286 caused this.",2023/02/16 3:55 PM
+RESTEASY-3272,"Both resteasy.core and resteasy.core.spi provide the package ""org.jboss.resteasy.concurrent""
+
+
+ 
+
+See
+ * [https://github.com/resteasy/resteasy/tree/main/resteasy-core/src/main/java/org/jboss/resteasy/concurrent]
+ ** !image-2023-01-06-15-56-00-739.png|width=448,height=161!
+ * [https://github.com/resteasy/resteasy/tree/main/resteasy-core-spi/src/main/java/org/jboss/resteasy/concurrent]
+ ** !image-2023-01-06-15-56-18-702.png|width=559,height=205!
+
+ 
+
+When using resteasy in a Java modularized app, the result is a ""split package"" error.
+
+Example:
+
+ error: module org.apache.commons.lang3 reads package org.jboss.resteasy.concurrent from both resteasy.core.spi and resteasy.core
+
+ 
+
+Would it be possible to rename one package or to move all the classes of that package into one module?
+
+ 
+
+(I did not create a full MWE, but have a small API there: https://github.com/koppor/jabref/pull/628)",2023/01/06 3:01 PM
+RESTEASY-3266,"If using a @ApplicationPath("""") or @ApplicationPath(""/"") the JSAPIWriter appends a trailing slash onto the uri. The endpoint is then also appended in the generated javascript client which results in a double slash in the final url.
+
+For example from generated client javascript:
+
+REST.apiURL = 'https://localhost:17080/api/';
+var ListApi = {};
+// POST /list/contact
+ListApi.contact = function(_params){
+ var params = _params ? _params : {};
+ var request = new REST.Request();
+ request.setMethod('POST');
+ var uri = params.$apiURL ? params.$apiURL : REST.apiURL;
+ uri += '/list/contact';
+
+The end url is: [https://localhost:17080/api//list/contact] which fails due to the double slash.
+
+The buggy code in question is in JSAPIWriter at line 51:
+
+      for (Map.Entry<String, ServiceRegistry> entry : serviceRegistries.entrySet())
+      {
+         String uri = base;
+         if (entry.getKey() != null) uri += entry.getKey();
+
+For a empty @ApplicationPath(""""), the service registry will have an entry.getKey() of ""/"" which erroneously gets appended to the uri.
+
+Fix could maybe be:
+
+if (entry.getKey() != null && !entry.getKey().equals(""/"")) uri += entry.getKey();
+
+ 
+
+ 
+
+ ",2022/12/14 2:27 PM
+RESTEASY-3259,"Given a Java Interface that describes a remote Service using Mono<T> and Flux<T> as method return types, and given that we depend on resteasy-reactor, when calling proxy(Interface.class) and they calling the proper methods on the generated proxy, weird errors about not finding the proper messageBodyReader are shown.
+summary Proxy Framework fails to Produce Mono<T> at runtime when proxying a java Interface",2022/12/06 9:14 AM
+RESTEASY-3256,"In a provider that is not annotated with {{@Provider}} and is a CDI managed bean, the {{@Context}} injection targets are left {{null}}. An example would be a filter that is installed via a feature.
+
+{code:java}
+@Provider
+public class FilterRegistrationFeature implements Feature {
+    @Override
+    public boolean configure(FeatureContext context) {
+        context.register(TestFilter.class);
+        return true;
+    }
+}
+{code}
+{code:java}
+@ApplicationScoped
+public class TestFilter implements ContainerRequestFilter {
+
+    @Context
+    HttpServletRequest request;
+
+    @Context
+    UriInfo uriInfo;
+
+    @Inject
+    HttpServletRequest injectedRequest;
+
+    @Inject
+    TestBean testBean;
+
+    public void filter(ContainerRequestContext requestContext) {
+        System.out.println(""request "" + request);
+        System.out.println(""injectedRequest "" + injectedRequest);
+        System.out.println(""uriInfo "" + uriInfo);
+        System.out.println(""testBean "" + testBean);
+    }
+}
+{code}
+
+In this case the {{request}} and {{uriInfo}} are both {{null}}. In RESTEasy 6.1+ you can just {{@Inject}} these types. However, with 5.x and lower that is not possible. The [JavaDoc|https://jakarta.ee/specifications/restful-ws/3.1/apidocs/jakarta.ws.rs/jakarta/ws/rs/core/configurable#register(java.lang.Class)] for {{Configurable.register(Class)}}  indicates:
+{quote}
+As opposed to component instances registered via {{register(Object)}} method, the lifecycle of components registered using this class-based register(...) method is fully managed by the JAX-RS implementation or any underlying IoC container supported by the implementation.
+{quote}",2022/11/16 1:16 AM
+RESTEASY-3247,"With the addition of {{ContextualExecutors}} to {{Servlet3AsynchronousResponses,}} in Non-EE environments the {{resteasy.async.timeout.scheduler.min.pool.size}} config is always [looked up|https://github.com/resteasy/resteasy/blob/cc3d02fa5ad47282fb14cb7895490201f9f5035d/resteasy-core-spi/src/main/java/org/jboss/resteasy/concurrent/ContextualExecutors.java#L388] while constructing the Response. And the way its done is by [trying to load|https://github.com/resteasy/resteasy/blob/cc3d02fa5ad47282fb14cb7895490201f9f5035d/resteasy-core-spi/src/main/java/org/jboss/resteasy/spi/config/ConfigurationFactory.java#L43] an implementation of the {{ConfigurationFactory}} and this in-turn causes the Threads to get blocked while looking up the implementation (shown in the stack-trace attached).
+
+Loading the config ahead of time in a static way seems to resolve this.
+
+JDK Used: Java 1.8 u 232.",2022/10/17 4:43 PM
+RESTEASY-3238,"org.jboss.resteasy.concurrent.ContextualExecutorService produces the following exception:
+{code:java}
+[WARNING ] CWWKE0912W: Current Java 2 Security policy reported a potential violation of Java 2 Security Permission. Permission:      modifyThread : Access denied (""java.lang.RuntimePermission"" ""modifyThread"")
+Code:     com.ibm.ws.jaxrs.fat.restmetrics.RestMetricsResource$1  in  {file:/Users/jckrueg/dev-git/libertyGit/open-liberty/dev/build.image/wlp/usr/servers/com.ibm.ws.jaxrs.fat.restmetrics/dropins/restmetrics.war}Stack Trace:java.security.AccessControlException: Access denied (""java.lang.RuntimePermission"" ""modifyThread"")
+    at java.base/java.security.AccessController.throwACE(AccessController.java:176)
+    at java.base/java.security.AccessController.checkPermissionHelper(AccessController.java:238)
+    at java.base/java.security.AccessController.checkPermission(AccessController.java:385)
+    at java.base/java.lang.SecurityManager.checkPermission(SecurityManager.java:322)
+    at com.ibm.ws.kernel.launch.internal.MissingDoPrivDetectionSecurityManager.checkPermission(MissingDoPrivDetectionSecurityManager.java:45)
+    at java.base/java.util.concurrent.ThreadPoolExecutor.checkShutdownAccess(ThreadPoolExecutor.java:748)
+    at java.base/java.util.concurrent.ThreadPoolExecutor.shutdown(ThreadPoolExecutor.java:1373)
+    at java.base/java.util.concurrent.ScheduledThreadPoolExecutor.shutdown(ScheduledThreadPoolExecutor.java:842)
+    at org.jboss.resteasy.concurrent.ContextualExecutorService.shutdown(ContextualExecutorService.java:76)
+    at org.jboss.resteasy.plugins.server.servlet.Servlet3AsyncHttpRequest$Servlet3ExecutionContext$Servlet3AsynchronousResponse.close(Servlet3AsyncHttpRequest.java:322)
+    at org.jboss.resteasy.plugins.server.servlet.Servlet3AsyncHttpRequest$Servlet3ExecutionContext$Servlet3AsynchronousResponse.lambda$resume$0(Servlet3AsyncHttpRequest.java:97)
+    at org.jboss.resteasy.core.AbstractAsynchronousResponse.lambda$internalResume$2(AbstractAsynchronousResponse.java:215)
+    at org.jboss.resteasy.core.interception.jaxrs.ServerWriterInterceptorContext.lambda$aroundWriteTo$2(ServerWriterInterceptorContext.java:97)
+    at java.base/java.util.concurrent.CompletableFuture.uniWhenComplete(CompletableFuture.java:859)
+    at java.base/java.util.concurrent.CompletableFuture$UniWhenComplete.tryFire(CompletableFuture.java:837)
+    at java.base/java.util.concurrent.CompletableFuture.unipush(CompletableFuture.java:589)
+    at java.base/java.util.concurrent.CompletableFuture.uniWhenCompleteStage(CompletableFuture.java:881)
+    at java.base/java.util.concurrent.CompletableFuture.whenComplete(CompletableFuture.java:2251)
+    at java.base/java.util.concurrent.CompletableFuture.whenComplete(CompletableFuture.java:143)
+    at org.jboss.resteasy.core.interception.jaxrs.ServerWriterInterceptorContext.aroundWriteTo(ServerWriterInterceptorContext.java:93)
+    at org.jboss.resteasy.core.interception.jaxrs.ServerWriterInterceptorContext.getStarted(ServerWriterInterceptorContext.java:73)
+    at org.jboss.resteasy.core.ServerResponseWriter.lambda$writeNomapResponse$3(ServerResponseWriter.java:172)
+    at org.jboss.resteasy.core.interception.jaxrs.ContainerResponseContextImpl.filter(ContainerResponseContextImpl.java:410)
+    at org.jboss.resteasy.core.ServerResponseWriter.executeFilters(ServerResponseWriter.java:261)
+    at org.jboss.resteasy.core.ServerResponseWriter.writeNomapResponse(ServerResponseWriter.java:101)
+    at org.jboss.resteasy.core.ServerResponseWriter.writeNomapResponse(ServerResponseWriter.java:74)
+    at org.jboss.resteasy.core.SynchronousDispatcher.asynchronousDelivery(SynchronousDispatcher.java:540)
+    at org.jboss.resteasy.core.AbstractAsynchronousResponse.internalResume(AbstractAsynchronousResponse.java:205)
+    at org.jboss.resteasy.plugins.server.servlet.Servlet3AsyncHttpRequest$Servlet3ExecutionContext$Servlet3AsynchronousResponse.resume(Servlet3AsyncHttpRequest.java:93)
+ {code}",2022/10/07 7:21 PM
+RESTEASY-3217,"The {{MultipartFormDataOutput}} uses a {{HashMap}} for the {{formDataMap}}. This should use a {{LinkedHashMap}} to honor the users input order.
+
+While looking at this there are two different maps being used for some reason. This should also be analyzed.",2022/09/19 10:27 PM
+RESTEASY-3177,"The {{ClientInvocation}} checks if the {{ClientHttpEngine}} is a {{AsyncClientHttpEngine}}. If it is, it actually synchronously executes filters and only submits the HTTP request asynchronously. This should all happen asynchronously for performance reasons and to ensure the Rx support is truly asynchronous.",2022/08/10 11:11 PM
+RESTEASY-3174,"From the [documentation|https://docs.jboss.org/resteasy/docs/4.7.5.Final/userguide/html_single/index.html#Polymorphic_Typing_deserialization]:
+
+!image-2022-08-01-13-09-24-444.png|width=515,height=279!
+
+properties are specified as:
+*resteasy.jackson.deserialization.whitelist.allowIfBaseType*
+*resteasy.jackson.deserialization.whitelist.allowIfSubType*
+
+ 
+
+But in the source code (resteasy-core-4.7.5.Final.jar)
+!image-2022-08-01-13-11-50-666.png|width=592,height=125!
+
+properties values are defined as
+
+*resteasy.jackson.deserialization.whitelist.allowIfBaseType.{color:#de350b}prefix{color}*
+
+*resteasy.jackson.deserialization.whitelist.allowIfSubType.{color:#de350b}prefix{color}*",2022/08/01 10:15 AM
+RESTEASY-3173,"There was an introduction of the using a cleaner to close the client. However, the {{Cleanable.clean()}} is invoked without first setting the {{closed}} attribute to {{true}}. This causes the message to be logged even when correctly closed.
+
+Example output:
+{code}
+Jul 28, 2022 3:57:46 PM org.jboss.resteasy.client.jaxrs.engines.ManualClosingApacheHttpClient43Engine$CleanupAction run
+WARN: RESTEASY004687: Closing a class org.jboss.resteasy.client.jaxrs.engines.ManualClosingApacheHttpClient43Engine$CleanupAction instance for you. Please close clients yourself.
+{code}",2022/07/28 11:02 PM
+RESTEASY-3166,"The Digest authentication tests could end up with a value like 
+{code}
+Digest username=""test-user"",realm=""test-realm"",qop=auth,nonce=""AAAAFwAAALgGiSOYjhGRVUll23b6S9D16VLVFfI5uRURvOicyQMGXptePnc="",opaque=""00000000000000000000000000000000"",algorithm=MD5,uri=""/DigestAuthenticationTest/user"",cnonce=""4ade1d81e6bdef9c327f48b7a40adbc102705be72e2f39420385d2be025df7f9"",nc=00000001,response=""e530768f9a9510c33a418bbd5cca555a""
+{code}
+
+The tests attempt to find the ""nc"" value with something looking for ""nc="" which was expected to return ""00000001"", but returns "" because of the nonce value. This is just a test parsing issue that could be fixed by proper parsing of the key/value pairs.",2022/07/12 12:57 AM
+RESTEASY-3155,"This is a continuation of RESTEASY-2914. The previous JIRA fixed a {{ConcurrentModificationException}} but the attached reproducer shows that there are still concurrency issues and the exception sometimes return the empty String when calling concurrently the {{toString}} method.
+
+There are two separate reproducers for 3.15.3 and 6.1.0.Beta2 versions (there are differences between both versions).",2022/07/06 8:43 AM
+RESTEASY-3149,"In the method inject(request, response, unwrapAsync) in resteasy-core/src/main/java/org/jboss/resteasy/core/InjectorFactoryImpl.java, the Object injectedValue is assigned to itself.
+{code:java}
+public Object inject(HttpRequest request, HttpResponse response, boolean unwrapAsync) {
+    Object injectedValue = delegate.inject(request, response, unwrapAsync);
+    injectedValue = injectedValue;
+    if (injectedValue != null && injectedValue instanceof CompletionStage) {
+        return ((CompletionStage<Object>)injectedValue).thenApply(this::wrap);
+    }
+    return wrap(CompletionStageHolder.resolve(injectedValue));
+} {code}",2022/06/19 10:03 PM
+RESTEASY-3145,"RESTEASY-3082 allowed for testing with Java 17. However, it excluded the security modules due to using removed API's in Java 14+. The {{jboss-modules}} build includes a module in the {{jboss-modules.zip}}. This fails on Java 17 due to missing artifacts. These artifacts should just be ignored for Java 14+. 
+
+Note this means that a release from Java 14+ would result in missing artifacts in the {{jboss-modules.zip}} distribution. However, there is an enforcer rule which requires the project to be released with Java 8.",2022/06/08 3:17 PM
+RESTEASY-3144,"The {{Client}} for a proxy client should be closed once it falls of CDI scope. Not closing it logs messages that the client was not closed when the user has no way to close it.
+
+See https://github.com/eclipse/microprofile-rest-client/issues/348 and https://github.com/resteasy/resteasy/pull/3102#discussion_r890933436",2022/06/07 11:50 PM
+RESTEASY-3131,"The {{JsonBindingDebugLoggingTest}} expects specific logs messages to be present and the count of those log messages to be correct. While this is not ideal, it can be made to work with the new version of Yasson and should be fixed.",2022/04/26 10:22 PM
+RESTEASY-3128,In the {{org.jboss.resteasy:resteasy-dependencies}} there are still some references to Spring. These should be removed. We also use the property in the file to update documentation. This should be changed to using an entity until we migrate to asciidoc.,2022/04/26 9:10 PM
+RESTEASY-3121,The {{VertxClientHttpEngine}} does not handle requests that may fail if the request itself is not self is not sent. There should be an {{onFailure()}} which will complete the future with an error.,2022/04/12 8:06 PM
+RESTEASY-3120,"The {{VertxClientEngineTest}} seems to hang on CI occasionally. This test makes calls to various external web sites. This could potentially be the cause of the hangs, or if the hang is resolve this could result in the tests failing. Ideally we use our own endpoints rather than relying on external resources being available.",2022/04/12 5:16 PM
+RESTEASY-3109,"If a {{ContainerRequestFilter}} throws an error and has a {{@Priority(Integer.MAX_VALUE)}} an SSE resource will hang if an {{ExceptionMapper}} is used. This is likely similar to RESTEASY-1772.
+
+The {{SseEventSinkInterceptor}} is invoked before the custom {{ContainerRequestFilter}}. This suspends the {{ResteasyAsynchronousContext}} which is never completed. However, without an {{ExceptionMapper}} an exception is thrown and propagated up to the servlet container which will complete the {{jakarta.servlet.AsyncContext}}.",2022/03/17 9:44 PM
+RESTEASY-3072,"{code}
+11:01:19,637 ERROR [io.undertow.request] (default task-1) UT005023: Exception handling request to /portal/WEB-INF/jsp/ws_remessa_modelo.jsp: java.lang.IllegalStateException: UT010005: Cannot call getOutputStream(), getWriter() already called
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.spec.HttpServletResponseImpl.getOutputStream(HttpServletResponseImpl.java:360)
+    at org.jboss.resteasy.resteasy-core@4.7.4.Final//org.jboss.resteasy.plugins.server.servlet.HttpServletResponseWrapper$DeferredOutputStream.<init>(HttpServletResponseWrapper.java:160)
+    at org.jboss.resteasy.resteasy-core@4.7.4.Final//org.jboss.resteasy.plugins.server.servlet.HttpServletResponseWrapper.getOutputStream(HttpServletResponseWrapper.java:308)
+    at org.jboss.resteasy.resteasy-core-spi@4.7.4.Final//org.jboss.resteasy.spi.HttpResponse.close(HttpResponse.java:47)
+    at org.jboss.resteasy.resteasy-core@4.7.4.Final//org.jboss.resteasy.plugins.server.servlet.ServletContainerDispatcher.service(ServletContainerDispatcher.java:255)
+    at org.jboss.resteasy.resteasy-core@4.7.4.Final//org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:60)
+    at org.jboss.resteasy.resteasy-core@4.7.4.Final//org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:55)
+    at javax.servlet.api@2.0.0.Final//javax.servlet.http.HttpServlet.service(HttpServlet.java:590)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.ServletHandler.handleRequest(ServletHandler.java:74)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.FilterHandler$FilterChainImpl.doFilter(FilterHandler.java:129)
+    at io.opentracing.contrib.opentracing-jaxrs2//io.opentracing.contrib.jaxrs2.server.SpanFinishingFilter.doFilter(SpanFinishingFilter.java:52)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.core.ManagedFilter.doFilter(ManagedFilter.java:61)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.FilterHandler$FilterChainImpl.doFilter(FilterHandler.java:131)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.FilterHandler.handleRequest(FilterHandler.java:84)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.security.ServletSecurityRoleHandler.handleRequest(ServletSecurityRoleHandler.java:62)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.ServletChain$1.handleRequest(ServletChain.java:68)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.ServletDispatchingHandler.handleRequest(ServletDispatchingHandler.java:36)
+    at org.wildfly.security.elytron-web.undertow-server@1.10.1.Final//org.wildfly.elytron.web.undertow.server.ElytronRunAsHandler.lambda$handleRequest$1(ElytronRunAsHandler.java:68)
+    at org.wildfly.security.elytron-base@1.18.1.Final//org.wildfly.security.auth.server.FlexibleIdentityAssociation.runAsFunctionEx(FlexibleIdentityAssociation.java:103)
+    at org.wildfly.security.elytron-base@1.18.1.Final//org.wildfly.security.auth.server.Scoped.runAsFunctionEx(Scoped.java:161)
+    at org.wildfly.security.elytron-base@1.18.1.Final//org.wildfly.security.auth.server.Scoped.runAs(Scoped.java:73)
+    at org.wildfly.security.elytron-web.undertow-server@1.10.1.Final//org.wildfly.elytron.web.undertow.server.ElytronRunAsHandler.handleRequest(ElytronRunAsHandler.java:67)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.RedirectDirHandler.handleRequest(RedirectDirHandler.java:68)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.security.SSLInformationAssociationHandler.handleRequest(SSLInformationAssociationHandler.java:117)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.security.ServletAuthenticationCallHandler.handleRequest(ServletAuthenticationCallHandler.java:57)
+    at io.undertow.core@2.2.14.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+    at io.undertow.core@2.2.14.Final//io.undertow.security.handlers.AbstractConfidentialityHandler.handleRequest(AbstractConfidentialityHandler.java:46)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.security.ServletConfidentialityConstraintHandler.handleRequest(ServletConfidentialityConstraintHandler.java:64)
+    at io.undertow.core@2.2.14.Final//io.undertow.security.handlers.AbstractSecurityContextAssociationHandler.handleRequest(AbstractSecurityContextAssociationHandler.java:43)
+    at org.wildfly.security.elytron-web.undertow-server-servlet@1.10.1.Final//org.wildfly.elytron.web.undertow.server.servlet.CleanUpHandler.handleRequest(CleanUpHandler.java:38)
+    at io.undertow.core@2.2.14.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+    at org.wildfly.extension.undertow@26.0.0.Final//org.wildfly.extension.undertow.security.jacc.JACCContextIdHandler.handleRequest(JACCContextIdHandler.java:61)
+    at io.undertow.core@2.2.14.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+    at org.wildfly.extension.undertow@26.0.0.Final//org.wildfly.extension.undertow.deployment.GlobalRequestControllerHandler.handleRequest(GlobalRequestControllerHandler.java:68)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.SendErrorPageHandler.handleRequest(SendErrorPageHandler.java:52)
+    at io.undertow.core@2.2.14.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.ServletInitialHandler.handleFirstRequest(ServletInitialHandler.java:275)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.ServletInitialHandler.access$100(ServletInitialHandler.java:79)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:134)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:131)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:48)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
+    at org.wildfly.extension.undertow@26.0.0.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1544)
+    at org.wildfly.extension.undertow@26.0.0.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1544)
+    at org.wildfly.extension.undertow@26.0.0.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1544)
+    at org.wildfly.extension.undertow@26.0.0.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1544)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.ServletInitialHandler.dispatchRequest(ServletInitialHandler.java:255)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.ServletInitialHandler.access$000(ServletInitialHandler.java:79)
+    at io.undertow.servlet@2.2.14.Final//io.undertow.servlet.handlers.ServletInitialHandler$1.handleRequest(ServletInitialHandler.java:100)
+    at io.undertow.core@2.2.14.Final//io.undertow.server.Connectors.executeRootHandler(Connectors.java:387)
+    at io.undertow.core@2.2.14.Final//io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:852)
+    at org.jboss.threads@2.4.0.Final//org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35)
+    at org.jboss.threads@2.4.0.Final//org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:1990)
+    at org.jboss.threads@2.4.0.Final//org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1486)
+    at org.jboss.threads@2.4.0.Final//org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1377)
+    at org.jboss.xnio@3.8.5.Final//org.xnio.XnioWorker$WorkerThreadFactory$1$1.run(XnioWorker.java:1280)
+    at java.base/java.lang.Thread.run(Thread.java:831)
+{code}",2022/01/06 10:40 AM
+RESTEASY-3071,"After the recent change done in HttpServletResponseWrapper to fix this [issue|https://issues.redhat.com/browse/RESTEASY-3046] (Here is the [PR|https://github.com/resteasy/resteasy/pull/2968]), we are observing failures in concurrent async executions. 
+
+We have also verified that issue disappears after reverting the change done as part of the above mentioned PR. ",2021/12/30 10:28 AM
+RESTEASY-3069,"{{MultipartRelatedOutput}} with {{StreamingOutput}} parts throws
+{noformat}
+org.jboss.resteasy.spi.UnhandledException: java.lang.ClassCastException: class org.jboss.resteasy.plugins.providers.StreamingOutputProvider cannot be cast to class org.jboss.resteasy.spi.AsyncMessageBodyWriter (org.jboss.resteasy.plugins.providers.StreamingOutputProvider is in unnamed module of loader 'org.jboss.resteasy.resteasy-core@4.7.2.Final' @41f69e84; org.jboss.resteasy.spi.AsyncMessageBodyWriter is in unnamed module of loader 'org.jboss.resteasy.resteasy-core-spi@4.7.2.Final' @45efd90f)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.ExceptionHandler.handleException(ExceptionHandler.java:381)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.SynchronousDispatcher.writeException(SynchronousDispatcher.java:218)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.SynchronousDispatcher.writeResponse(SynchronousDispatcher.java:614)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:524)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.SynchronousDispatcher.lambda$invoke$4(SynchronousDispatcher.java:261)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.SynchronousDispatcher.lambda$preprocess$0(SynchronousDispatcher.java:161)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.interception.jaxrs.PreMatchContainerRequestContext.filter(PreMatchContainerRequestContext.java:364)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.SynchronousDispatcher.preprocess(SynchronousDispatcher.java:164)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:247)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.plugins.server.servlet.ServletContainerDispatcher.service(ServletContainerDispatcher.java:249)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:60)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:55)
+	at javax.servlet.api@2.0.0.Final//javax.servlet.http.HttpServlet.service(HttpServlet.java:590)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.ServletHandler.handleRequest(ServletHandler.java:74)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.FilterHandler$FilterChainImpl.doFilter(FilterHandler.java:129)
+	at io.undertow.websocket@2.2.12.Final//io.undertow.websockets.jsr.JsrWebSocketFilter.doFilter(JsrWebSocketFilter.java:173)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.core.ManagedFilter.doFilter(ManagedFilter.java:61)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.FilterHandler$FilterChainImpl.doFilter(FilterHandler.java:131)
+	at io.opentracing.contrib.opentracing-jaxrs2//io.opentracing.contrib.jaxrs2.server.SpanFinishingFilter.doFilter(SpanFinishingFilter.java:52)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.core.ManagedFilter.doFilter(ManagedFilter.java:61)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.FilterHandler$FilterChainImpl.doFilter(FilterHandler.java:131)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.FilterHandler.handleRequest(FilterHandler.java:84)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.security.ServletSecurityRoleHandler.handleRequest(ServletSecurityRoleHandler.java:62)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.ServletChain$1.handleRequest(ServletChain.java:68)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.ServletDispatchingHandler.handleRequest(ServletDispatchingHandler.java:36)
+	at org.wildfly.security.elytron-web.undertow-server@1.10.0.Final//org.wildfly.elytron.web.undertow.server.ElytronRunAsHandler.lambda$handleRequest$1(ElytronRunAsHandler.java:68)
+	at org.wildfly.security.elytron-base@1.17.1.Final//org.wildfly.security.auth.server.FlexibleIdentityAssociation.runAsFunctionEx(FlexibleIdentityAssociation.java:103)
+	at org.wildfly.security.elytron-base@1.17.1.Final//org.wildfly.security.auth.server.Scoped.runAsFunctionEx(Scoped.java:161)
+	at org.wildfly.security.elytron-base@1.17.1.Final//org.wildfly.security.auth.server.Scoped.runAs(Scoped.java:73)
+	at org.wildfly.security.elytron-web.undertow-server@1.10.0.Final//org.wildfly.elytron.web.undertow.server.ElytronRunAsHandler.handleRequest(ElytronRunAsHandler.java:67)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.RedirectDirHandler.handleRequest(RedirectDirHandler.java:68)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.security.SSLInformationAssociationHandler.handleRequest(SSLInformationAssociationHandler.java:117)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.security.ServletAuthenticationCallHandler.handleRequest(ServletAuthenticationCallHandler.java:57)
+	at io.undertow.core@2.2.12.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at io.undertow.core@2.2.12.Final//io.undertow.security.handlers.AbstractConfidentialityHandler.handleRequest(AbstractConfidentialityHandler.java:46)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.security.ServletConfidentialityConstraintHandler.handleRequest(ServletConfidentialityConstraintHandler.java:64)
+	at io.undertow.core@2.2.12.Final//io.undertow.security.handlers.AbstractSecurityContextAssociationHandler.handleRequest(AbstractSecurityContextAssociationHandler.java:43)
+	at org.wildfly.security.elytron-web.undertow-server-servlet@1.10.0.Final//org.wildfly.elytron.web.undertow.server.servlet.CleanUpHandler.handleRequest(CleanUpHandler.java:38)
+	at io.undertow.core@2.2.12.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at org.wildfly.extension.undertow@25.0.1.Final//org.wildfly.extension.undertow.security.jacc.JACCContextIdHandler.handleRequest(JACCContextIdHandler.java:61)
+	at io.undertow.core@2.2.12.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at org.wildfly.extension.undertow@25.0.1.Final//org.wildfly.extension.undertow.deployment.GlobalRequestControllerHandler.handleRequest(GlobalRequestControllerHandler.java:68)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.SendErrorPageHandler.handleRequest(SendErrorPageHandler.java:52)
+	at io.undertow.core@2.2.12.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.ServletInitialHandler.handleFirstRequest(ServletInitialHandler.java:280)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.ServletInitialHandler.access$100(ServletInitialHandler.java:79)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:134)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:131)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:48)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
+	at org.wildfly.extension.undertow@25.0.1.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1544)
+	at org.wildfly.extension.undertow@25.0.1.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1544)
+	at org.wildfly.extension.undertow@25.0.1.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1544)
+	at org.wildfly.extension.undertow@25.0.1.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1544)
+	at org.wildfly.extension.undertow@25.0.1.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1544)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.ServletInitialHandler.dispatchRequest(ServletInitialHandler.java:260)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.ServletInitialHandler.access$000(ServletInitialHandler.java:79)
+	at io.undertow.servlet@2.2.12.Final//io.undertow.servlet.handlers.ServletInitialHandler$1.handleRequest(ServletInitialHandler.java:100)
+	at io.undertow.core@2.2.12.Final//io.undertow.server.Connectors.executeRootHandler(Connectors.java:387)
+	at io.undertow.core@2.2.12.Final//io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:852)
+	at org.jboss.threads@2.4.0.Final//org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35)
+	at org.jboss.threads@2.4.0.Final//org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:1990)
+	at org.jboss.threads@2.4.0.Final//org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1486)
+	at org.jboss.threads@2.4.0.Final//org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1377)
+	at org.jboss.xnio@3.8.4.Final//org.xnio.XnioWorker$WorkerThreadFactory$1$1.run(XnioWorker.java:1280)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.ClassCastException: class org.jboss.resteasy.plugins.providers.StreamingOutputProvider cannot be cast to class org.jboss.resteasy.spi.AsyncMessageBodyWriter (org.jboss.resteasy.plugins.providers.StreamingOutputProvider is in unnamed module of loader 'org.jboss.resteasy.resteasy-core@4.7.2.Final' @41f69e84; org.jboss.resteasy.spi.AsyncMessageBodyWriter is in unnamed module of loader 'org.jboss.resteasy.resteasy-core-spi@4.7.2.Final' @45efd90f)
+	at org.jboss.resteasy.resteasy-multipart-provider@4.7.2.Final//org.jboss.resteasy.plugins.providers.multipart.AbstractMultipartWriter.asyncWritePart(AbstractMultipartWriter.java:118)
+	at org.jboss.resteasy.resteasy-multipart-provider@4.7.2.Final//org.jboss.resteasy.plugins.providers.multipart.AbstractMultipartWriter.lambda$asyncWriteParts$2(AbstractMultipartWriter.java:104)
+	at java.base/java.util.concurrent.CompletableFuture.uniComposeStage(CompletableFuture.java:1106)
+	at java.base/java.util.concurrent.CompletableFuture.thenCompose(CompletableFuture.java:2235)
+	at java.base/java.util.concurrent.CompletableFuture.thenCompose(CompletableFuture.java:143)
+	at org.jboss.resteasy.resteasy-multipart-provider@4.7.2.Final//org.jboss.resteasy.plugins.providers.multipart.AbstractMultipartWriter.asyncWriteParts(AbstractMultipartWriter.java:104)
+	at org.jboss.resteasy.resteasy-multipart-provider@4.7.2.Final//org.jboss.resteasy.plugins.providers.multipart.AbstractMultipartWriter.asyncWrite(AbstractMultipartWriter.java:93)
+	at org.jboss.resteasy.resteasy-multipart-provider@4.7.2.Final//org.jboss.resteasy.plugins.providers.multipart.AbstractMultipartRelatedWriter.asyncWriteRelated(AbstractMultipartRelatedWriter.java:71)
+	at org.jboss.resteasy.resteasy-multipart-provider@4.7.2.Final//org.jboss.resteasy.plugins.providers.multipart.MultipartRelatedWriter.asyncWriteTo(MultipartRelatedWriter.java:59)
+	at org.jboss.resteasy.resteasy-multipart-provider@4.7.2.Final//org.jboss.resteasy.plugins.providers.multipart.MultipartRelatedWriter.asyncWriteTo(MultipartRelatedWriter.java:26)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.interception.jaxrs.ServerWriterInterceptorContext.writeTo(ServerWriterInterceptorContext.java:87)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.interception.jaxrs.AbstractWriterInterceptorContext.asyncProceed(AbstractWriterInterceptorContext.java:203)
+	at org.jboss.resteasy.resteasy-crypto@4.7.2.Final//org.jboss.resteasy.security.doseta.DigitalSigningInterceptor.asyncAroundWriteTo(DigitalSigningInterceptor.java:169)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.interception.jaxrs.AbstractWriterInterceptorContext.asyncProceed(AbstractWriterInterceptorContext.java:211)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.interception.jaxrs.AbstractWriterInterceptorContext.getStarted(AbstractWriterInterceptorContext.java:166)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.interception.jaxrs.ServerWriterInterceptorContext.lambda$getStarted$0(ServerWriterInterceptorContext.java:73)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.interception.jaxrs.ServerWriterInterceptorContext.aroundWriteTo(ServerWriterInterceptorContext.java:93)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.interception.jaxrs.ServerWriterInterceptorContext.getStarted(ServerWriterInterceptorContext.java:73)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.ServerResponseWriter.lambda$writeNomapResponse$3(ServerResponseWriter.java:163)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.interception.jaxrs.ContainerResponseContextImpl.filter(ContainerResponseContextImpl.java:404)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.ServerResponseWriter.executeFilters(ServerResponseWriter.java:252)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.ServerResponseWriter.writeNomapResponse(ServerResponseWriter.java:101)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.ServerResponseWriter.writeNomapResponse(ServerResponseWriter.java:74)
+	at org.jboss.resteasy.resteasy-core@4.7.2.Final//org.jboss.resteasy.core.SynchronousDispatcher.writeResponse(SynchronousDispatcher.java:594)
+	... 63 more{noformat}",2021/12/17 2:22 PM
+RESTEASY-3053,"As part of RESTEASY-3033 a new test{{SseEventSinkTest.deadlockAtInitialization()}} was added to check for deadlocks and the order of the SSE events sent. However, occasionally this test fails. It doesn't seem to be due to the internal SSE code, but rather the channel closing which may be happening because of overloading the network. The logs contain the following exception logged a few times:
+
+{code}
+2021-11-23 18:02:59,613 ERROR [io.undertow.request.io] (default I/O-4) UT005088: Failed to execute ServletOutputStream.closeAsync() on IO thread: java.nio.channels.ClosedChannelException
+	at java.base/sun.nio.ch.SocketChannelImpl.ensureOpenAndConnected(SocketChannelImpl.java:180)
+	at java.base/sun.nio.ch.SocketChannelImpl.write(SocketChannelImpl.java:452)
+	at org.jboss.xnio.nio@3.8.4.Final//org.xnio.nio.NioSocketConduit.write(NioSocketConduit.java:153)
+	at io.undertow.core@2.2.5.Final//io.undertow.server.protocol.http.HttpResponseConduit.write(HttpResponseConduit.java:617)
+	at io.undertow.core@2.2.5.Final//io.undertow.conduits.ChunkedStreamSinkConduit.flush(ChunkedStreamSinkConduit.java:270)
+	at org.jboss.xnio@3.8.4.Final//org.xnio.conduits.ConduitStreamSinkChannel.flush(ConduitStreamSinkChannel.java:162)
+	at io.undertow.core@2.2.5.Final//io.undertow.channels.DetachableStreamSinkChannel.flush(DetachableStreamSinkChannel.java:119)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.spec.ServletOutputStreamImpl.closeAsync(ServletOutputStreamImpl.java:692)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.spec.ServletOutputStreamImpl$1.run(ServletOutputStreamImpl.java:655)
+	at org.jboss.xnio.nio@3.8.4.Final//org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:612)
+	at org.jboss.xnio.nio@3.8.4.Final//org.xnio.nio.WorkerThread.run(WorkerThread.java:479)
+
+2021-11-23 18:02:59,614 ERROR [io.undertow.request] (default task-1) UT005023: Exception handling request to /SseEventSinkTest/server-sent-events: org.jboss.resteasy.spi.UnhandledException: java.lang.IllegalStateException: RESTEASY004092: SseEventSink is closed
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.ExceptionHandler.handleApplicationException(ExceptionHandler.java:105)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.ExceptionHandler.handleException(ExceptionHandler.java:359)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.SynchronousDispatcher.writeException(SynchronousDispatcher.java:218)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:519)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.SynchronousDispatcher.lambda$invoke$4(SynchronousDispatcher.java:261)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.SynchronousDispatcher.lambda$preprocess$0(SynchronousDispatcher.java:161)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.interception.jaxrs.PreMatchContainerRequestContext.filter(PreMatchContainerRequestContext.java:364)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.SynchronousDispatcher.preprocess(SynchronousDispatcher.java:164)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:247)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.plugins.server.servlet.ServletContainerDispatcher.service(ServletContainerDispatcher.java:249)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:60)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:55)
+	at javax.servlet.api@2.0.0.Final//javax.servlet.http.HttpServlet.service(HttpServlet.java:590)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.ServletHandler.handleRequest(ServletHandler.java:74)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.security.ServletSecurityRoleHandler.handleRequest(ServletSecurityRoleHandler.java:62)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.ServletChain$1.handleRequest(ServletChain.java:68)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.ServletDispatchingHandler.handleRequest(ServletDispatchingHandler.java:36)
+	at org.wildfly.security.elytron-web.undertow-server@1.9.0.Final//org.wildfly.elytron.web.undertow.server.ElytronRunAsHandler.lambda$handleRequest$1(ElytronRunAsHandler.java:68)
+	at org.wildfly.security.elytron-private@1.15.3.Final//org.wildfly.security.auth.server.FlexibleIdentityAssociation.runAsFunctionEx(FlexibleIdentityAssociation.java:103)
+	at org.wildfly.security.elytron-private@1.15.3.Final//org.wildfly.security.auth.server.Scoped.runAsFunctionEx(Scoped.java:161)
+	at org.wildfly.security.elytron-private@1.15.3.Final//org.wildfly.security.auth.server.Scoped.runAs(Scoped.java:73)
+	at org.wildfly.security.elytron-web.undertow-server@1.9.0.Final//org.wildfly.elytron.web.undertow.server.ElytronRunAsHandler.handleRequest(ElytronRunAsHandler.java:67)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.RedirectDirHandler.handleRequest(RedirectDirHandler.java:68)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.security.SSLInformationAssociationHandler.handleRequest(SSLInformationAssociationHandler.java:117)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.security.ServletAuthenticationCallHandler.handleRequest(ServletAuthenticationCallHandler.java:57)
+	at io.undertow.core@2.2.5.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at io.undertow.core@2.2.5.Final//io.undertow.security.handlers.AbstractConfidentialityHandler.handleRequest(AbstractConfidentialityHandler.java:46)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.security.ServletConfidentialityConstraintHandler.handleRequest(ServletConfidentialityConstraintHandler.java:64)
+	at io.undertow.core@2.2.5.Final//io.undertow.security.handlers.AbstractSecurityContextAssociationHandler.handleRequest(AbstractSecurityContextAssociationHandler.java:43)
+	at org.wildfly.security.elytron-web.undertow-server-servlet@1.9.0.Final//org.wildfly.elytron.web.undertow.server.servlet.CleanUpHandler.handleRequest(CleanUpHandler.java:38)
+	at io.undertow.core@2.2.5.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at org.wildfly.extension.undertow@23.0.2.Final//org.wildfly.extension.undertow.security.jacc.JACCContextIdHandler.handleRequest(JACCContextIdHandler.java:61)
+	at io.undertow.core@2.2.5.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at org.wildfly.extension.undertow@23.0.2.Final//org.wildfly.extension.undertow.deployment.GlobalRequestControllerHandler.handleRequest(GlobalRequestControllerHandler.java:68)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.SendErrorPageHandler.handleRequest(SendErrorPageHandler.java:52)
+	at io.undertow.core@2.2.5.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.ServletInitialHandler.handleFirstRequest(ServletInitialHandler.java:269)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.ServletInitialHandler.access$100(ServletInitialHandler.java:78)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:133)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:130)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:48)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
+	at org.wildfly.extension.undertow@23.0.2.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1530)
+	at org.wildfly.extension.undertow@23.0.2.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1530)
+	at org.wildfly.extension.undertow@23.0.2.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1530)
+	at org.wildfly.extension.undertow@23.0.2.Final//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1530)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.ServletInitialHandler.dispatchRequest(ServletInitialHandler.java:249)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.ServletInitialHandler.access$000(ServletInitialHandler.java:78)
+	at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.handlers.ServletInitialHandler$1.handleRequest(ServletInitialHandler.java:99)
+	at io.undertow.core@2.2.5.Final//io.undertow.server.Connectors.executeRootHandler(Connectors.java:387)
+	at io.undertow.core@2.2.5.Final//io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:841)
+	at org.jboss.threads@2.4.0.Final//org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35)
+	at org.jboss.threads@2.4.0.Final//org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:1990)
+	at org.jboss.threads@2.4.0.Final//org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1486)
+	at org.jboss.threads@2.4.0.Final//org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1377)
+	at org.jboss.xnio@3.8.4.Final//org.xnio.XnioWorker$WorkerThreadFactory$1$1.run(XnioWorker.java:1280)
+	at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.IllegalStateException: RESTEASY004092: SseEventSink is closed
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.plugins.providers.sse.SseEventOutputImpl.send(SseEventOutputImpl.java:228)
+	at deployment.SseEventSinkTest.war//org.jboss.resteasy.test.providers.sse.SseResource.addMessage(SseResource.java:108)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.MethodInjectorImpl.invoke(MethodInjectorImpl.java:170)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.MethodInjectorImpl.invoke(MethodInjectorImpl.java:130)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.ResourceMethodInvoker.internalInvokeOnTarget(ResourceMethodInvoker.java:660)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.ResourceMethodInvoker.invokeOnTargetAfterFilter(ResourceMethodInvoker.java:524)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.ResourceMethodInvoker.lambda$invokeOnTarget$2(ResourceMethodInvoker.java:474)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.interception.jaxrs.PreMatchContainerRequestContext.filter(PreMatchContainerRequestContext.java:364)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.ResourceMethodInvoker.invokeOnTarget(ResourceMethodInvoker.java:476)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:434)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:408)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.ResourceMethodInvoker.invoke(ResourceMethodInvoker.java:69)
+	at org.jboss.resteasy.resteasy-core@4.7.4-SNAPSHOT//org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:492)
+	... 53 more
+{code}",2021/11/24 8:50 PM
+RESTEASY-3052,"The {{StreamingOutputTest}} for {{resteasy-reactive-netty}} hangs intermediately on CI. It tends to fail more often on Windows and Java SE 16/17. However, locally on a Windows VM I've not been able to reproduce it.",2021/11/24 8:47 PM
+RESTEASY-3046,"While using streaming responses using a RestEasy + Tomcat server, [~dnagarajan89]  observed that the responses at times seems to gets truncated on the client side.
+
+On Looking into it I observed that this seems to happen as {{asyncWhile}} stalls during execution. As one of futures (AsyncOperation) in the chain of futures setup in the {{writeTo}} method, is lost during the execution of the {{flushStream}} operation in {{DeferredOutputStream,}} under the following conditions.
+
+Consider that an {{AsyncOperation, in the DeferredOutputStream}}, is not completed in {{doWork}} (its promise is not resolved, because the stream is no longer ready) it also happens to have dependent operations waiting on its chain(setup in writeTo). And it gets completed subsequently by the onWritePossible listener.
+
+ 
+
+But, its completion triggers the execution of the dependent AsyncOperations (until the stream is blocked again). And when it resumes post that, the _ref_ it holds for the {{lastAsyncOperation}} is no longer the one it called complete on but the last async-operation in the dependent chain that got blocked by the stream.  Which it incorrectly resets causing the ref to an operation to be lost and stalling the pipeline.
+{code:java}
+private void flushQueue(ServletOutputStream sos)
+{
+   if(lastAsyncOperation != null) {
+      lastAsyncOperation.future.complete(null);
+      // ref changes after complete and gets reset before it can complete
+      lastAsyncOperation = null;
+   }
+.....{code}
+ 
+
+ 
+
+ ",2021/11/05 9:37 AM
+RESTEASY-3045,"When the server side sends an SSE event. wait for its delivery and then directly closes the sink.  It is still possible that the message gets lost on the client side:
+In code it looks like this:
+{code:java}
+sink.send(sse.newEvent(""last-msg"")).thenAccept(v -> sink.close());{code}
+It is as if the {{CompletionStage}} of {{sink.send}} completes just a little too early, and it is still possible to close the sink while the last message is on its way.
+
+With the test to reproduce RESTEASY-3033 we found 2 other issues, this is one of them. the other is RESTEASY-3044.",2021/11/04 7:29 AM
+RESTEASY-3044,"When SSE events are quickly send from the server it is possible that the first event send on the server comes in second on the client side.  So the event order is somehow messed up.
+
+We saw this only happen with the first event.  For all other events the order is correct.
+
+With the test to reproduce RESTEASY-3033 we found 2 other issues, this is one of them, the other is RESTEASY-3045.
+
+ ",2021/11/04 7:15 AM
+RESTEASY-3043,"When send sse event multiple times , the receive ordering can't be guaranteed. The SseEventOrderTest is created to produce this issue : [https://github.com/jimma/Resteasy/commits/sse-event-order]",2021/11/03 8:49 AM
+RESTEASY-3024,"The {{org.jboss.resteasy:resteasy-bom}} seems to be missing some transitive dependencies. For example {{org.jboss.resteasy:resteasy-cdi}} shows the following:
+{code}
+[INFO] --- maven-dependency-plugin:3.1.1:tree (default-cli) @ resteasy-cdi ---
+[INFO] org.jboss.resteasy:resteasy-cdi:jar:4.7.3-SNAPSHOT
+[INFO] \- jakarta.enterprise:jakarta.enterprise.cdi-api:jar:2.0.2:provided
+[INFO]    \- jakarta.inject:jakarta.inject-api:jar:1.0:provided
+{code}
+
+Both of those dependencies are requires and should not be scoped {{provided}}. This needs to be assessed in order to have a working BOM.",2021/10/05 6:18 PM
+RESTEASY-3022,When creating a {{ContextualExecutor}} for a client the executor uses the wrong value for indicating whether or not the wrapped executor is managed.,2021/09/29 6:49 PM
+RESTEASY-3019,"When receiving a (multipart-formdata POST) request with the content-length header value set with a whitespace before the actual length-value RESTEasy throws the below exception and fails to process the request. 
+As stated in RFC7230 (https://datatracker.ietf.org/doc/html/rfc7230#section-3.2.3) whitespaces are valid and should thus be correctly processed (trimmed).
+
+{code:java}
+java.lang.NumberFormatException: For input string: "" 896""
+at java.lang.NumberFormatException.forInputString(NumberFormatException.java:65)
+at java.lang.Long.parseLong(Long.java:578)
+at java.lang.Long.parseLong(Long.java:631)
+at org.jboss.resteasy.util.NoContent.isContentLengthZero(NoContent.java:32)
+at org.jboss.resteasy.plugins.providers.StringTextStar.readFrom(StringTextStar.java:41)
+at org.jboss.resteasy.plugins.providers.StringTextStar.readFrom(StringTextStar.java:24)
+at org.jboss.resteasy.plugins.providers.multipart.MultipartInputImpl$PartImpl.getBody(MultipartInputImpl.java:344)
+at org.jboss.resteasy.plugins.providers.multipart.MultipartInputImpl$PartImpl.getBodyAsString(MultipartInputImpl.java:39)
+{code}",2021/09/29 11:48 AM
+RESTEASY-3016,The {{PriorityTest}} uses http://www.test.com as it's default target. This should use the host/port from the {{FakeHttpServer}} as we shouldn't rely on a service that may change.,2021/09/23 4:11 PM
+RESTEASY-3013,"The {{org.jboss.resteasy.test.JaxrsAsyncTest}} seems to be failing periodically, mostly on Windows, CI runs. This causes some other tests not to run. This test needs to be looked and see if there is a real bug or the timeout just needs to be increased.",2021/09/21 9:33 PM
+RESTEASY-2997,"In JBoss EAP 7.3.0 and later which merged RESTEASY-2189, the default ExceptionHandler returns ""RESTEASY003210: Could not find resource for full path: <path>"" in the response body when request path is not found:
+{noformat}
+$ curl 127.0.0.1:8080/helloworld-rs/rest/html
+RESTEASY003210: Could not find resource for full path: http://127.0.0.1:8080/helloworld-rs/rest/html
+{noformat}
+
+A malicious user can find out that RESTEasy is being used in the backend. I believe the default message returned by the server should not contain any messages that can guess the product name or versions.  
+
+I think it would be more appropriate to just return the response header same as in JBoss EAP 7.2.9 and earlier.",2021/09/01 5:12 PM

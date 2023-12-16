@@ -1,0 +1,248 @@
+bug_report_id,bug_report_desc,bug_report_time
+TEIID-2260,"Hi,
+
+We have the following configuration setup in our teiid 8.2 aplha 2 environment running on eap6
+{noformat}
+            <transport name=""jdbc"" socket-binding=""teiid-jdbc"">
+                <authentication security-domain=""REDHAT.COM""/>
+                <ssl mode=""enabled"" ssl-protocol=""SSLv3"" keymanagement-algorithm=""SunX509"">
+                    <keystore name=""/etc/jbossas/standalone/jboss.keystore"" password=""changeit""/>
+                </ssl>
+            </transport>
+            <transport name=""odbc"" socket-binding=""teiid-odbc"" protocol=""pg"">
+                <authentication security-domain=""REDHAT.COM""/>
+                <ssl mode=""enabled"" ssl-protocol=""SSLv3"" keymanagement-algorithm=""SunX509"">
+                    <keystore name=""/etc/jbossas/standalone/jboss.keystore"" password=""changeit""/>
+                </ssl>
+            </transport>
+{noformat}
+
+With out security configuration looking like
+
+{noformat}
+                <security-domain name=""host"" cache-type=""default"">
+                    <authentication>
+                        <login-module code=""Kerberos"" flag=""required"">
+                            <module-option name=""storeKey"" value=""true""/>
+                            <module-option name=""useKeyTab"" value=""true""/>
+                            <module-option name=""principal"" value=""HTTP/REMOVED_HOSTNAME@REDHAT.COM""/>
+                            <module-option name=""keyTab"" value=""/etc/jbossas/standalone/jboss.keytab""/>
+                            <module-option name=""doNotPrompt"" value=""true""/>
+                            <module-option name=""debug"" value=""true""/>
+                        </login-module>
+                    </authentication>
+                </security-domain>
+                <security-domain name=""fallback"" cache-type=""default"">
+                    <authentication>
+                        <login-module code=""Kerberos"" flag=""required"">
+                            <module-option name=""useTicketCache"" value=""true""/>
+                            <module-option name=""useKeyTab"" value=""false""/>
+                            <module-option name=""doNotPrompt"" value=""true""/>
+                            <module-option name=""debug"" value=""true""/>
+                        </login-module>
+                    </authentication>
+                </security-domain>
+                <security-domain name=""REDHAT.COM"" cache-type=""default"">
+                    <authentication>
+                        <login-module code=""SPNEGO"" flag=""requisite"">
+                            <module-option name=""password-stacking"" value=""useFirstPass""/>
+                            <module-option name=""serverSecurityDomain"" value=""host""/>
+                            <module-option name=""removeRealmFromPrincipal"" value=""true""/>
+                            <module-option name=""usernamePasswordDomain"" value=""fallback""/>
+                        </login-module>
+                    </authentication>
+                </security-domain>
+{noformat}
+
+And the security seems to work as expected for the JDBC connection, but when we try to connect via ODBC to port 35432 it simply allows us to connect regardless of any username/password combination we use. We tried even switching back to just basic username/password login module (against flat files) with same results.",2012/10/10 8:02 PM
+TEIID-2294,"From the teiid 8.1 schema (jboss-teiid.xsd) under docs, there is no ""alias"" attribute defined for jdbc transport layer. Here is the question:  in the case of there are multiple certificates defined at  keysore, what certificate jdbc ssl will use? How to specify correct one to use?
+
+ 
+Here is the sample teiid jdbc configuration used:
+
+   <transport name=""jdbc"" socket-binding=""teiid-jdbc"">
+      <authentication security-domain=""mysecuritydomain""/>
+      <ssl mode=""enabled"" keymanagement-algorithm=""SunX509"">
+          <keystore name=""/opt/test.keystore"" password=""password""/>
+      </ssl>
+   </transport>
+
+",2012/11/02 7:00 PM
+TEIID-4125,"I don't know if this is a Teiid or Teiid Designer issue.
+
+When I generate a SOAP war from VDB and try to deploy it to server, I get following exception:
+
+{code}
+Deployment failed: ProductInfoVdb.war: {""outcome"" : ""failed"", ""failure-description"" : {""JBAS014671: Failed services"" : {""jboss.deployment.unit.\""ProductInfoVdb.war\"".INSTALL"" : ""org.jboss.msc.service.StartException in service jboss.deployment.unit.\""ProductInfoVdb.war\"".INSTALL: JBAS018733: Failed to process phase INSTALL of deployment \""ProductInfoVdb.war\""\n Caused by: java.lang.NoClassDefFoundError: org/apache/commons/logging/LogFactory\n Caused by: java.lang.ClassNotFoundException: org.apache.commons.logging.LogFactory from [Module \""org.springframework.spring:main\"" from local module loader @ed17bee (finder: local module finder @2a33fae0 (roots: /Users/mmakovy/server-installer/dv-6.3.0.DR3/target/jboss-eap-6.4/modules,/Users/mmakovy/server-installer/dv-6.3.0.DR3/target/jboss-eap-6.4/modules/system/layers/dv,/Users/mmakovy/server-installer/dv-6.3.0.DR3/target/jboss-eap-6.4/modules/system/layers/base/.overlays/layer-base-jboss-eap-6.4.3.CP,/Users/mmakovy/server-installer/dv-6.3.0.DR3/target/jboss-eap-6.4/modules/system/layers/base))]""}}, ""rolled-back"" : true}
+{code}
+
+The whole ""test script"" should be accessible here: https://mojo.redhat.com/docs/DOC-995324
+
+This happens *only with DV-6.3.0.DR3*. When I deploy this war to DV 6.2 server, everything works as expected.
+
+I attached project in zip file (Untitled.zip) and generated WAR. The WAR file was generated in TD 10.0.0.Beta2, but I tried to generate the war in 9.0.5 Designer and the result was the same. 
+
+I marked this as Critical, but if it is a Designer issue I think it should be marked as blocker.
+",2016/02/19 9:15 AM
+TEIID-2999,"Error:
+
+{code}
+14:27:48,921 WARN  [org.teiid.CONNECTOR] (Worker39_QueryProcessorQueue1816) Connector worker process failed for atomic-request=WpidMF9SD0dt.4.0.367: org.teiid.translator.jdbc.JDBCExecutionException: 0 TEIID11008:TEIID11004 Error executing statement(s): [SQL: SELECT g_0.""jcr:name"", g_0.""jcr:path"", g_0.""jcr:score"", g_0.""mode:depth"", g_0.""mode:localName"", g_0.""transform:deleteAllowed"", g_0.""transform:deleteSql"", g_0.""transform:deleteSqlDefault"", g_0.""transform:insertAllowed"", g_0.""transform:insertSql"", g_0.""transform:insertSqlDefault"", g_0.""transform:outputLocked"", g_0.""transform:selectSql"", g_0.""transform:updateAllowed"", g_0.""transform:updateSql"", g_0.""transform:updateSqlDefault"" FROM ""transform:withSql"" AS g_0 WHERE UpperCase(g_0.""transform:selectSql"") LIKE '%ORDER_EPPO_PUBKEY%']
+	at org.teiid.translator.jdbc.JDBCQueryExecution.execute(JDBCQueryExecution.java:88)
+	at org.teiid.dqp.internal.datamgr.ConnectorWorkItem.execute(ConnectorWorkItem.java:312) [teiid-engine-8.4.1-redhat-7.jar:8.4.1-redhat-7]
+	at org.teiid.dqp.internal.process.DataTierTupleSource.getResults(DataTierTupleSource.java:301) [teiid-engine-8.4.1-redhat-7.jar:8.4.1-redhat-7]
+	at org.teiid.dqp.internal.process.DataTierTupleSource$1.call(DataTierTupleSource.java:113) [teiid-engine-8.4.1-redhat-7.jar:8.4.1-redhat-7]
+	at org.teiid.dqp.internal.process.DataTierTupleSource$1.call(DataTierTupleSource.java:110) [teiid-engine-8.4.1-redhat-7.jar:8.4.1-redhat-7]
+	at java.util.concurrent.FutureTask.run(FutureTask.java:262) [rt.jar:1.7.0_60]
+	at org.teiid.dqp.internal.process.FutureWork.run(FutureWork.java:58) [teiid-engine-8.4.1-redhat-7.jar:8.4.1-redhat-7]
+	at org.teiid.dqp.internal.process.DQPWorkContext.runInContext(DQPWorkContext.java:269) [teiid-engine-8.4.1-redhat-7.jar:8.4.1-redhat-7]
+	at org.teiid.dqp.internal.process.ThreadReuseExecutor$RunnableWrapper.run(ThreadReuseExecutor.java:119) [teiid-engine-8.4.1-redhat-7.jar:8.4.1-redhat-7]
+	at org.teiid.dqp.internal.process.ThreadReuseExecutor$3.run(ThreadReuseExecutor.java:214) [teiid-engine-8.4.1-redhat-7.jar:8.4.1-redhat-7]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145) [rt.jar:1.7.0_60]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615) [rt.jar:1.7.0_60]
+	at java.lang.Thread.run(Thread.java:745) [rt.jar:1.7.0_60]
+Caused by: java.sql.SQLException: The JCR-SQL2 query ""SELECT g_0.""jcr:name"", g_0.""jcr:path"", g_0.""jcr:score"", g_0.""mode:depth"", g_0.""mode:localName"", g_0.""transform:deleteAllowed"", g_0.""transform:deleteSql"", g_0.""transform:deleteSqlDefault"", g_0.""transform:insertAllowed"", g_0.""transform:insertSql"", g_0.""transform:insertSqlDefault"", g_0.""transform:outputLocked"", g_0.""transform:selectSql"", g_0.""transform:updateAllowed"", g_0.""transform:updateSql"", g_0.""transform:updateSqlDefault"" FROM ""transform:withSql"" AS g_0 WHERE UpperCase(g_0.""transform:selectSql"") LIKE '%ORDER_EPPO_PUBKEY%'"" is not well-formed: Expecting a constraint, but found 'UpperCase' at line 1, column 467
+	at org.modeshape.jdbc.JcrStatement.execute(JcrStatement.java:433)
+	at org.modeshape.jdbc.JcrStatement.executeQuery(JcrStatement.java:479)
+	at org.jboss.jca.adapters.jdbc.WrappedStatement.executeQuery(WrappedStatement.java:344)
+	at org.teiid.translator.jdbc.JDBCQueryExecution.execute(JDBCQueryExecution.java:80)
+	... 12 more
+Caused by: javax.jcr.query.InvalidQueryException: The JCR-SQL2 query ""SELECT g_0.""jcr:name"", g_0.""jcr:path"", g_0.""jcr:score"", g_0.""mode:depth"", g_0.""mode:localName"", g_0.""transform:deleteAllowed"", g_0.""transform:deleteSql"", g_0.""transform:deleteSqlDefault"", g_0.""transform:insertAllowed"", g_0.""transform:insertSql"", g_0.""transform:insertSqlDefault"", g_0.""transform:outputLocked"", g_0.""transform:selectSql"", g_0.""transform:updateAllowed"", g_0.""transform:updateSql"", g_0.""transform:updateSqlDefault"" FROM ""transform:withSql"" AS g_0 WHERE UpperCase(g_0.""transform:selectSql"") LIKE '%ORDER_EPPO_PUBKEY%'"" is not well-formed: Expecting a constraint, but found 'UpperCase' at line 1, column 467
+	at org.modeshape.jcr.JcrQueryManager.createQuery(JcrQueryManager.java:146)
+	at org.modeshape.jcr.JcrQueryManager.createQuery(JcrQueryManager.java:101)
+	at org.modeshape.jdbc.delegate.LocalRepositoryDelegate.execute(LocalRepositoryDelegate.java:139)
+	at org.modeshape.jdbc.JcrStatement.execute(JcrStatement.java:429)
+	... 15 more",2014/06/12 10:00 AM
+TEIID-3219,"When querying a column which has a null value somewhere in it, the result set is missing all the rows under the null value in the xlsx file. When querying more columns, the result set is missing some values only if there is a row, where both columns contains null value.",2014/11/14 9:34 AM
+TEIID-3204,"Admin shell throws an IncompatibleClassChangeError when wrong path to groovy script is provided along with load command.
+
+Actual result:
+===> [import static org.teiid.adminshell.AdminShell.*; import static org.teiid.adminshell.GroovySqlExtensions.*; import org.teiid.adminapi.*;]
+FATAL: java.lang.IncompatibleClassChangeError: the number of constructors during runtime and compile time for java.lang.Exception do not match. Expected 4 but got 5
+java.lang.IncompatibleClassChangeError: the number of constructors during runtime and compile time for java.lang.Exception do not match. Expected 4 but got 5
+	at groovy.lang.MetaClassImpl.selectConstructorAndTransformArguments(MetaClassImpl.java:1406)
+	at org.codehaus.groovy.runtime.ScriptBytecodeAdapter.selectConstructorAndTransformArguments(ScriptBytecodeAdapter.java:237)
+	at org.codehaus.groovy.tools.shell.CommandException.<init>(Command.groovy:60)
+	at sun.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at sun.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:57)
+	at sun.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.lang.reflect.Constructor.newInstance(Constructor.java:526)
+....
+....",2014/11/07 1:20 AM
+TEIID-3900,"Malformed URL \[1\] causes NPE in Teiid \[2\].
+
+\[1\] http://localhost:8080/odata/test$metadata (missing '/' after VDB name)
+\[2\]
+{code:text}
+[org.teiid.ODATA] (http-/127.0.0.1:8080-1) TEIID16013 Error occurred producing OData result.: java.lang.NullPointerException
+	at org.teiid.odbc.ODBCServerRemoteImpl.setConnectionProperties(ODBCServerRemoteImpl.java:304) [teiid-runtime-8.12.3.redhat-1.jar:8.12.3.redhat-1]
+	at org.teiid.odata.LocalClient.getConnection(LocalClient.java:167) [classes:]
+	at org.teiid.odata.LocalClient.getVDB(LocalClient.java:139) [classes:]
+	at org.teiid.odata.LocalClient.getMetadata(LocalClient.java:484) [classes:]
+	at org.teiid.odata.TeiidProducer.getMetadata(TeiidProducer.java:83) [classes:]
+	at org.odata4j.producer.resources.ServiceDocumentResource.getServiceDocument(ServiceDocumentResource.java:35) [odata-core-0.8.10.jar:0.8.10]
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.8.0_40]
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62) [rt.jar:1.8.0_40]
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.8.0_40]
+	at java.lang.reflect.Method.invoke(Method.java:497) [rt.jar:1.8.0_40]
+	at org.jboss.resteasy.core.MethodInjectorImpl.invoke(MethodInjectorImpl.java:168) [resteasy-jaxrs-2.3.12.Final-redhat-1.jar:]
+	at org.jboss.resteasy.core.ResourceMethod.invokeOnTarget(ResourceMethod.java:269) [resteasy-jaxrs-2.3.12.Final-redhat-1.jar:]
+	at org.jboss.resteasy.core.ResourceMethod.invoke(ResourceMethod.java:227) [resteasy-jaxrs-2.3.12.Final-redhat-1.jar:]
+	at org.jboss.resteasy.core.ResourceMethod.invoke(ResourceMethod.java:216) [resteasy-jaxrs-2.3.12.Final-redhat-1.jar:]
+	at org.jboss.resteasy.core.SynchronousDispatcher.getResponse(SynchronousDispatcher.java:561) [resteasy-jaxrs-2.3.12.Final-redhat-1.jar:]
+	at org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:543) [resteasy-jaxrs-2.3.12.Final-redhat-1.jar:]
+	at org.jboss.resteasy.core.SynchronousDispatcher.invoke(SynchronousDispatcher.java:128) [resteasy-jaxrs-2.3.12.Final-redhat-1.jar:]
+	at org.teiid.odata.ODataServletContainerDispatcher.service(ODataServletContainerDispatcher.java:118) [classes:]
+	at org.teiid.odata.ODataServlet.service(ODataServlet.java:65) [classes:]
+	at org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher.service(HttpServletDispatcher.java:50) [resteasy-jaxrs-2.3.12.Final-redhat-1.jar:]
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:847) [jboss-servlet-api_3.0_spec-1.0.2.Final-redhat-2.jar:1.0.2.Final-redhat-2]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:295) [jbossweb-7.5.11.Final-redhat-1.jar:7.5.11.Final-redhat-1]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:214) [jbossweb-7.5.11.Final-redhat-1.jar:7.5.11.Final-redhat-1]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:231) [jbossweb-7.5.11.Final-redhat-1.jar:7.5.11.Final-redhat-1]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:149) [jbossweb-7.5.11.Final-redhat-1.jar:7.5.11.Final-redhat-1]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:512) [jbossweb-7.5.11.Final-redhat-1.jar:7.5.11.Final-redhat-1]
+	at org.jboss.as.web.security.SecurityContextAssociationValve.invoke(SecurityContextAssociationValve.java:169) [jboss-as-web-7.5.4.Final-redhat-4.jar:7.5.4.Final-redhat-4]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:150) [jbossweb-7.5.11.Final-redhat-1.jar:7.5.11.Final-redhat-1]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:97) [jbossweb-7.5.11.Final-redhat-1.jar:7.5.11.Final-redhat-1]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:102) [jbossweb-7.5.11.Final-redhat-1.jar:7.5.11.Final-redhat-1]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344) [jbossweb-7.5.11.Final-redhat-1.jar:7.5.11.Final-redhat-1]
+	at org.apache.coyote.http11.Http11Processor.process(Http11Processor.java:854) [jbossweb-7.5.11.Final-redhat-1.jar:7.5.11.Final-redhat-1]
+	at org.apache.coyote.http11.Http11Protocol$Http11ConnectionHandler.process(Http11Protocol.java:653) [jbossweb-7.5.11.Final-redhat-1.jar:7.5.11.Final-redhat-1]
+	at org.apache.tomcat.util.net.JIoEndpoint$Worker.run(JIoEndpoint.java:926) [jbossweb-7.5.11.Final-redhat-1.jar:7.5.11.Final-redhat-1]
+	at java.lang.Thread.run(Thread.java:745) [rt.jar:1.8.0_40]
+{code}",2016/01/12 3:09 AM
+TEIID-3895,"If column's name in source (PHYSICAL) model has different name than one in the source (case sensitive) then attribute ""Nullable"" is set to true.
+
+{code:xml}
+<vdb name=""test"" version=""1"">
+    <model name=""Source"" type=""PHYSICAL"">
+        <source name=""rs"" connection-jndi-name=""java:/Redshift"" translator-name=""postgresql""/>
+        <metadata type=""DDL"">
+            <![CDATA[create foreign table SmallB (
+                IntKey integer PRIMARY KEY OPTIONS(NAMEINSOURCE 'intkey', NATIVE_TYPE 'int4')) OPTIONS(NAMEINSOURCE 'smalla');
+            ]]>
+        </metadata>
+    </model>
+</vdb>
+{code}
+
+result:
+{code:xml}
+<edmx:Edmx xmlns:edmx=""http://schemas.microsoft.com/ado/2007/06/edmx"" Version=""1.0"">
+  <edmx:DataServices xmlns:m=""http://schemas.microsoft.com/ado/2007/08/dataservices/metadata"" m:DataServiceVersion=""2.0"">
+    <Schema xmlns=""http://schemas.microsoft.com/ado/2008/09/edm"" Namespace=""Source"">
+      <EntityType Name=""SmallB"">
+        <Key>
+          <PropertyRef Name=""IntKey""/>
+        </Key>
+        <Property Name=""IntKey"" Type=""Edm.Int32"" Nullable=""true""/>
+      </EntityType>
+      <EntityContainer Name=""Source"" m:IsDefaultEntityContainer=""false"">
+        <EntitySet Name=""SmallB"" EntityType=""Source.SmallB""/>
+      </EntityContainer>
+    </Schema>
+...
+{code}",2016/01/11 9:28 AM
+TEIID-3409,"As [1] it seems PostgreSQLExecutionFactory TranslatorProperty annotation in wrong place.
+
+[1] https://github.com/teiid/teiid/pull/435",2015/03/31 9:40 PM
+TEIID-3197,install.sh script fails on RHEL 6.5 system because of older versions of xmllint and coreutils.,2014/11/04 8:07 PM
+TEIID-3055,"Issuing query: select nss, valor_inicial, valor_final from CacheView.Resumen where valor_inicial > 950.0
+
+produces the following in the query plan:
+USER COMMAND:
+SELECT nss, valor_inicial, valor_final FROM CacheView.Resumen WHERE nss > '950.0'
+
+request=/1MuNPfoG76j.0.0.5: org.hibernate.search.SearchException: Cannot create numeric range query for field saldo.valorInicial, since values are not numeric (int,long, short or double) 
+	at org.hibernate.search.bridge.util.impl.NumericFieldUtils.createNumericRangeQuery(NumericFieldUtils.java:69)
+	at org.hibernate.search.query.dsl.impl.ConnectedMultiFieldsRangeQueryBuilder.createQuery(ConnectedMultiFieldsRangeQueryBuilder.java:107)
+	at org.hibernate.search.query.dsl.impl.ConnectedMultiFieldsRangeQueryBuilder.createQuery(ConnectedMultiFieldsRangeQueryBuilder.java:83)
+	at org.teiid.translator.object.infinispan.LuceneSearch.createRangeAboveQuery(LuceneSearch.java:349)
+	at org.teiid.translator.object.infinispan.LuceneSearch.visit(LuceneSearch.java:217)
+	at org.teiid.translator.object.infinispan.LuceneSearch.buildQueryFromWhereClause(LuceneSearch.java:145)
+	at org.teiid.translator.object.infinispan.LuceneSearch.performSearch(LuceneSearch.java:66)
+	at org.teiid.translator.object.infinispan.InfinispanExecutionFactory.search(InfinispanExecutionFactory.java:119)
+	at org.teiid.translator.object.ObjectExecution.execute(ObjectExecution.java:102)
+	at org.teiid.dqp.internal.datamgr.ConnectorWorkItem.execute(ConnectorWorkItem.java:312) [te",2014/07/29 3:14 PM
+TEIID-3012,"Issuing either query:
+
+SELECT c.jcr_name FROM relational_table AS t, relational_column AS c WHERE JCR.JCR_ISCHILDNODE(c.jcr_path, t.jcr_path)
+
+ SELECT c.jcr_name FROM relational_table AS t JOIN relational_column AS c ON JCR.JCR_ISCHILDNODE(c.jcr_path,t.jcr_path)
+
+produces the following exception:
+
+Caused by: javax.jcr.query.InvalidQueryException: The JCR-SQL2 query ""SELECT g_1.""jcr:name"", g_1.""jcr:path"" FROM ""relational:table"" AS g_0, ""relational:column"" AS g_1 WHERE ISCHILDNODE(g_1, g_0)"" is not well-formed: Unexpected token ',' at line 1, column 66
+	at org.modeshape.jcr.JcrQueryManager.createQuery(JcrQueryManager.java:146)
+	at org.modeshape.jcr.JcrQueryManager.createQuery(JcrQueryManager.java:101)
+	at org.modeshape.jdbc.delegate.LocalRepositoryDelegate.execute(LocalRepositoryDelegate.java:139)
+	at org.modeshape.jdbc.JcrStatement.execute(JcrStatement.java:429)
+	... 15 more
+
+And after a discussion with Randall, it seems ModeShape needs JOIN in the syntax, and not ','  to join the tables.",2014/06/18 4:12 PM
+TEIID-2799,"The infinispan implementation of the object translator getMetadata is not defining the primary key.  If the resource-adapter has defined it, it should expose it.   This key is important for push-down capability.   The user could define this after the fact (i.e, in dynamic vdb or in designer), but from a usability stand point, it would be better if the translator exposed it.",2014/01/10 3:51 PM
+TEIID-2486,"The following command doesn't support the ""name"" attribute:
+/subsystem=threads/bounded-queue-thread-pool=teiid-async:add(name=teiid-async, max-threads=4, queue-length=100)
+
+This is the same issue seen in the domain script.  So the command should be changed to be:
+/subsystem=threads/bounded-queue-thread-pool=teiid-async:add(max-threads=4, queue-length=100)",2013/04/25 4:52 PM

@@ -1,0 +1,593 @@
+bug_report_id,bug_report_desc,bug_report_time
+JBTM-2781,"max_prepared_statement is required on the file (postgre.conf) to connect on pgsql base.
+
+If this option wasn't activate, the method end is called twice on PGXAConnection
+
+Please find below original discussion :
+https://developer.jboss.org/message/958507#958507",2016/06/21 3:13 AM
+JBTM-2676,"Hibernate closes connections in afterCompletion. However, TransactionalDriver requires transaction to be in an active state in order to delist resource.
+See new JTA and Hibernate standalone quickstart for reproduction.
+
+{code}
+2016-06-15 02:21:07,413 [main] WARN  com.arjuna.ats.jta - ARJUNA016029: SynchronizationImple.afterCompletion - failed for org.hibernate.resource.transaction.backend.jta.internal.synchronization.RegisteredSynchronization@e4b6f47 with exception
+org.hibernate.exception.GenericJDBCException: Unable to release JDBC Connection
+	at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:47)
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:111)
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:97)
+	at org.hibernate.resource.jdbc.internal.LogicalConnectionManagedImpl.releaseConnection(LogicalConnectionManagedImpl.java:172)
+	at org.hibernate.resource.jdbc.internal.LogicalConnectionManagedImpl.afterTransaction(LogicalConnectionManagedImpl.java:135)
+	at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.afterTransaction(JdbcCoordinatorImpl.java:290)
+	at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.afterTransactionCompletion(JdbcCoordinatorImpl.java:490)
+	at org.hibernate.resource.transaction.backend.jta.internal.JtaTransactionCoordinatorImpl.afterCompletion(JtaTransactionCoordinatorImpl.java:345)
+	at org.hibernate.resource.transaction.backend.jta.internal.synchronization.SynchronizationCallbackCoordinatorNonTrackingImpl.doAfterCompletion(SynchronizationCallbackCoordinatorNonTrackingImpl.java:60)
+	at org.hibernate.resource.transaction.backend.jta.internal.synchronization.SynchronizationCallbackCoordinatorTrackingImpl.afterCompletion(SynchronizationCallbackCoordinatorTrackingImpl.java:72)
+	at org.hibernate.resource.transaction.backend.jta.internal.synchronization.RegisteredSynchronization.afterCompletion(RegisteredSynchronization.java:44)
+	at com.arjuna.ats.internal.jta.resources.arjunacore.SynchronizationImple.afterCompletion(SynchronizationImple.java:96)
+	at com.arjuna.ats.arjuna.coordinator.TwoPhaseCoordinator.afterCompletion(TwoPhaseCoordinator.java:542)
+	at com.arjuna.ats.arjuna.coordinator.TwoPhaseCoordinator.afterCompletion(TwoPhaseCoordinator.java:473)
+	at com.arjuna.ats.arjuna.coordinator.TwoPhaseCoordinator.cancel(TwoPhaseCoordinator.java:127)
+	at com.arjuna.ats.arjuna.AtomicAction.abort(AtomicAction.java:186)
+	at com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionImple.rollbackAndDisassociate(TransactionImple.java:1282)
+	at com.arjuna.ats.internal.jta.transaction.arjunacore.BaseTransaction.rollback(BaseTransaction.java:143)
+	at org.jboss.narayana.quickstart.jta.TestCase.testRollback(TestCase.java:145)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:497)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:47)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:44)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.jboss.byteman.contrib.bmunit.BMUnitRunner$6.evaluate(BMUnitRunner.java:241)
+	at org.junit.internal.runners.statements.RunBefores.evaluate(RunBefores.java:26)
+	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:271)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:70)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:50)
+	at org.junit.runners.ParentRunner$3.run(ParentRunner.java:238)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:63)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:236)
+	at org.junit.runners.ParentRunner.access$000(ParentRunner.java:53)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:229)
+	at org.jboss.byteman.contrib.bmunit.BMUnitRunner$1.evaluate(BMUnitRunner.java:75)
+	at org.junit.internal.runners.statements.RunBefores.evaluate(RunBefores.java:26)
+	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:309)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.execute(JUnit4Provider.java:367)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.executeWithRerun(JUnit4Provider.java:274)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.executeTestSet(JUnit4Provider.java:238)
+	at org.apache.maven.surefire.junit4.JUnit4Provider.invoke(JUnit4Provider.java:161)
+	at org.apache.maven.surefire.booter.ForkedBooter.invokeProviderInSameClassLoader(ForkedBooter.java:290)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:242)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:121)
+Caused by: java.sql.SQLException: ARJUNA017020: Transaction is not active on the thread!
+	at com.arjuna.ats.internal.jdbc.ConnectionImple.checkTransaction(ConnectionImple.java:1071)
+	at com.arjuna.ats.internal.jdbc.ConnectionImple.isClosed(ConnectionImple.java:417)
+	at org.hibernate.resource.jdbc.internal.LogicalConnectionManagedImpl.releaseConnection(LogicalConnectionManagedImpl.java:166)
+	... 45 more
+{code}",2016/05/20 10:08 AM
+JBTM-2631,"CI job http://albany.eng.hst.ams2.redhat.com/view/Narayana/job/narayana-hqstore/151/PROFILE=QA_JTA,jdk=jdk8.latest,label=linux/ failed with various uid test failures:
+{quote}
+txcore Uid_Test011 Fail (0m18.180s)
+txcore Uid_Test011 Fail (0m19.431s)
+txcore Uid_Test012 Fail (0m20.850s)
+txcore Uid_Test004 Fail (0m11.566s)
+txcore Uid_Test005 Fail (0m12.343s)
+txcore Uid_Test006 Fail (0m12.062s)
+txcore Uid_Test007 Fail (0m15.742s)
+txcore Uid_Test008 Fail (0m16.908s)
+txcore Uid_Test009 Fail (0m17.282s)
+txcore_lockrecord LockRecord_Thread_Test036a Fail (8m12.773s)
+txcore_lockrecord LockRecord_Thread_Test036b Fail (8m10.265s)
+txcore_lockrecord LockRecord_Thread_Test048a Fail (8m11.115s)
+txcore_lockrecord LockRecord_Thread_Test048b Fail (8m7.376s)
+{quote}
+",2016/02/29 7:09 AM
+JBTM-2584,"I have an entity manager (Oracle XA datasource) and a JCA resource adapter supporting LocalTransaction in one transaction.
+
+Following scenario:
+- An entity with values equal to those in the database is merged
+- The commit() of the local-tx resource fails and throws a ResourceException
+
+All that happens is a warning being logged:
+
+{noformat}
+00:34:47,619 WARN  [com.arjuna.ats.jta] (default task-24) ARJUNA016039: onePhaseCommit on < formatId=131077, gtrid_length=29, bqual_length=36, tx_uid=0:ffff7f000101:25752588:566c9884:209, node_name=1, branch_uid=0:ffff7f000101:25752588:566c9884:211, subordinatenodename=null, eis_name=java:/FileDataSource > (LocalXAResourceImpl@41ac4d[connectionListener=d5fa3f connectionManager=1e7041 warned=false currentXid=null productName=Generic JCA productVersion=1.0 jndiName=java:/FileDataSource]) failed with exception XAException.XA_RBROLLBACK: org.jboss.jca.core.spi.transaction.local.LocalXAException: IJ001156: Could not commit local transaction
+	at org.jboss.jca.core.tx.jbossts.LocalXAResourceImpl.commit(LocalXAResourceImpl.java:180) [ironjacamar-core-impl-1.1.9.Final.jar:1.1.9.Final]
+	at com.arjuna.ats.internal.jta.resources.arjunacore.XAOnePhaseResource.commit(XAOnePhaseResource.java:113)
+	at com.arjuna.ats.internal.arjuna.abstractrecords.LastResourceRecord.topLevelPrepare(LastResourceRecord.java:152)
+	at com.arjuna.ats.arjuna.coordinator.AbstractRecord.topLevelOnePhaseCommit(AbstractRecord.java:428)
+	at com.arjuna.ats.arjuna.coordinator.BasicAction.onePhaseCommit(BasicAction.java:2317)
+	at com.arjuna.ats.arjuna.coordinator.BasicAction.prepare(BasicAction.java:2110)
+	at com.arjuna.ats.arjuna.coordinator.BasicAction.End(BasicAction.java:1481)
+	at com.arjuna.ats.arjuna.coordinator.TwoPhaseCoordinator.end(TwoPhaseCoordinator.java:96)
+	at com.arjuna.ats.arjuna.AtomicAction.commit(AtomicAction.java:162)
+	at com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionImple.commitAndDisassociate(TransactionImple.java:1166)
+	at com.arjuna.ats.internal.jta.transaction.arjunacore.BaseTransaction.commit(BaseTransaction.java:126)
+	at com.arjuna.ats.jbossatx.BaseTransactionManagerDelegate.commit(BaseTransactionManagerDelegate.java:75)
+	at org.jboss.as.ejb3.tx.CMTTxInterceptor.endTransaction(CMTTxInterceptor.java:93) [wildfly-ejb3-8.2.1.Final.jar:8.2.1.Final]
+{noformat}
+
+and the EJB invocation succeeds.
+
+I would expect the EJB to receive a RollbackException since the commit failed with XAException.XA_RBROLLBACK.
+
+Debugging BasicAction.prepare(), I can see that because the outcome of prepare is TwoPhaseOutcome.PREPARE_READONLY, one phase commit optimization is applied and onePhaseCommit() is called where the outcome TwoPhaseOutcome.ONE_PHASE_ERROR isn't considered an error as far as I understand.
+Then TwoPhaseOutcome.PREPARE_ONE_PHASE_COMMITTED is returned from BasicAction.prepare().
+
+I would never expect the EJB invocation to succeed if any participant in the transaction fails to commit.",2015/12/12 6:57 PM
+JBTM-2579,"It is possible for a resource that we are wrapping to return say XA_RETRY or XA_RMFAIL and therefore end up in the BasicAction failed list. However there is no error returned from commit in this circumstance as the recovery manager should ensure a consistent outcome.
+
+The reason this becomes a problem for JTA and XATerminator in particular is that as no error is returned a parent coordinator will assume the branch completed successfully. In the future when it calls XATerminator::recover though this branch will be returned and detected as an orphan.",2015/12/08 6:46 AM
+JBTM-2575,"There is a check in the subordinate orphan detection that not only checks for matching gtrid but also for matching subordinate name. This will not match correctly for an intermediary node. E.g.
+ a->b b->c
+
+When b scans c the xid it gets back will have subordinate name of c, b will look in its object store and match the subordinate on gtrid but the subordinate node ID in b subordinateatomicaction will be ""b"".
+
+This check is actually superfluous anyway. We already know that the Xid returned from c was for b because of transport level checks.",2015/12/02 4:33 PM
+JBTM-2574,The detail should see in the discuss JBTM-2553. The workaround is use the $0 instead of $this now.,2015/12/02 7:46 AM
+JBTM-2573,"currently the ArjunaJTA/jta commitmarkable tests fails when running under the codeCoverage. The root cause is that the jbossts properties file does not set to the ""commitmarkableresourcejbossts-properties.xml"".
+
+The surefire-plugin config the system property com.arjuna.ats.arjuna.common.propertiesFile with ""jbossts-properties.xml"" in the codeCoverage profile
+https://github.com/jbosstm/narayana/blob/master/pom.xml#L645
+
+So the https://github.com/jbosstm/narayana/blob/master/ArjunaJTA/jta/tests/classes/com/hp/mwtests/ts/jta/commitmarkable/TestCommitMarkableResourceBase.java#L64
+{code}
+resetPropertiesFile = System
+	.getProperty(""com.arjuna.ats.arjuna.common.propertiesFile"");
+if (resetPropertiesFile == null) {
+	System.setProperty(""com.arjuna.ats.arjuna.common.propertiesFile"",
+		""commitmarkableresourcejbossts-properties.xml"");
+}
+{code}
+
+the resetPropertiesFile does not be null and the if check statement is false, so the System.setProperty(...) can not run and the property is still the jbossts-properties.xml.
+
+the resetPropertiesFile could be used to revert to the origin value in the tearDown()
+https://github.com/jbosstm/narayana/blob/master/ArjunaJTA/jta/tests/classes/com/hp/mwtests/ts/jta/commitmarkable/TestCommitMarkableResourceBase.java#L79
+{code}
+if (resetPropertiesFile != null) {
+	System.setProperty(""com.arjuna.ats.arjuna.common.propertiesFile"",
+		resetPropertiesFile);
+} else {
+	System.clearProperty(""com.arjuna.ats.arjuna.common.propertiesFile"");
+}
+{code}
+
+This failure does not happen in the default profile as the surefire-plugin does not set this system property in the profile.
+
+",2015/12/02 7:44 AM
+JBTM-2569,During investigation of https://issues.jboss.org/browse/JBEAP-1750 it was discovered that there exists an issue in XARecoveryModule where if the object store transaction log check throws an exception during orphan detection then the record is treated as if it does not have a log.,2015/11/26 10:22 AM
+JBTM-2566,Detected during https://issues.jboss.org/browse/JBTM-2565 and worked around in CMR but it should  be reviewed for the tooling use cases.,2015/11/19 12:47 PM
+JBTM-2540,"{code}
+[INFO] ------------------------------------------------------------------------                                                                                                                                                              
+[INFO] Reactor Summary:                                                                                                                                                                                                                      
+[INFO]                                                                                                                                                                                                                                       
+[INFO] WildFly: Blacktie Subsystem Parent ................ SUCCESS [0.932s]                                                                                                                                                                  
+[INFO] WildFly: Blacktie Subsystem ....................... SUCCESS [3.568s]                                                                                                                                                                  
+[INFO] WildFly: Blacktie Feature Pack .................... SUCCESS [0.725s]                                                                                                                                                                  
+[INFO] WildFly: Blacktie Subsystem Build ................. FAILURE [4.928s]                                                                                                                                                                  
+[INFO] ------------------------------------------------------------------------                                                                                                                                                              
+[INFO] BUILD FAILURE                                                                                                                                                                                                                         
+[INFO] ------------------------------------------------------------------------                                                                                                                                                              
+[INFO] Total time: 10.345s                                                                                                                                                                                                                   
+[INFO] Finished at: Wed Oct 21 16:40:05 BST 2015                                                                                                                                                                                             
+[INFO] Final Memory: 51M/234M                                                                                                                                                                                                                
+[INFO] ------------------------------------------------------------------------                                                                                                                                                              
+[ERROR] Failed to execute goal org.wildfly.build:wildfly-server-provisioning-maven-plugin:1.1.0.CR1:build (server-provisioning) on project wildfly-blacktie-build: Execution server-provisioning of goal org.wildfly.build:wildfly-server-pro
+visioning-maven-plugin:1.1.0.CR1:build failed: java.lang.RuntimeException: java.lang.NullPointerException -> [Help 1]                                                                                                                        
+{code}",2015/10/21 11:43 AM
+JBTM-2530,"http://albany.eng.hst.ams2.redhat.com/job/narayana-codeCoverage/240/console
+
+The qa build is attempting to instrument java classes.",2015/10/01 9:29 AM
+JBTM-2523,activemq-artimes upgrades from 1.0.0 to 1.1.0-wildfly-6 and the journal package name also changes.,2015/09/24 2:18 AM
+JBTM-2503,"It looks like the deprecated api has been removed in the wildfly-core upgrading to 2.0.0.Beta5.
+http://albany.eng.hst.ams2.redhat.com/job/narayana-catelyn/989/console
+http://albany.eng.hst.ams2.redhat.com/job/narayana/922/
+
+{code}
+Caused by: java.lang.NoSuchMethodError: org.jboss.as.controller.registry.ManagementResourceRegistration.registerOperationHandler(Ljava/lang/String;Lorg/jboss/as/controller/OperationStepHandler;Lorg/jboss/as/controller/descriptions/DescriptionProvider;ZLorg/jboss/as/controller/registry/OperationEntry$EntryType;)V
+	at org.wildfly.extension.blacktie.BlacktieSubsystemExtension.initialize(BlacktieSubsystemExtension.java:80)
+	at org.jboss.as.controller.extension.ExtensionAddHandler.initializeExtension(ExtensionAddHandler.java:131) [wildfly-controller-2.0.0.Beta5.jar:2.0.0.Beta5]
+	at org.jboss.as.controller.extension.ExtensionAddHandler.initializeExtension(ExtensionAddHandler.java:104) [wildfly-controller-2.0.0.Beta5.jar:2.0.0.Beta5]
+	at org.jboss.as.controller.extension.ParallelExtensionAddHandler$ExtensionInitializeTask.call(ParallelExtensionAddHandler.java:144) [wildfly-controller-2.0.0.Beta5.jar:2.0.0.Beta5]
+	at org.jboss.as.controller.extension.ParallelExtensionAddHandler$ExtensionInitializeTask.call(ParallelExtensionAddHandler.java:127) [wildfly-controller-2.0.0.Beta5.jar:2.0.0.Beta5]
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266) [rt.jar:1.8.0_45]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142) [rt.jar:1.8.0_45]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617) [rt.jar:1.8.0_45]
+	at java.lang.Thread.run(Thread.java:745) [rt.jar:1.8.0_45]
+	at org.jboss.threads.JBossThread.run(JBossThread.java:320) [jboss-threads-2.2.1.Final.jar:2.2.1.Final]
+{code}",2015/09/02 2:55 AM
+JBTM-2487,"Offending code: https://github.com/jbosstm/narayana/blob/5.2.1.Final/ArjunaCore/arjuna/classes/com/arjuna/ats/internal/arjuna/objectstore/jdbc/JDBCImple_driver.java#L649
+
+Technique to use:
+https://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html",2015/08/07 12:14 PM
+JBTM-2486,"As reported by IronJacamar team we should treat the JDBC resources as a stack.
+
+Specific case reported:
+https://github.com/jbosstm/narayana/blob/5.2.1.Final/ArjunaCore/arjuna/classes/com/arjuna/ats/internal/arjuna/objectstore/jdbc/JDBCImple_driver.java#L347
+https://github.com/jbosstm/narayana/blob/5.2.1.Final/ArjunaCore/arjuna/classes/com/arjuna/ats/internal/arjuna/objectstore/jdbc/JDBCImple_driver.java#L352
+https://gist.github.com/maeste/835073a1e8ea6e38b9bd",2015/08/07 9:33 AM
+JBTM-2460,"TransactionListenerRegistry is for clients to register for transaction related events and is implemented by the TransactionManager but the SPI does not allow the user to discover the interface which means they have to write unpleasant code like:
+{code}
+(TransactionListenerRegistry) getTransactionManager();
+{code}
+
+So we need a method in the SPI to get and set an instance of the interface. The setter will be for the container to set it and the getter is for clients to register interest in the events
+",2015/07/15 5:18 AM
+JBTM-2455,"It seems as part of JBTM-2395 it seems the generation of the uber javadoc jar was accidentally disabled. It should be re-enabled for the next release.
+
+Workaround was to mod the pom during the release.",2015/07/08 5:11 AM
+JBTM-2426,"junit test failure:
+{code}
+Running com.jboss.transaction.wstf.interop.Sc007Test
+Tests run: 15, Failures: 1, Errors: 1, Skipped: 0, Time elapsed: 326.369 sec <<< FAILURE!
+test3_10(com.jboss.transaction.wstf.interop.Sc007Test)  Time elapsed: 212.002 sec  <<< FAILURE!
+junit.framework.AssertionFailedError: Conversation did not complete successfully
+	at junit.framework.Assert.fail(Assert.java:57)
+	at junit.framework.Assert.assertTrue(Assert.java:22)
+	at junit.framework.TestCase.assertTrue(TestCase.java:192)
+	at com.jboss.transaction.wstf.interop.Sc007TestCase.test3_10(Sc007TestCase.java:474)
+	at com.jboss.transaction.wstf.interop.Sc007Test.test3_10(Sc007Test.java:176)
+
+test3_11(com.jboss.transaction.wstf.interop.Sc007Test)  Time elapsed: 1.608 sec  <<< ERROR!
+com.arjuna.wst.TransactionRolledBackException: null
+	at com.arjuna.wst11.stub.CompletionStub.commit(CompletionStub.java:65)
+	at com.jboss.transaction.wstf.interop.Sc007TestCase.test3_11(Sc007TestCase.java:495)
+	at com.jboss.transaction.wstf.interop.Sc007Test.test3_11(Sc007Test.java:181)
+
+
+Results :
+
+Failed tests: 
+  Sc007Test.test3_10:176 Conversation did not complete successfully
+
+Tests in error: 
+  Sc007Test.test3_11:181 » TransactionRolledBack
+{code}",2015/06/04 1:24 PM
+JBTM-2423,"ORBRunner.java starts an orb using orb().run() but then performs operations on the orb after the run() method returns. According to the CORBA spec this is invalid:
+{quote}
+Once an ORB has shutdown, only object reference management operations(duplicate,
+release and is_nil) may be invoked on the ORB or any object reference obtained
+from it.
+{quote}
+Note that when the orb.run() method returns the orb has shutdown because, for the run method, the spec states:
+
+{quote}
+This operation will block until the ORB has completed the shutdown process,
+{quote}
+
+This issue has arisen because of a change made to our fork of the jdk orb: in the jdk orb shutdown method we join with all the orb runners. This results in deadlock:
+
+# com.arjuna.orbportability.ORB.shutdown is a synchronized method and it calls shutdown on the jdk orb;
+# shutdown on the jdk orb notifies the ORBRunner thread which now tries to call back into a synchronized method of com.arjuna.orbportability.ORB but is blocked because the monitor is held
+# at this point the jdk orb shutdown would normally then return allowing the 
+the ORBRunner thread to make progress but a recent change now means that the jdk orb shutdown method performs a join() on the various ORBRunner threads",2015/05/26 11:48 AM
+JBTM-2404,"The job config fails to produce the report if we don't run any qa tests during a build. See the following job for example:
+
+http://albany.eng.hst.ams2.redhat.com/job/narayana-codeCoverage/194/consoleFull",2015/05/13 6:57 AM
+JBTM-2395,"WFLY has updated to JDK8, this means due to our build approach (early integration testing and BlackTie) we need to make sure we are compatible with JDK8. Currently there are Javadoc errors.",2015/05/08 5:54 AM
+JBTM-2385,"AtomicAction treats a null resume as a suspend. The code for the listener does not appear aware of this special behaviour.
+
+PR to come shortly to help explain (including comment in AA so you can see where the behaviour is defined).",2015/04/30 9:54 AM
+JBTM-2362,"http://albany.eng.hst.ams2.redhat.com/view/Status/job/narayana/PROFILE=MAIN,jdk=jdk7.latest,label=linux/797/
+",2015/04/13 5:36 AM
+JBTM-2356,"See linked forum post:
+
+Start two serves A and B with the coordinator running on A and a participant on server B. Crash server B just before commit. When server B comes back up the coordinator fails to recover the transaction and returns 404 when asked about the transaction.",2015/04/01 11:43 AM
+JBTM-2353,"@TXCompensate, @TXConfirm, and @TxLogged interceptors throw exception, if there is not transaction. However, transaction availability check is also done by @Compensatable interceptor.",2015/03/19 11:06 AM
+JBTM-2349,"https://github.com/jbosstm/narayana/blob/master/compensations/src/main/java/org/jboss/narayana/compensations/impl/ParticipantImpl.java#L95
+https://github.com/jbosstm/narayana/blob/master/compensations/src/main/java/org/jboss/narayana/compensations/impl/ParticipantImpl.java#L118
+
+If there are two handlers (compensation or confirmation), which need to access the same compensation scoped object, only the first one will succeed. Once the first handler is invoked from the ParticipantImpl, CompensationScope is destroyed.",2015/03/05 4:03 AM
+JBTM-2336,"http://albany.eng.hst.ams2.redhat.com/view/Status/job/narayana/736/PROFILE=QA_JTA,jdk=jdk7.latest,label=linux",2015/02/02 5:42 AM
+JBTM-2333,"http://albany.eng.hst.ams2.redhat.com/view/Status/job/narayana/731/
+
+{code}
+[ERROR] Failed to execute goal org.wildfly.build:wildfly-feature-pack-build-maven-plugin:1.0.0.Alpha8:build (feature-pack-build) on project wildfly-blacktie-feature-pack: Execution feature-pack-build of goal org.wildfly.build:wildfly-feature-pack-build-maven-plugin:1.0.0.Alpha8:build failed: java.lang.RuntimeException: Some errors were encountered creating the feature pack
+[ERROR] Missing module ModuleIdentifier{name='org.jacorb', slot='main'}. Module was required by [ModuleIdentifier{name='org.wildfly.extension.blacktie', slot='main'}]
+[ERROR] -> [Help 1]
+{code}",2015/01/19 5:54 AM
+JBTM-2327,"it does not copy the artifact into the module folder as it looks like missing the ""copy-module-artifacts=""true"" in the server-provisioning.xml ",2015/01/08 9:24 PM
+JBTM-2291,"ObjStoreBrowser::probe uses System.currentTimeMillis to determine whether its list of allUids contains stale date during updateMBeans call.
+
+Now if you imagine a clock which never moved on (low fidelity) then this would mean that a Uid was never eligible to be reaper from this list.
+
+Or imagine a machine that is very fast (my laptop for example) and it is possible that probe, remove entry, probe can all be called in the same millisecond.",2014/11/18 12:26 PM
+JBTM-2290,"http://albany.eng.hst.ams2.redhat.com/view/Status/job/narayana-windows2008-catelyn/776/
+
+{code}
+From https://github.com/wildfly/wildfly
+ * branch            master     -> FETCH_HEAD
+ * [new branch]      master     -> upstream/master
+First, rewinding head to replay your work on top of it...
+Auto-merging pom.xml
+[detached HEAD a40514f] Upgrade Narayana to 5.0.4.Final-SNAPSHOT
+ Author: Tom Jenkinson <tom.jenkinson@redhat.com>
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+Committed: 0001 Upgrade Narayana to 5.0.4.Final-SNAPSHOT
+All done.
+'gawk' is not recognized as an internal or external command,
+operable program or batch file.
+""AS version is ""
+Build step 'Execute Windows batch command' marked build as failure
+Archiving artifacts
+Sending e-mails to: gtrikler@redhat.com
+Warning: you have no plugins providing access control for builds, so falling back to legacy behavior of permitting any downstream builds to be triggered
+Finished: FAILURE
+{code}",2014/11/17 6:03 AM
+JBTM-2289,"http://albany.eng.hst.ams2.redhat.com/view/Status/job/narayana/685/PROFILE=QA_JTA,jdk=jdk7.latest,label=linux/
+
+{code}
+BUILD FAILED
+/home/hudson/workspace/narayana/PROFILE/QA_JTA/jdk/jdk7.latest/label/linux/qa/run-tests.xml:111: some tests failed
+
+Total time: 148 minutes 16 seconds
+Test Failures:
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test019 Fail (2m52.176s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test020 Fail (1m48.440s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test021 Fail (2m51.868s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test022 Fail (1m48.429s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test029 Fail (2m56.246s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test030 Fail (1m48.966s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test031 Fail (2m56.454s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test032 Fail (1m49.092s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test008 Fail (2m47.491s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test009 Fail (1m48.420s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test010 Fail (2m45.377s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test011 Fail (1m49.096s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test012 Fail (2m48.005s)
+jdbcresources01_oracle_thin_jndi JDBCResources01_abstract_Test013 Fail (1m48.328s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test019 Fail (2m51.740s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test020 Fail (1m48.531s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test021 Fail (2m51.655s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test022 Fail (1m48.485s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test029 Fail (2m56.792s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test030 Fail (1m48.883s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test031 Fail (2m56.524s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test032 Fail (1m48.943s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test008 Fail (2m45.500s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test009 Fail (1m48.318s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test010 Fail (2m47.985s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test011 Fail (1m48.492s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test012 Fail (2m45.681s)
+jdbcresources02_oracle_thin_jndi JDBCResources02_abstract_Test013 Fail (1m48.303s)
+Buildfile: /home/hudson/workspace/narayana/PROFILE/QA_JTA/jdk/jdk7.latest/label/linux/qa/run-tests.xml
+{code}",2014/11/17 5:49 AM
+JBTM-2277,"http://172.17.131.2/view/Status/job/narayana-AS800/628/
+
+{code}
+[ERROR] GC overhead limit exceeded -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/OutOfMemoryError
+{code}",2014/10/27 5:56 AM
+JBTM-2276,It needs to upgrade the wildfly build-tools and the server-provisioning.xml,2014/10/23 2:56 AM
+JBTM-2274,"Currently all JTS transaction records are moved to assumed complete store after 3 recovery tries. This is not good if the transaction has a heuristic outcome. It leads to the heuristic participant being rolled back, because recovery coordinator cannot see the log record after the move.
+
+Creating separate locations for such heuristic transactions and checking their status during replay_completion would solve the problem.",2014/10/22 10:48 AM
+JBTM-2272,"See the reproduce steps in https://bugzilla.redhat.com/show_bug.cgi?id=1098127
+and the description in https://issues.jboss.org/browse/WFLY-3548",2014/10/20 9:10 AM
+JBTM-2268,"The last run (http://172.17.131.2/job/narayana-hqstore-jacorb/74/) failed for two reasons:
+1) qa test failures because of a change of netty version: NoClassDefFoundError: org/jboss/netty/buffer/ChannelBuffers
+2) org.jboss.jbossts.qa.junit.TaskImpl stuck waiting on a lock (jstack trace attached)",2014/10/07 10:55 AM
+JBTM-2242,"Recovery scans can delay subsystem deployments because of contention on the lock XARecoveryModule#_xaResourceRecoveryHelpers:
+
+ XARecoveryModule#resourceInitiatedRecoveryForRecoveryHelpers takes the lock and then makes calls to the resource which can potentially hang transiently. Meanwhile, deployments which register recovery helpers are delayed whilst waiting for the lock to be released (in XARecoveryModule#addXAResourceRecoveryHelper).",2014/08/22 1:45 PM
+JBTM-2240,http://172.17.131.2/view/Status/job/narayana/615/,2014/08/22 5:38 AM
+JBTM-2226,"MAVEN_OPTS unset
+
+mark@debian:~/Desktop/narayana$ ./build.sh -am -l :arjunacore
+./build.sh: 42: ./build.sh: [[: not found",2014/07/13 2:03 PM
+JBTM-2217,"There are a couple of warnings about streams that are not correctly closed. Currently these will be closed by the finalize method of the class.
+
+Changes required in:
+	modified:   ArjunaCore/arjuna/tests/classes/com/hp/mwtests/ts/arjuna/file/FileLockingUnitTest.java
+	modified:   ArjunaJTA/jta/tests/classes/com/hp/mwtests/ts/jta/recovery/XARRTestResource.java
+	modified:   ArjunaJTS/jts/tests/classes/com/hp/mwtests/ts/jts/utils/TaskMonitor.java
+	modified:   ArjunaJTS/orbportability/classes/com/arjuna/orbportability/Services.java
+	modified:   qa/tests/src/org/jboss/jbossts/qa/CrashRecovery12Outcomes/Outcome01.java
+	modified:   qa/tests/src/org/jboss/jbossts/qa/junit/TaskImpl.java
+",2014/07/04 11:52 AM
+JBTM-2181,NoData,2014/05/20 5:55 AM
+JBTM-2171,"./scripts/hudson/narayana-rebase.sh:
+
+{quote}
+git log $ancestorMaster..$myRev | grep commit | wc | cut -c 1-7 | tr -d ' '
+git log $ancestor417..$myRev | grep commit | wc | cut -c 1-7 | tr -d ' '
+{quote}
+
+The files from wc are columns wide on Mac rather than 7 on Linux. You could put 1-8 and hope there weren't too many words but its dangerous. Probably an if-then-else required.",2014/05/12 6:35 AM
+JBTM-2170,"http://172.17.131.2/view/Narayana+BlackTie/job/narayana-codeCoverage/118
+
+{code}
+BUILD SUCCESSFUL
+Total time: 510 minutes 46 seconds
+generating test coverage report
+Buildfile: /home/hudson/workspace/narayana-codeCoverage/qa/run-tests.xml
+
+jacoco-report:
+[jacoco:report] Loading execution data file /home/hudson/workspace/narayana-codeCoverage/qa/testoutput/jacoco-qa.exec
+
+BUILD FAILED
+/home/hudson/workspace/narayana-codeCoverage/qa/run-tests.xml:540: Error while creating report
+
+Total time: 8 seconds
+Buildfile: /home/hudson/workspace/narayana-codeCoverage/qa/run-tests.xml
+
+has-testoutput-output:
+
+testoutput.zip:
+     [echo] archiving testoutput to testoutput-jacorb.zip
+      [zip] Building zip: /home/hudson/workspace/narayana-codeCoverage/qa/testoutput-jacorb.zip
+
+BUILD SUCCESSFUL
+Total time: 9 seconds
++ rm -rf /home/hudson/.m2/repository/org/jboss/narayana
++ cd qa
++ ant -f run-tests.xml jacoco-report
+Buildfile: /home/hudson/workspace/narayana-codeCoverage/qa/run-tests.xml
+
+jacoco-report:
+[jacoco:report] Loading execution data file /home/hudson/workspace/narayana-codeCoverage/qa/testoutput/jacoco-qa.exec
+
+BUILD FAILED
+/home/hudson/workspace/narayana-codeCoverage/qa/run-tests.xml:540: Error while creating report
+
+Total time: 9 seconds
+Build step 'Execute shell' marked build as failure
+Archiving artifacts
+Sending e-mails to: gtrikler@redhat.com
+Finished: FAILURE
+{code}",2014/05/12 5:47 AM
+JBTM-2162,"If a transaction containing an XA and a CMR resource is committed and the CMR resource fails the commit then the warning message mentions onePhaseCommit. Even though the CMR is in reality a one phase resource the message can be confusing. 
+
+Please change the message to something more generic.",2014/05/01 7:32 AM
+JBTM-2147,"EDITED BY TOM (to remove the report about the transaction not being disassociated):
+If the reaper calls cancel on a transaction that is wedged, the transaction stays in 'aborting' state but it notifes Synchronizations that the tx has ended contrary to the spec.
+This can be reproduced as follows: 
+* A TX is started and both a DB (last)resource and horntq (XA) resource get enlisted. The tx takes a long time and times out. 
+* Arjuna reaper thread notices the time out and starts a worker thread to cancel the TX. 
+* Before the worker thread can 'abort' the hornetq XA resource, the arjuna worker thread is interruped (txReaperCancelWaitPeriod expires) by arjuna
+* Since the worker thread is interruped, the hornetq XA resource throws an 'HornetQInterruptedException'
+* This unexpected exception causes arjuna to notify registered javax/transaction/Synchronization's (and return DB connection to the pool), without ending the Tx. 
+
+
+ORIGINAL DESCRIPTION:
+We have noticed that arjuna leaks transactions when something 'unexpected' happens during tx aborting. The transaction stays in 'aborting' state while it does notify TxLIsteners that the tx has ended. 
+
+
+This can be reproduced as follows: 
+* A TX is started and both a DB (last)resource and horntq (XA) resource get enlisted. The tx takes a long time and times out. 
+* Arjuna reaper thread notices the time out and starts a worker thread to cancel the TX. 
+* Before the worker thread can 'abort' the hornetq XA resource, the arjuna worker thread is interruped (txReaperCancelWaitPeriod expires) by arjuna
+* Since the worker thread is interruped, the hornetq XA resource throws an 'HornetQInterruptedException'
+* This unexpected exception causes arjuna to notify registered javax/transaction/Synchronization's (and return DB connection to the pool), without ending the Tx. 
+
+From then on, jboss logs are full of: 
+
+Trying to start a new transaction when old is not complete: Old: < formatId=131077, gtrid_length=29, bqual_length=36, tx_uid=0:ffff40bab98c:1f71a485:5335ece7:3625a31, node_name=1, branch_uid=0:ffff40bab98c:1f71a485:5335ece7:3625bbc, subordinatenodename=null, eis_name=java:/XAOracleDS >, New < formatId=131077, gtrid_length=29, bqual_length=36, tx_uid=0:ffff40bab98c:1f71a485:5335ece7:3641efc, node_name=1, branch_uid=0:ffff40bab98c:1f71a485:5335ece7:36420a1, subordinatenodename=null, eis_name=java:/XAOracleDS >, Flags 0
+
+
+Although the root cause is a misbehaving hornetq resource, I think arjuna should be a bit more resilient. 
+
+More background in https://access.redhat.com/support/cases/01061583/",2014/04/07 3:43 PM
+JBTM-2144,"{code}
+ [java] java.lang.IllegalStateException: Could not find '[subsystem=../../../../../../jboss-as/build/src/main/resources/configuration/subsystems/threads.xml, supplement=null]'
+{code}
+
+the threads.xml has been removed in the wildfly commit
+https://github.com/wildfly/wildfly/commit/8caaf561bfc583314cbfee189d2b0f8f075420db#diff-8762a512e2f647f39cae6678929913e5",2014/04/04 2:34 AM
+JBTM-2130,http://172.17.131.2/view/Narayana+BlackTie/job/narayana-jdbcobjectstore/66/,2014/03/24 5:34 AM
+JBTM-2123,"http://172.17.131.2/view/Narayana+BlackTie/job/narayana/462/
+
+{code}
+org.jboss.narayana.blacktie.jatmibroker.core.conf.ConfigurationException: Could not create the orb management function
+	at org.jacorb.orb.iiop.ClientIIOPConnection.connect(Unknown Source)
+	at org.jacorb.orb.giop.GIOPConnection.sendMessage(Unknown Source)
+	at org.jacorb.orb.giop.GIOPConnection.sendRequest(Unknown Source)
+	at org.jacorb.orb.giop.ClientConnection.sendRequest(Unknown Source)
+	at org.jacorb.orb.giop.ClientConnection.sendRequest(Unknown Source)
+	at org.jacorb.orb.Delegate.invoke_internal(Unknown Source)
+	at org.jacorb.orb.Delegate.invoke(Unknown Source)
+	at org.jacorb.orb.Delegate.is_a(Unknown Source)
+	at org.omg.CORBA.portable.ObjectImpl._is_a(ObjectImpl.java:130)
+	at org.omg.CosNaming.NamingContextExtHelper.narrow(NamingContextExtHelper.java:73)
+	at org.jboss.narayana.blacktie.jatmibroker.core.transport.OrbManagement.<init>(OrbManagement.java:76)
+	at org.jboss.narayana.blacktie.jatmibroker.core.transport.OrbManagement.getInstance(OrbManagement.java:42)
+	at org.jboss.narayana.blacktie.jatmibroker.core.transport.TransportFactory.<init>(TransportFactory.java:47)
+	at org.jboss.narayana.blacktie.jatmibroker.xatmi.server.BlackTieServer.<init>(BlackTieServer.java:89)
+	at org.jboss.narayana.blacktie.jatmibroker.xatmi.server.BlackTieServerTestCase.setUp(BlackTieServerTestCase.java:31)
+{code}
+
+{code}
+Tests in error: 
+  TestConnection.setUp:29 » Configuration Could not create the orb management fu...
+  TestRollbackOnly.setUp:43 » Configuration Could not create the orb management ...
+  TestRollbackOnly.setUp:43 » Configuration Could not create the orb management ...
+  TestRollbackOnly.setUp:43 » Configuration Could not create the orb management ...
+  TestRollbackOnly.setUp:43 » Configuration Could not create the orb management ...
+  TestRollbackOnly.setUp:43 » Configuration Could not create the orb management ...
+  TestSpecQuickstartOne.setUp:38 » Configuration Could not create the orb manage...
+  TestSpecQuickstartTwo.setUp:33 » Configuration Could not create the orb manage...
+  TestTPACall.setUp:33 » Configuration Could not create the orb management funct...
+  TestTPACall.setUp:33 » Configuration Could not create the orb management funct...
+  TestTPAlloc.setUp:37 » Configuration Could not create the orb management funct...
+  TestTPAlloc.setUp:37 » Configuration Could not create the orb management funct...
+  TestTPAlloc.setUp:37 » Configuration Could not create the orb management funct...
+  TestTPAlloc.setUp:37 » Configuration Could not create the orb management funct...
+  TestTPAlloc.setUp:37 » Configuration Could not create the orb management funct...
+  TestTPAlloc.setUp:37 » Configuration Could not create the orb management funct...
+  TestTPAlloc.setUp:37 » Configuration Could not create the orb management funct...
+  TestTPAlloc.setUp:37 » Configuration Could not create the orb management funct...
+  TestTPAlloc.setUp:37 » Configuration Could not create the orb management funct...
+  TestTPAlloc.setUp:37 » Configuration Could not create the orb management funct...
+  TestTPAlloc.setUp:37 » Configuration Could not create the orb management funct...
+  TestTPCall.setUp:36 » Configuration Could not create the orb management functi...
+  TestTPCall.setUp:36 » Configuration Could not create the orb management functi...
+  TestTPCall.setUp:36 » Configuration Could not create the orb management functi...
+  TestTPCall.setUp:36 » Configuration Could not create the orb management functi...
+  TestTPCall.setUp:36 » Configuration Could not create the orb management functi...
+  TestTPCancel.setUp:33 » Configuration Could not create the orb management func...
+  TestTPCancel.setUp:33 » Configuration Could not create the orb management func...
+  TestTPCancel.setUp:33 » Configuration Could not create the orb management func...
+  TestTPConnect.setUp:38 » Configuration Could not create the orb management fun...
+  TestTPConnect.setUp:38 » Configuration Could not create the orb management fun...
+  TestTPConnect.setUp:38 » Configuration Could not create the orb management fun...
+  TestTPConversation.setUp:39 » Configuration Could not create the orb managemen...
+  TestTPConversation.setUp:39 » Configuration Could not create the orb managemen...
+  TestTPDiscon.setUp:34 » Configuration Could not create the orb management func...
+  TestTPGetRply.setUp:35 » Configuration Could not create the orb management fun...
+  TestTPGetRply.setUp:35 » Configuration Could not create the orb management fun...
+  TestTPGetRply.setUp:35 » Configuration Could not create the orb management fun...
+  TestTPGetRply.setUp:35 » Configuration Could not create the orb management fun...
+  TestTPGetRply.setUp:35 » Configuration Could not create the orb management fun...
+  TestTPGetRply.setUp:35 » Configuration Could not create the orb management fun...
+  TestTPRecv.setUp:35 » Configuration Could not create the orb management functi...
+  TestTPReturn.setUp:33 » Configuration Could not create the orb management func...
+  TestTPReturn.setUp:33 » Configuration Could not create the orb management func...
+  TestTPReturn.setUp:33 » Configuration Could not create the orb management func...
+  TestTPSend.setUp:35 » Configuration Could not create the orb management functi...
+  TestTPSend.setUp:35 » Configuration Could not create the orb management functi...
+  TestTPSend.setUp:35 » Configuration Could not create the orb management functi...
+  TestTPService.setUp:35 » Configuration Could not create the orb management fun...
+  TestTimeToLive.setUp:33 » Configuration Could not create the orb management fu...
+  TestTopic.setUp:33 » Configuration Could not create the orb management functio...
+  TestTopic.setUp:33 » Configuration Could not create the orb management functio...
+  BlackTieServerTestCase.setUp:31 » Configuration Could not create the orb manag...
+  BlackTieServerTestCase.setUp:31 » Configuration Could not create the orb manag...
+  BlackTieServerTestCase.setUp:31 » Configuration Could not create the orb manag...
+  BlackTieServerTestCase.setUp:31 » Configuration Could not create the orb manag...
+  BlackTieServerTestCase.setUp:31 » Configuration Could not create the orb manag...
+{code}",2014/03/12 7:45 AM
+JBTM-2102,"http://172.17.131.2/view/Narayana+BlackTie/job/narayana/431/PROFILE=QA_JTS_JACORB,jdk=jdk7.latest,label=linux",2014/02/24 6:38 AM
+JBTM-2094,"http://172.17.131.2/view/Narayana+BlackTie/job/narayana/422/PROFILE=QA_JTS_JACORB,jdk=jdk7.latest,label=linux",2014/02/13 5:36 AM
+JBTM-3729,"I cannot find any https://github.com/jbosstm/quickstart/releases (https://github.com/jbosstm/narayana/blob/main/narayana-full/readme.txt#LL62C9-L62C9)
+
+We could either start to create GitHub releases or change this to be a URL like:
+https://github.com/jbosstm/quickstart/archive/refs/tags/<VERSION>.zip",2022/12/19 3:19 PM
+JBTM-3664,"It looks like a typo to set `AS_TEST=0` as I don't think AS_TEST is handled. On the other hand AS_TESTS is.
+
+I don't expect this would cause a functional change right now as the AS_TESTS is initialized to zero if it is not already set.",2022/08/02 2:37 PM
+JBTM-2753,End method from PGXAConnection has been called twice when an EJB called another EJB to get data from psql database (9.2.5),2016/09/13 5:29 AM
+JBTM-2752,"max_prepared_statement is required on the file (postgre.conf) to connect on pgsql base.
+
+If this option wasn't activate, the method end is called twice on PGXAConnection
+
+Please find below original discussion :
+https://developer.jboss.org/message/958507#958507",2016/09/13 5:06 AM
+JBTM-2730,"Narayana uses system default encoding when encode and decode data for object store. This could be a trouble if user uses non-ASCII characters for node identifier and object store is meanwhile moved between machines with different default encodings.
+
+I've currently revealed two cases which could cause a trouble:
+
+* node id set as {{...}} _(there is needed to use some characters which are encoded in UTF-8 as more bytes characters)_ will let container being started for encoding ISO-8859-1 and won't be started for encoding UTF-8. That's when configuration moved from ISO-8859-1 machine to UTF-8 machine when the another machine will be expected to finish recovery of some failed txn the second machine fails to start. (sure, workaround is to set jvm default encoding via parameter {{-Dfile.encoding}})
+* node id set to {{kulaťoučký}}, whole eap installation moved from one machine with ISO-8859-1 to machine with default encoding set to UTF-8. Txn object store is copied too for second machine finishing in-doubt transaction by recovery. The second machine won't finish transactions which depends on node identifer check (bottom-up recovery) as node id will be decoded differently than it was understood at the first machine.
+
+This issue was found by using static code analysis and reacts to report message
+{code}
+21994 Dm: Dubious method used In org.jboss.narayana.osgi.jta.internal.ObjStoreBrowserImpl.ObjStoreBrowserImpl (com.arjuna.ats.arjuna.tools.osb.mbean.ObjStoreBrowser): Found a call to a method which will perform a byte to String (or String to byte) conversion, and will assume that the default platform encoding is suitable)
+{code}",2016/08/12 8:04 AM
+JBTM-2709,"While testing backport of JBTM-2614 I came across the ObjStoreBrowser test. This was failing on Windows. On looking into it I saw it was because the Browser map swaps the ""/"" in the type name to the system file separator path. This is likely because of the file system store. I have a fix that puts the entry in both ways but it will likely need some more work so providing as an example.",2016/07/27 4:48 AM

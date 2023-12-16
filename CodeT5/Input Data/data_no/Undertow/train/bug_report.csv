@@ -1,0 +1,2453 @@
+bug_report_id,bug_report_desc,bug_report_time
+UNDERTOW-1663,We need to properly handle the BUFFER_OVERFLOW ssl engine result at SslConduit.,2020/02/27 11:35 PM
+UNDERTOW-1646,"When uploading files using multi-part encoding, parameter count from request.getParameterMap() and request.getParameterNames() are different.
+
+It seems both methods attempt to filter out FileItem parameters, but the getParameterMap includes the parameter with an empty values list in the returned map.
+
+
+
+*Steps to reproduce:*
+# deploy attached reproducer
+# go to http://localhost:8080/reproducer
+# upload file
+Expected:
+{noformat}
+Parameter Map size: 1
+Parameter Names count: 1
+{noformat}
+Actual:
+{noformat}
+Parameter Map size: 2
+Parameter Names count: 1
+{noformat}",2020/01/23 5:44 AM
+UNDERTOW-1645,"AbstractFramedStreamSourceChannel.lastFrame sets 'state |= STATE_DONE | STATE_CLOSED;' prior to invoking close via 'IoUtils.safeClose(this);'. Setting STATE_CLOSED before the close method is called results in close returning immediately without invoking close listeners or notifying waiters.
+
+I imagine the state update should use 'state|= STATE_DONE;' to allow close to execute normally.",2020/01/22 11:28 AM
+UNDERTOW-1644,"The implementation without a timeout checks pendingFrameData.isEmpty, but the implementation with a timeout does not.
+
+This causes calls to awaitReadable(<timeout>) to hang unnecessarily.",2020/01/22 10:41 AM
+UNDERTOW-1643,"Worker thread:
+
+{noformat}
+""XNIO-1 task-5"" #29 prio=5 os_prio=0 cpu=190.11ms elapsed=79.57s tid=0x00007fc974016800 nid=0x8f5 waiting for monitor entry  [0x00007fc9b552c000]
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.close(AbstractFramedStreamSinkChannel.java:531)
+	- waiting to lock <0x0000000617a06050> (a io.undertow.protocols.http2.Http2HeadersStreamSinkChannel)
+	at org.xnio.IoUtils.safeClose(IoUtils.java:134)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.queueFrame(AbstractFramedChannel.java:741)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.queueFinalFrame(AbstractFramedStreamSinkChannel.java:265)
+	- locked <0x0000000617a06040> (a java.lang.Object)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.shutdownWrites(AbstractFramedStreamSinkChannel.java:248)
+	- locked <0x0000000617a06040> (a java.lang.Object)
+	at org.xnio.conduits.StreamSinkChannelWrappingConduit.terminateWrites(StreamSinkChannelWrappingConduit.java:75)
+	at org.xnio.conduits.ConduitStreamSinkChannel.shutdownWrites(ConduitStreamSinkChannel.java:178)
+	at io.undertow.channels.DetachableStreamSinkChannel.shutdownWrites(DetachableStreamSinkChannel.java:79)
+	at io.undertow.io.UndertowOutputStream.close(UndertowOutputStream.java:347)
+	at io.undertow.server.HttpServerExchange$DefaultBlockingHttpExchange.close(HttpServerExchange.java:1932)
+	at io.undertow.server.HttpServerExchange.endExchange(HttpServerExchange.java:1626)
+	at io.undertow.server.Connectors.executeRootHandler(Connectors.java:416)
+	at io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:830)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(java.base@11.0.5/ThreadPoolExecutor.java:1128)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(java.base@11.0.5/ThreadPoolExecutor.java:628)
+	at java.lang.Thread.run(java.base@11.0.5/Thread.java:834)
+{noformat}
+
+I/O thread:
+
+
+{noformat}
+""XNIO-1 I/O-8"" #21 prio=5 os_prio=0 cpu=2207.61ms elapsed=82.85s tid=0x00007fca0469d800 nid=0x857 waiting for monitor entry  [0x00007fc9b633f000]
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.close(AbstractFramedStreamSinkChannel.java:536)
+	- waiting to lock <0x0000000617a06040> (a java.lang.Object)
+	- locked <0x0000000617a06050> (a io.undertow.protocols.http2.Http2HeadersStreamSinkChannel)
+	at org.xnio.IoUtils.safeClose(IoUtils.java:134)
+	at io.undertow.protocols.http2.Http2Channel.closeSubChannels(Http2Channel.java:650)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.close(AbstractFramedChannel.java:839)
+	at org.xnio.IoUtils.safeClose(IoUtils.java:134)
+	at io.undertow.protocols.http2.Http2Channel.handleBrokenSinkChannel(Http2Channel.java:633)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.markWritesBroken(AbstractFramedChannel.java:895)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.flushSenders(AbstractFramedChannel.java:707)
+	- locked <0x0000000617a18100> (a io.undertow.protocols.http2.Http2Channel)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.flush(AbstractFramedChannel.java:754)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.queueFrame(AbstractFramedChannel.java:747)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.queueFinalFrame(AbstractFramedStreamSinkChannel.java:265)
+	- locked <0x0000000617a06118> (a java.lang.Object)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.shutdownWrites(AbstractFramedStreamSinkChannel.java:248)
+	- locked <0x0000000617a06118> (a java.lang.Object)
+	at io.undertow.protocols.http2.Http2Channel.sendGoAway(Http2Channel.java:827)
+	at io.undertow.protocols.http2.Http2Channel.handleBrokenSourceChannel(Http2Channel.java:624)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.markReadsBroken(AbstractFramedChannel.java:867)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.receive(AbstractFramedChannel.java:488)
+	- locked <0x0000000617a18100> (a io.undertow.protocols.http2.Http2Channel)
+	at io.undertow.server.protocol.http2.Http2ReceiveListener.handleEvent(Http2ReceiveListener.java:118)
+	at io.undertow.server.protocol.http2.Http2ReceiveListener.handleEvent(Http2ReceiveListener.java:67)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel$FrameReadListener.handleEvent(AbstractFramedChannel.java:966)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel$FrameReadListener.handleEvent(AbstractFramedChannel.java:946)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.conduits.ReadReadyHandler$ChannelListenerHandler.readReady(ReadReadyHandler.java:66)
+	at io.undertow.protocols.ssl.SslConduit$SslReadReadyHandler.readReady(SslConduit.java:1176)
+	at io.undertow.protocols.ssl.SslConduit$1.run(SslConduit.java:168)
+	at org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:582)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:466)
+{noformat}
+",2020/01/22 10:25 AM
+UNDERTOW-1639,"Applying timeouts to blocking operations (as described in UNDERTOW-1622) allows us to avoid  waiting forever, but we should avoid getting into this situation entirely if possible.
+In practice we've found several http/2 requests a day that should take a few milliseconds get stuck as described, normally while reading data from a small request body.
+Unfortunately awaitReadable and awaitWritable block beyond when the connections are closed.",2020/01/17 3:04 PM
+UNDERTOW-1638,"While attempting to reproduce a client connection leak I encountered 'UT000091: Buffer has already been freed'.
+
+Note this occurred while running 32 concurrent clients after just over 200,000 total requests.
+
+Handler implementation:
+
+{noformat}
+            new BlockingHandler(exchange -> {
+                    Thread.sleep(1);
+                    exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, ""application/json"");
+                    exchange.getOutputStream().write(responseData); // 200kb
+                })
+{noformat}
+
+
+{noformat}
+13:24:35.528 [XNIO-1 task-38] ERROR io.undertow.request - UT005071: Undertow request failed HttpServerExchange{ POST /simple/ping}
+java.lang.IllegalStateException: UT000091: Buffer has already been freed
+	at io.undertow.server.DefaultByteBufferPool$DefaultPooledBuffer.getBuffer(DefaultByteBufferPool.java:260)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.sendWriteBuffer(AbstractFramedStreamSinkChannel.java:497)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.handleBufferFull(AbstractFramedStreamSinkChannel.java:485)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.write(AbstractFramedStreamSinkChannel.java:396)
+	at org.xnio.conduits.StreamSinkChannelWrappingConduit.write(StreamSinkChannelWrappingConduit.java:61)
+	at org.xnio.conduits.ConduitStreamSinkChannel.write(ConduitStreamSinkChannel.java:158)
+	at io.undertow.channels.DetachableStreamSinkChannel.write(DetachableStreamSinkChannel.java:179)
+	at io.undertow.server.HttpServerExchange$WriteDispatchChannel.write(HttpServerExchange.java:2070)
+	at org.xnio.channels.Channels.writeBlocking(Channels.java:152)
+	at io.undertow.io.UndertowOutputStream.write(UndertowOutputStream.java:185)
+	at io.undertow.io.UndertowOutputStream.write(UndertowOutputStream.java:105)
+	at com.palantir.conjure.java.client.jaxrs.Repro.lambda$main$0(Repro.java:75)
+	at io.undertow.server.Connectors.executeRootHandler(Connectors.java:376)
+	at io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:830)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+	at java.base/java.lang.Thread.run(Thread.java:834)
+{noformat}
+",2020/01/17 1:34 PM
+UNDERTOW-1634,"When running examples(class Runner) on Windows, annotated classes are not selected because file separator  is not ""/""",2020/01/04 3:26 AM
+UNDERTOW-1629,"In release 2.0.28 logging was introduced at level error when a client connection does not succeed to authenticate their client certificate. This can easily fill logs during a malicious attack, can the log level be reduced to debug. (Original change to add the logging was:
+[UNDERTOW-1580] Improve EJB over HTTPS logging)",2019/12/17 10:52 AM
+UNDERTOW-1624,"There is a check for a loop in the listener triggered by AbstractFramedStreamSinkChannel.resumeWritesInternal:
+{code}
+                        if (loopCount++ == 100) {
+                            //should never happen
+                            UndertowLogger.ROOT_LOGGER.listenerNotProgressing();
+                            IoUtils.safeClose(AbstractFramedStreamSinkChannel.this);
+                            return;
+                        }
+{code}
+This loop count can reach 100 if we are using EJB over HTTP, and close the connection unexpectedly.",2019/12/04 3:28 PM
+UNDERTOW-1623,"Testsuite hang:
+
+https://ci.wildfly.org/viewLog.html?buildId=175908&buildTypeId=WF_PullRequest_LinuxSm
+
+{code}
+2019-11-22 19:51:16
+Full thread dump Java HotSpot(TM) Server VM (25.152-b16 mixed mode):
+
+""Attach Listener"" #223 daemon prio=9 os_prio=0 tid=0xc0af2400 nid=0x40bf waiting on condition [0x00000000]
+   java.lang.Thread.State: RUNNABLE
+
+""ServerService Thread Pool -- 78"" #191 prio=5 os_prio=0 tid=0xb8678800 nid=0xb78 waiting on condition [0xbacba000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc714cdf8> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2039)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1088)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:809)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1074)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1134)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+	at org.jboss.threads.JBossThread.run(JBossThread.java:485)
+
+""pool-13-thread-1"" #162 prio=5 os_prio=0 tid=0xbdad1800 nid=0x8a1 waiting on condition [0xbad0b000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xe2479960> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2039)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1081)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:809)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1074)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1134)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+
+""ServerService Thread Pool -- 77"" #153 prio=5 os_prio=0 tid=0xc4de7400 nid=0x896 waiting on condition [0xbac69000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc714cdf8> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2039)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1088)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:809)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1074)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1134)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+	at org.jboss.threads.JBossThread.run(JBossThread.java:485)
+
+""default task-2"" #142 prio=5 os_prio=0 tid=0xc6848800 nid=0x872 waiting on condition [0xbac18000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc89b31d8> (a org.jboss.threads.EnhancedQueueExecutor)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1409)
+	at java.lang.Thread.run(Thread.java:748)
+
+""default task-1"" #141 prio=5 os_prio=0 tid=0xbc8f1400 nid=0x871 waiting for monitor entry [0xbaa25000]
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.markWritesBroken(AbstractFramedChannel.java:883)
+	- waiting to lock <0xe26b4980> (a io.undertow.protocols.http2.Http2Channel)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.channelForciblyClosed(AbstractFramedStreamSinkChannel.java:562)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.close(AbstractFramedStreamSinkChannel.java:539)
+	at org.xnio.IoUtils.safeClose(IoUtils.java:152)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.queueFrame(AbstractFramedChannel.java:728)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.queueFinalFrame(AbstractFramedStreamSinkChannel.java:257)
+	- locked <0xe26ef4b8> (a java.lang.Object)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.shutdownWrites(AbstractFramedStreamSinkChannel.java:240)
+	- locked <0xe26ef4b8> (a java.lang.Object)
+	at io.undertow.protocols.http2.Http2Channel.sendGoAway(Http2Channel.java:822)
+	at io.undertow.protocols.http2.Http2Channel.sendGoAway(Http2Channel.java:809)
+	at io.undertow.protocols.http2.Http2Channel.removeStreamSink(Http2Channel.java:968)
+	at io.undertow.protocols.http2.Http2StreamSinkChannel.channelForciblyClosed(Http2StreamSinkChannel.java:68)
+	at io.undertow.protocols.http2.Http2DataStreamSinkChannel.channelForciblyClosed(Http2DataStreamSinkChannel.java:322)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.close(AbstractFramedStreamSinkChannel.java:539)
+	at org.xnio.IoUtils.safeClose(IoUtils.java:152)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.queueFrame(AbstractFramedChannel.java:728)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.queueFinalFrame(AbstractFramedStreamSinkChannel.java:257)
+	- locked <0xe26b71b0> (a java.lang.Object)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.shutdownWrites(AbstractFramedStreamSinkChannel.java:240)
+	- locked <0xe26b71b0> (a java.lang.Object)
+	at org.xnio.conduits.StreamSinkChannelWrappingConduit.terminateWrites(StreamSinkChannelWrappingConduit.java:75)
+	at org.xnio.conduits.ConduitStreamSinkChannel.shutdownWrites(ConduitStreamSinkChannel.java:178)
+	at io.undertow.channels.DetachableStreamSinkChannel.shutdownWrites(DetachableStreamSinkChannel.java:79)
+	at io.undertow.io.UndertowOutputStream.close(UndertowOutputStream.java:347)
+	at io.undertow.io.UndertowOutputStream.updateWritten(UndertowOutputStream.java:266)
+	at io.undertow.io.UndertowOutputStream.write(UndertowOutputStream.java:209)
+	at io.undertow.io.UndertowOutputStream.write(UndertowOutputStream.java:105)
+	at io.undertow.io.BlockingSenderImpl.send(BlockingSenderImpl.java:131)
+	at io.undertow.io.BlockingSenderImpl.send(BlockingSenderImpl.java:166)
+	at io.undertow.server.handlers.error.SimpleErrorPageHandler$1.handleDefaultResponse(SimpleErrorPageHandler.java:68)
+	at io.undertow.server.HttpServerExchange.endExchange(HttpServerExchange.java:1608)
+	at io.undertow.server.Connectors.executeRootHandler(Connectors.java:401)
+	at io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:830)
+	at org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35)
+	at org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:1982)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1486)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1377)
+	at java.lang.Thread.run(Thread.java:748)
+
+""expiration-thread--p3-t1"" #131 daemon prio=1 os_prio=0 tid=0xbd8b2400 nid=0x863 waiting on condition [0xbaead000]
+   java.lang.Thread.State: TIMED_WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xe21794d0> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:215)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:2078)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1093)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:809)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1074)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1134)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at org.jboss.as.clustering.context.ContextReferenceExecutor.execute(ContextReferenceExecutor.java:49)
+	at org.jboss.as.clustering.context.ContextualExecutor$1.run(ContextualExecutor.java:70)
+	at java.lang.Thread.run(Thread.java:748)
+
+""Reference Reaper #3"" #129 daemon prio=5 os_prio=0 tid=0xc1bee400 nid=0x85e in Object.wait() [0xbbead000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:143)
+	- locked <0xe24ac228> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:164)
+	at org.wildfly.common.ref.References$ReaperThread.run(References.java:76)
+
+""Reference Reaper #2"" #128 daemon prio=5 os_prio=0 tid=0xc012e400 nid=0x85d in Object.wait() [0xbbefe000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:143)
+	- locked <0xe24ac228> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:164)
+	at org.wildfly.common.ref.References$ReaperThread.run(References.java:76)
+
+""Reference Reaper #1"" #127 daemon prio=5 os_prio=0 tid=0xc012d000 nid=0x85c in Object.wait() [0xbc05b000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:143)
+	- locked <0xe24ac228> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:164)
+	at org.wildfly.common.ref.References$ReaperThread.run(References.java:76)
+
+""management task-2"" #125 prio=5 os_prio=0 tid=0xbdcde400 nid=0x83e waiting on condition [0xbc0fd000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8a77ca0> (a org.jboss.threads.EnhancedQueueExecutor)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1409)
+	at java.lang.Thread.run(Thread.java:748)
+
+""management task-1"" #124 prio=5 os_prio=0 tid=0xbbf30800 nid=0x83d waiting on condition [0xbc35c000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8a77ca0> (a org.jboss.threads.EnhancedQueueExecutor)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1409)
+	at java.lang.Thread.run(Thread.java:748)
+
+""pool-8-thread-1"" #123 prio=5 os_prio=0 tid=0xbbf2e800 nid=0x83c waiting on condition [0xbc3ad000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc898fc98> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2039)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1081)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:809)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1074)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1134)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+
+""DeploymentScanner-threads - 2"" #121 prio=5 os_prio=0 tid=0xc3f5a000 nid=0x83a waiting on condition [0xbcaba000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8a64f80> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2039)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1088)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:809)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1074)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1134)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+	at org.jboss.threads.JBossThread.run(JBossThread.java:485)
+
+""Transaction Reaper Worker 0"" #120 daemon prio=5 os_prio=0 tid=0xbff57400 nid=0x839 in Object.wait() [0xbcb0b000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	at java.lang.Object.wait(Object.java:502)
+	at com.arjuna.ats.arjuna.coordinator.TransactionReaper.waitForCancellations(TransactionReaper.java:328)
+	- locked <0xe2258890> (a java.util.LinkedList)
+	at com.arjuna.ats.internal.arjuna.coordinator.ReaperWorkerThread.run(ReaperWorkerThread.java:65)
+
+""Transaction Reaper"" #119 daemon prio=5 os_prio=0 tid=0xbd84a800 nid=0x837 in Object.wait() [0xbcb5c000]
+   java.lang.Thread.State: TIMED_WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	at com.arjuna.ats.internal.arjuna.coordinator.ReaperThread.run(ReaperThread.java:90)
+	- locked <0xe22586c0> (a com.arjuna.ats.arjuna.coordinator.TransactionReaper)
+
+""Periodic Recovery"" #115 prio=5 os_prio=0 tid=0xbdfe1c00 nid=0x836 in Object.wait() [0xbcbad000]
+   java.lang.Thread.State: TIMED_WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	at com.arjuna.ats.internal.arjuna.recovery.PeriodicRecovery.doPeriodicWait(PeriodicRecovery.java:683)
+	at com.arjuna.ats.internal.arjuna.recovery.PeriodicRecovery.run(PeriodicRecovery.java:403)
+	- locked <0xe227f4b8> (a java.lang.Object)
+
+""Transaction Expired Entry Monitor"" #118 daemon prio=5 os_prio=0 tid=0xbdfe0800 nid=0x835 in Object.wait() [0xbcbfe000]
+   java.lang.Thread.State: TIMED_WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	- waiting on <0xe226f588> (a com.arjuna.ats.internal.arjuna.recovery.ExpiredEntryMonitor)
+	at com.arjuna.ats.internal.arjuna.recovery.ExpiredEntryMonitor.run(ExpiredEntryMonitor.java:190)
+	- locked <0xe226f588> (a com.arjuna.ats.internal.arjuna.recovery.ExpiredEntryMonitor)
+
+""XNIO-1 Accept"" #117 daemon prio=5 os_prio=0 tid=0xc4261400 nid=0x833 runnable [0xbce6c000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xe21df9e0> (a sun.nio.ch.Util$3)
+	- locked <0xe21df9d0> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xe21df8d8> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:101)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:532)
+
+""XNIO-1 I/O-1"" #116 daemon prio=5 os_prio=0 tid=0xc4260400 nid=0x832 runnable [0xbcffc000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xe21df3a0> (a sun.nio.ch.Util$3)
+	- locked <0xe21df390> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xe21df298> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:101)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:532)
+
+""Timer-1"" #114 prio=5 os_prio=0 tid=0xbe20c400 nid=0x82f in Object.wait() [0xbd67a000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	- waiting on <0xc8d8bf48> (a java.util.TaskQueue)
+	at java.lang.Object.wait(Object.java:502)
+	at java.util.TimerThread.mainLoop(Timer.java:526)
+	- locked <0xc8d8bf48> (a java.util.TaskQueue)
+	at java.util.TimerThread.run(Timer.java:505)
+
+""default Accept"" #113 prio=5 os_prio=0 tid=0xbe023400 nid=0x82e runnable [0xbdb5c000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xc8dabc58> (a sun.nio.ch.Util$3)
+	- locked <0xc8dabc48> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xc8dabb50> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:101)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:532)
+
+""default I/O-8"" #112 prio=5 os_prio=0 tid=0xbe022000 nid=0x82d runnable [0xbdbad000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xc8dae2b0> (a sun.nio.ch.Util$3)
+	- locked <0xc8dae2a0> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xc8dae1a8> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:101)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:532)
+
+""default I/O-7"" #111 prio=5 os_prio=0 tid=0xbe020800 nid=0x82c runnable [0xbdbfe000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xc8dae8f8> (a sun.nio.ch.Util$3)
+	- locked <0xc8dae8e8> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xc8dae7f0> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:551)
+
+""default I/O-6"" #110 prio=5 os_prio=0 tid=0xbe01f000 nid=0x82b runnable [0xbdd69000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xc8db6f50> (a sun.nio.ch.Util$3)
+	- locked <0xc8db6f40> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xc8db6e48> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:551)
+
+""default I/O-5"" #109 prio=5 os_prio=0 tid=0xbe01c400 nid=0x82a runnable [0xbddba000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xc8db95a8> (a sun.nio.ch.Util$3)
+	- locked <0xc8db9598> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xc8db94a0> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:101)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:532)
+
+""default I/O-4"" #108 prio=5 os_prio=0 tid=0xbe01b000 nid=0x829 runnable [0xbde0b000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xc8db9bf0> (a sun.nio.ch.Util$3)
+	- locked <0xc8db9be0> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xc8db9ae8> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:101)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:532)
+
+""default I/O-3"" #107 prio=5 os_prio=0 tid=0xbea2b800 nid=0x828 runnable [0xbde5c000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xc8dba238> (a sun.nio.ch.Util$3)
+	- locked <0xc8dba228> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xc8dba130> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:101)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:532)
+
+""default I/O-2"" #106 prio=5 os_prio=0 tid=0xbe019800 nid=0x827 runnable [0xbdead000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xc8dba880> (a sun.nio.ch.Util$3)
+	- locked <0xc8dba870> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xc8dba778> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:101)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:532)
+
+""default I/O-1"" #105 prio=5 os_prio=0 tid=0xbea25400 nid=0x826 waiting for monitor entry [0xbdefe000]
+   java.lang.Thread.State: BLOCKED (on object monitor)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.close(AbstractFramedStreamSinkChannel.java:525)
+	- waiting to lock <0xe26b71b0> (a java.lang.Object)
+	at org.xnio.IoUtils.safeClose(IoUtils.java:152)
+	at io.undertow.protocols.http2.Http2Channel.closeSubChannels(Http2Channel.java:645)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.close(AbstractFramedChannel.java:824)
+	at org.xnio.IoUtils.safeClose(IoUtils.java:152)
+	at io.undertow.protocols.http2.Http2Channel.lastDataRead(Http2Channel.java:593)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.receive(AbstractFramedChannel.java:391)
+	- locked <0xe26b4980> (a io.undertow.protocols.http2.Http2Channel)
+	at io.undertow.server.protocol.http2.Http2ReceiveListener.handleEvent(Http2ReceiveListener.java:118)
+	at io.undertow.server.protocol.http2.Http2ReceiveListener.handleEvent(Http2ReceiveListener.java:67)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel$FrameReadListener.handleEvent(AbstractFramedChannel.java:950)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel$FrameReadListener.handleEvent(AbstractFramedChannel.java:931)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.conduits.ReadReadyHandler$ChannelListenerHandler.readReady(ReadReadyHandler.java:66)
+	at org.xnio.nio.NioSocketConduit.handleReady(NioSocketConduit.java:89)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:591)
+
+""IdleRemover"" #104 daemon prio=5 os_prio=0 tid=0xc0286c00 nid=0x825 waiting on condition [0xbe39d000]
+   java.lang.Thread.State: TIMED_WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8dc9790> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:215)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2163)
+	at org.jboss.jca.core.connectionmanager.pool.idle.IdleRemover$IdleRemoverRunner.run(IdleRemover.java:261)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+
+""ConnectionValidator"" #103 daemon prio=5 os_prio=0 tid=0xbf9f8800 nid=0x824 waiting on condition [0xbe3ee000]
+   java.lang.Thread.State: TIMED_WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8dc9d78> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:215)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2163)
+	at org.jboss.jca.core.connectionmanager.pool.validator.ConnectionValidator$ConnectionValidatorRunner.run(ConnectionValidator.java:263)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+
+""Timer-0"" #102 prio=5 os_prio=0 tid=0xc01a0400 nid=0x823 in Object.wait() [0xbe53f000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	- waiting on <0xc8a73050> (a java.util.TaskQueue)
+	at java.lang.Object.wait(Object.java:502)
+	at java.util.TimerThread.mainLoop(Timer.java:526)
+	- locked <0xc8a73050> (a java.util.TaskQueue)
+	at java.util.TimerThread.run(Timer.java:505)
+
+""management Accept"" #92 prio=5 os_prio=0 tid=0xc2b20800 nid=0x820 runnable [0xbe632000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xc8a7f0b0> (a sun.nio.ch.Util$3)
+	- locked <0xc8a7f0a0> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xc8a7efa8> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:101)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:532)
+
+""management I/O-2"" #90 prio=5 os_prio=0 tid=0xc2b1f000 nid=0x81f runnable [0xbe683000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xc8a7c400> (a sun.nio.ch.Util$3)
+	- locked <0xc8a7c3f0> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xc8a7c2f8> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:551)
+
+""management I/O-1"" #80 prio=5 os_prio=0 tid=0xc2b1bc00 nid=0x81e runnable [0xbe6d4000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
+	at sun.nio.ch.EPollArrayWrapper.poll(EPollArrayWrapper.java:269)
+	at sun.nio.ch.EPollSelectorImpl.doSelect(EPollSelectorImpl.java:93)
+	at sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:86)
+	- locked <0xc8a7ea60> (a sun.nio.ch.Util$3)
+	- locked <0xc8a7ea50> (a java.util.Collections$UnmodifiableSet)
+	- locked <0xc8a7e958> (a sun.nio.ch.EPollSelectorImpl)
+	at sun.nio.ch.SelectorImpl.select(SelectorImpl.java:97)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:551)
+
+""ServerService Thread Pool -- 40"" #63 prio=5 os_prio=0 tid=0xc0395000 nid=0x7fb waiting on condition [0xbf4c7000]
+   java.lang.Thread.State: TIMED_WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc714cdf8> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:215)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:2078)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1093)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:809)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1074)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1134)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+	at org.jboss.threads.JBossThread.run(JBossThread.java:485)
+
+""DeploymentScanner-threads - 1"" #61 prio=5 os_prio=0 tid=0xbfb52400 nid=0x7f5 waiting on condition [0xbf569000]
+   java.lang.Thread.State: TIMED_WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8a64f80> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:215)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:2078)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1093)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:809)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1074)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1134)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+	at org.jboss.threads.JBossThread.run(JBossThread.java:485)
+
+""ServerService Thread Pool -- 9"" #31 prio=5 os_prio=0 tid=0x0878e000 nid=0x7d3 waiting on condition [0xc18fd000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8a3a0d8> (a org.jboss.threads.EnhancedQueueExecutor)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1409)
+	at java.lang.Thread.run(Thread.java:748)
+	at org.jboss.threads.JBossThread.run(JBossThread.java:485)
+
+""ServerService Thread Pool -- 1"" #23 prio=5 os_prio=0 tid=0xc2e37400 nid=0x7ca waiting on condition [0xc2aad000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc714cdf8> (a java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:2039)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1088)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:809)
+	at java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1074)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1134)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+	at org.jboss.threads.JBossThread.run(JBossThread.java:485)
+
+""DestroyJavaVM"" #22 prio=5 os_prio=0 tid=0xf6508800 nid=0x7af waiting on condition [0x00000000]
+   java.lang.Thread.State: RUNNABLE
+
+""MSC service thread 1-8"" #20 prio=5 os_prio=0 tid=0xc2103800 nid=0x7c8 waiting on condition [0xc2afe000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8dca228> (a org.jboss.threads.EnhancedQueueExecutor)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1409)
+	at java.lang.Thread.run(Thread.java:748)
+
+""MSC service thread 1-7"" #19 prio=5 os_prio=0 tid=0xc2102000 nid=0x7c7 waiting on condition [0xc2c5c000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8dca228> (a org.jboss.threads.EnhancedQueueExecutor)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1409)
+	at java.lang.Thread.run(Thread.java:748)
+
+""MSC service thread 1-6"" #18 prio=5 os_prio=0 tid=0xc2101000 nid=0x7c6 waiting on condition [0xc2cad000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8dca228> (a org.jboss.threads.EnhancedQueueExecutor)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1409)
+	at java.lang.Thread.run(Thread.java:748)
+
+""MSC service thread 1-5"" #17 prio=5 os_prio=0 tid=0xc4d3ec00 nid=0x7c5 waiting on condition [0xc29af000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8dca228> (a org.jboss.threads.EnhancedQueueExecutor)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1409)
+	at java.lang.Thread.run(Thread.java:748)
+
+""MSC service thread 1-4"" #16 prio=5 os_prio=0 tid=0xc4d3d400 nid=0x7c4 waiting on condition [0xc2a00000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8dca228> (a org.jboss.threads.EnhancedQueueExecutor)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1409)
+	at java.lang.Thread.run(Thread.java:748)
+
+""MSC service thread 1-3"" #15 prio=5 os_prio=0 tid=0xc4d2e000 nid=0x7c3 waiting on condition [0xc2a51000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8dca228> (a org.jboss.threads.EnhancedQueueExecutor)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1409)
+	at java.lang.Thread.run(Thread.java:748)
+
+""MSC service thread 1-2"" #14 prio=5 os_prio=0 tid=0xc2d48800 nid=0x7c2 waiting on condition [0xc2cfe000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8dca228> (a org.jboss.threads.EnhancedQueueExecutor)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1409)
+	at java.lang.Thread.run(Thread.java:748)
+
+""MSC service thread 1-1"" #13 prio=5 os_prio=0 tid=0xc2d46800 nid=0x7c1 waiting on condition [0xc3d7f000]
+   java.lang.Thread.State: WAITING (parking)
+	at sun.misc.Unsafe.park(Native Method)
+	- parking to wait for  <0xc8dca228> (a org.jboss.threads.EnhancedQueueExecutor)
+	at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1409)
+	at java.lang.Thread.run(Thread.java:748)
+
+""Reference Reaper"" #9 daemon prio=5 os_prio=0 tid=0xc465b800 nid=0x7bd in Object.wait() [0xc45fe000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	- waiting on <0xc7d105d8> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:143)
+	- locked <0xc7d105d8> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:164)
+	at org.jboss.modules.ref.References$ReaperThread.run(References.java:64)
+
+""Service Thread"" #8 daemon prio=9 os_prio=0 tid=0xc4eab400 nid=0x7bb runnable [0x00000000]
+   java.lang.Thread.State: RUNNABLE
+
+""C1 CompilerThread2"" #7 daemon prio=9 os_prio=0 tid=0xc4ea8000 nid=0x7ba waiting on condition [0x00000000]
+   java.lang.Thread.State: RUNNABLE
+
+""C2 CompilerThread1"" #6 daemon prio=9 os_prio=0 tid=0xc4ea6800 nid=0x7b9 waiting on condition [0x00000000]
+   java.lang.Thread.State: RUNNABLE
+
+""C2 CompilerThread0"" #5 daemon prio=9 os_prio=0 tid=0xc4ea4c00 nid=0x7b8 waiting on condition [0x00000000]
+   java.lang.Thread.State: RUNNABLE
+
+""Signal Dispatcher"" #4 daemon prio=9 os_prio=0 tid=0xc4ea3000 nid=0x7b7 runnable [0x00000000]
+   java.lang.Thread.State: RUNNABLE
+
+""Finalizer"" #3 daemon prio=8 os_prio=0 tid=0xc4e89000 nid=0x7b6 in Object.wait() [0xc697d000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:143)
+	- locked <0xc7360118> (a java.lang.ref.ReferenceQueue$Lock)
+	at java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:164)
+	at java.lang.ref.Finalizer$FinalizerThread.run(Finalizer.java:209)
+
+""Reference Handler"" #2 daemon prio=10 os_prio=0 tid=0xc4e86000 nid=0x7b5 in Object.wait() [0xc6c7d000]
+   java.lang.Thread.State: WAITING (on object monitor)
+	at java.lang.Object.wait(Native Method)
+	at java.lang.Object.wait(Object.java:502)
+	at java.lang.ref.Reference.tryHandlePending(Reference.java:191)
+	- locked <0xc704c810> (a java.lang.ref.Reference$Lock)
+	at java.lang.ref.Reference$ReferenceHandler.run(Reference.java:153)
+
+""VM Thread"" os_prio=0 tid=0xc4e81800 nid=0x7b4 runnable 
+
+""GC task thread#0 (ParallelGC)"" os_prio=0 tid=0xf6512000 nid=0x7b0 runnable 
+
+""GC task thread#1 (ParallelGC)"" os_prio=0 tid=0xf6513400 nid=0x7b1 runnable 
+
+""GC task thread#2 (ParallelGC)"" os_prio=0 tid=0xf6514800 nid=0x7b2 runnable 
+
+""GC task thread#3 (ParallelGC)"" os_prio=0 tid=0xf6515c00 nid=0x7b3 runnable 
+
+""VM Periodic Task Thread"" os_prio=0 tid=0xc4eaf400 nid=0x7bc waiting on condition 
+
+JNI global references: 1879
+
+
+Found one Java-level deadlock:
+=============================
+""default task-1"":
+  waiting to lock monitor 0xc3cba830 (object 0xe26b4980, a io.undertow.protocols.http2.Http2Channel),
+  which is held by ""default I/O-1""
+""default I/O-1"":
+  waiting to lock monitor 0xc3cba89c (object 0xe26b71b0, a java.lang.Object),
+  which is held by ""default task-1""
+
+Java stack information for the threads listed above:
+===================================================
+""default task-1"":
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.markWritesBroken(AbstractFramedChannel.java:883)
+	- waiting to lock <0xe26b4980> (a io.undertow.protocols.http2.Http2Channel)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.channelForciblyClosed(AbstractFramedStreamSinkChannel.java:562)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.close(AbstractFramedStreamSinkChannel.java:539)
+	at org.xnio.IoUtils.safeClose(IoUtils.java:152)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.queueFrame(AbstractFramedChannel.java:728)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.queueFinalFrame(AbstractFramedStreamSinkChannel.java:257)
+	- locked <0xe26ef4b8> (a java.lang.Object)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.shutdownWrites(AbstractFramedStreamSinkChannel.java:240)
+	- locked <0xe26ef4b8> (a java.lang.Object)
+	at io.undertow.protocols.http2.Http2Channel.sendGoAway(Http2Channel.java:822)
+	at io.undertow.protocols.http2.Http2Channel.sendGoAway(Http2Channel.java:809)
+	at io.undertow.protocols.http2.Http2Channel.removeStreamSink(Http2Channel.java:968)
+	at io.undertow.protocols.http2.Http2StreamSinkChannel.channelForciblyClosed(Http2StreamSinkChannel.java:68)
+	at io.undertow.protocols.http2.Http2DataStreamSinkChannel.channelForciblyClosed(Http2DataStreamSinkChannel.java:322)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.close(AbstractFramedStreamSinkChannel.java:539)
+	at org.xnio.IoUtils.safeClose(IoUtils.java:152)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.queueFrame(AbstractFramedChannel.java:728)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.queueFinalFrame(AbstractFramedStreamSinkChannel.java:257)
+	- locked <0xe26b71b0> (a java.lang.Object)
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.shutdownWrites(AbstractFramedStreamSinkChannel.java:240)
+	- locked <0xe26b71b0> (a java.lang.Object)
+	at org.xnio.conduits.StreamSinkChannelWrappingConduit.terminateWrites(StreamSinkChannelWrappingConduit.java:75)
+	at org.xnio.conduits.ConduitStreamSinkChannel.shutdownWrites(ConduitStreamSinkChannel.java:178)
+	at io.undertow.channels.DetachableStreamSinkChannel.shutdownWrites(DetachableStreamSinkChannel.java:79)
+	at io.undertow.io.UndertowOutputStream.close(UndertowOutputStream.java:347)
+	at io.undertow.io.UndertowOutputStream.updateWritten(UndertowOutputStream.java:266)
+	at io.undertow.io.UndertowOutputStream.write(UndertowOutputStream.java:209)
+	at io.undertow.io.UndertowOutputStream.write(UndertowOutputStream.java:105)
+	at io.undertow.io.BlockingSenderImpl.send(BlockingSenderImpl.java:131)
+	at io.undertow.io.BlockingSenderImpl.send(BlockingSenderImpl.java:166)
+	at io.undertow.server.handlers.error.SimpleErrorPageHandler$1.handleDefaultResponse(SimpleErrorPageHandler.java:68)
+	at io.undertow.server.HttpServerExchange.endExchange(HttpServerExchange.java:1608)
+	at io.undertow.server.Connectors.executeRootHandler(Connectors.java:401)
+	at io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:830)
+	at org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35)
+	at org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:1982)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1486)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1377)
+	at java.lang.Thread.run(Thread.java:748)
+""default I/O-1"":
+	at io.undertow.server.protocol.framed.AbstractFramedStreamSinkChannel.close(AbstractFramedStreamSinkChannel.java:525)
+	- waiting to lock <0xe26b71b0> (a java.lang.Object)
+	at org.xnio.IoUtils.safeClose(IoUtils.java:152)
+	at io.undertow.protocols.http2.Http2Channel.closeSubChannels(Http2Channel.java:645)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.close(AbstractFramedChannel.java:824)
+	at org.xnio.IoUtils.safeClose(IoUtils.java:152)
+	at io.undertow.protocols.http2.Http2Channel.lastDataRead(Http2Channel.java:593)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.receive(AbstractFramedChannel.java:391)
+	- locked <0xe26b4980> (a io.undertow.protocols.http2.Http2Channel)
+	at io.undertow.server.protocol.http2.Http2ReceiveListener.handleEvent(Http2ReceiveListener.java:118)
+	at io.undertow.server.protocol.http2.Http2ReceiveListener.handleEvent(Http2ReceiveListener.java:67)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel$FrameReadListener.handleEvent(AbstractFramedChannel.java:950)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel$FrameReadListener.handleEvent(AbstractFramedChannel.java:931)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.conduits.ReadReadyHandler$ChannelListenerHandler.readReady(ReadReadyHandler.java:66)
+	at org.xnio.nio.NioSocketConduit.handleReady(NioSocketConduit.java:89)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:591)
+
+Found 1 deadlock.
+{code}",2019/12/04 3:23 PM
+UNDERTOW-1621,"The newFrames are polled using the same pattern described in UNDERTOW-1620:
+{code}            while (!newFrames.isEmpty()) {
+                S frame = newFrames.poll();
+                frame.preWrite();
+                ...{code}
+
+This could result in a NPE if run in parallel with markWritesBroken, that invokes newFrames.clear().",2019/11/27 11:22 PM
+UNDERTOW-1620,"If the two points that invoke the block bellow run in parallel:
+{code}while (!taskRunQueue.isEmpty()) {
+                taskRunQueue.poll().run();
+{code}
+We could get a NPE, since poll() returns null if there is not task in the queue.",2019/11/27 4:22 PM
+UNDERTOW-1619,"When setting the state, it should be synchronized.",2019/11/27 3:50 PM
+UNDERTOW-1618,"if  a [wakeupReads|https://github.com/undertow-io/undertow/blob/2.0.28.Final/core/src/main/java/io/undertow/server/protocol/framed/AbstractFramedStreamSourceChannel.java#L246] is invoked and the [task|https://github.com/undertow-io/undertow/blob/2.0.28.Final/core/src/main/java/io/undertow/server/protocol/framed/AbstractFramedStreamSourceChannel.java#L271] triggered by resumeReadsInternal has already [invoked read|https://github.com/undertow-io/undertow/blob/2.0.28.Final/core/src/main/java/io/undertow/server/protocol/framed/AbstractFramedStreamSourceChannel.java#L282], but has not [cleared the STATE_IN_LISTENER_LOOP flag|https://github.com/undertow-io/undertow/blob/2.0.28.Final/core/src/main/java/io/undertow/server/protocol/framed/AbstractFramedStreamSourceChannel.java#L290].
+
+The reason for this is that wakeupReads() invokes resumeReadsInternal(wakeup=true), and this method [checks|https://github.com/undertow-io/undertow/blob/2.0.28.Final/core/src/main/java/io/undertow/server/protocol/framed/AbstractFramedStreamSourceChannel.java#L269] if a previous execution has already triggered a read task. If it has done so and the task is still running, resumeReadsInternal returns without trying to read again. However, if that happens after the task has already finished reading, but has not yet cleared the STATE_IN_LISTENER_LOOP, we have a race condition that results in wakeupReads being ignored.",2019/11/27 2:58 PM
+UNDERTOW-1614,"If {{Host}} header is empty, {{HttpServerExchange#getHostAndPort}} returns nothing instead of taking hostname from the destination address of the HTTP request.
+It will be in sync with {{HttpServerExchange#getHost}} if it takes a look at the destination address in that case.
+Furthermore, it would allow our RestEASY to create the correct UriInfo even if Host header is empty, see RESTEASY-2300.
+",2019/11/08 8:22 AM
+UNDERTOW-1612,NoData,2019/10/29 12:20 PM
+UNDERTOW-1611,"We encountered and issue with undertow in combination with temporarily unresolvable hostname. Undertow was started up and used before the DNS resolution became possible.
+
+Our analysis show, that {{UnresolvedAddressException}} seems not beeing properly handled in Undertow 2.0.16. We found the following code locations {{ProxyConnectionPool}} (line 269 and following):
+
+{code:java}
+    private void openConnection(final HttpServerExchange exchange, final ProxyCallback<ProxyConnection> callback, final HostThreadData data, final boolean exclusive) {
+        if (!exclusive) {
+            data.connections++;
+        }
+        client.connect(new ClientCallback<ClientConnection>() {
+            @Override
+            public void completed(final ClientConnection result) {
+                openConnections.incrementAndGet();
+                final ConnectionHolder connectionHolder = new ConnectionHolder(result);
+                if (!exclusive) {
+                    result.getCloseSetter().set(new ChannelListener<ClientConnection>() {
+                        @Override
+                        public void handleEvent(ClientConnection channel) {
+                            handleClosedConnection(data, connectionHolder);
+                        }
+                    });
+                }
+                connectionReady(connectionHolder, callback, exchange, exclusive);
+            }
+
+            @Override
+            public void failed(IOException e) {
+                if (!exclusive) {
+                    data.connections--;
+                }
+                UndertowLogger.REQUEST_LOGGER.debug(""Failed to connect"", e);
+                if (!connectionPoolManager.handleError()) {
+                    redistributeQueued(getData());
+                    scheduleFailedHostRetry(exchange);
+                }
+                callback.failed(exchange);
+            }
+        }, bindAddress, getUri(), exchange.getIoThread(), ssl, exchange.getConnection().getByteBufferPool(), options);
+    }
+{code}
+
+Obviously the counter {{data.connections}} (= number of connections to the backend per IO-Thread) gets incremented on open connection attempts and should be decremented in case of a failure in the {{failed(IOException e)}}-handler. However this seems not to happen in case of an {{UnresolvedAddressException}} (because it is not an {{IOException}}?).
+
+Therefore the counter {{data.connections}} remains incremented, allthough no connection could have been established. And if {{data.connections}} reaches {{maxConnections}}, all further requests get rejected with a 503 response. No further attempts to resolve the hostname will be made, connection pool seems not having any way to recover. {{ProxyConnectionPool}}, line 526:
+
+{code:java}
+        } else if (exclusive || data.connections < maxConnections) {
+            openConnection(exchange, callback, data, exclusive);
+        } else {
+            // Reject the request directly if we reached the max request queue size
+            if (data.awaitingConnections.size() >= connectionPoolManager.getMaxQueueSize()) {
+                callback.queuedRequestFailed(exchange);
+                return;
+            }
+{code}
+
+---
+
+Please see the provided example {{ch.codeblock.undertow.ReverseProxyServer}} in this GIT repo: https://github.com/gexclaude/undertow-unresolvablehost
+
+And the test run outpus:
+- unresolvable-host.md
+- unresolvable-host-at-start-then-resolvable.md
+",2019/10/21 2:12 AM
+UNDERTOW-1610,"The rewrite is done only to request path, and not request URI",2019/10/15 6:30 PM
+UNDERTOW-1609,"The new test does not pass on Windows, CI is showing this:
+{code}
+org.junit.ComparisonFailure: expected:<89[
+2:012345]> but was:<89[
+2:01234]>
+org.junit.ComparisonFailure: 
+expected:<89[
+2:012345]> but was:<89[
+2:01234]>
+	at org.junit.Assert.assertEquals(Assert.java:115)
+	at org.junit.Assert.assertEquals(Assert.java:144)
+	at io.undertow.server.handlers.RangeRequestTestCase.testLargeCachedResourceHandler(RangeRequestTestCase.java:107)
+{code}",2019/10/15 5:59 PM
+UNDERTOW-1608,"There is a bug in  buf.position() actually indicates buffer size, so last buffer index is equal to buf.position() -1.
+
+With this error, when buffer array has more than one element (so when response is bigger than 16KB by default), exception is thrown and exchange will never be finalized properly (even though HTTP response is received by client and seems fine). Listeners won't be executed, graceful shutdown will fail etc.
+
+Below there is a simple code snippet for reproducing this error:
+{code}
+public static void main(String[] args) {
+
+    HttpHandler targetHandler = exchange -> {
+        exchange.getResponseHeaders().add(Headers.CONTENT_TYPE, ""text/plain"");
+        exchange.getResponseSender().send(""A"".repeat(20000));
+    };
+
+    StoredResponseHandler storedResponseHandler = new StoredResponseHandler(targetHandler);
+
+    Undertow server = Undertow.builder()
+            .addHttpListener(5050, ""0.0.0.0"")
+            .setHandler(storedResponseHandler)
+            .build();
+
+    server.start();
+}
+{code}",2019/10/15 5:46 PM
+UNDERTOW-1601,"{{ServletInitialHandler}} applies any greater than zero {{maxRequestSize}} from the {{ManagedServlet}} to every exchange, irrespective of the request's content type. When the {{ManagedServlet}} has a {{MultipartConfigElement}}, its {{maxRequestSize}} is used. The net effect of this is that setting the {{maxRequestSize}} on a {{MultipartConfigElement}} affects the max request size for every request to the {{Servlet}} with which the {{MultipartConfigElement}} is associated, and not just {{multipart/form-data requests}}. This also means that any server-wide configuration of {{UndertowOptions.MAX_ENTITY_SIZE}} is overridden by configuration that should be multi-part specific.",2019/10/14 5:15 AM
+UNDERTOW-1599,"When a servlet request is forward to a different path with a new query string, ServletRequestLineAttribute (%r) does not output a query string of the original request in the access log.
+
+For example, when the following dispatcher.forward() is implemented in the application:
+
+{code}
+RequestDispatcher dispatcher = request.getRequestDispatcher(""/test?foo=bar"");
+dispatcher.forward(request, response);
+{code}
+
+and the following request is sent to the above application:
+
+{code}
+$ curl -v http://localhost:8080/example/?aaa=bbb
+{code}
+
+The access-log should output the original query string (?aaa=bbb), but it output the new query string (?foo=bar) of the forwarded request:
+
+{code}
+127.0.0.1 - - [10/Oct/2019:20:20:54 +0900] ""GET /example/?foo=bar HTTP/1.1"" 200 68
+{code}",2019/10/10 7:34 AM
+UNDERTOW-1591,"Example URL : http://localhost/myapp/files/%E6%9B%B8%E9%A1%9E.pdf
+
+Call io.undertow.servlet.spec.AsyncContextImpl#dispatch()
+or
+Call io.undertow.servlet.spec.AsyncContextImpl#dispatch(String)
+e.g.  dispatch(""/files/%E6%9B%B8%E9%A1%9E.pdf"")
+
+Servlet filters receive HttpServletRequestImpl object from the caller, and its HttpServletRequest#getPathInfo() returns ""/%E6%9B%B8%E9%A1%9E.pdf"".
+
+HttpServletRequest#getServletPath() and HttpServletRequest#getPathInfo() should return decoded string. (e.g. ""/書類.pdf"")",2019/08/28 6:02 AM
+UNDERTOW-1588,"In our testing environment we see occasional aborted HTTP2 requests since chrome added a few request headers in version 76. After a lengthy debate and debugging, we came to the conclusion that this is likely to be caused by an off-by-one error in HpackDecoder in Undertow at this line:
+https://github.com/undertow-io/undertow/blob/9b25a43a913935077c51581f184b18e990981078/core/src/main/java/io/undertow/protocols/http2/HpackDecoder.java#L270
+
+It looks like this line should read:
+{code}
+if (index > Hpack.STATIC_TABLE_LENGTH + filledTableSlots) {
+{code}
+
+The discussion at the chromium bug tracker can be found at:
+https://bugs.chromium.org/p/chromium/issues/detail?id=992320",2019/08/21 12:03 PM
+UNDERTOW-1586,The redirect address does not put literal host names between brackets,2019/08/08 4:10 AM
+UNDERTOW-1582,"I am using Spring Boot undertow construct upload file class, the configuration of the 'spring.servlet.multipart.location' attributes, when the attribute value and the current environment is not configured at the same time, the undertow ManagedServlet setupMultipart method to obtain the 'servletContext.getDeployment().getDeploymentInfo().getTempPath()' returns value. But this method doesn't seem to return the correct value.
+
+This is exception stacktrace :
+
+{code:java}
+[restartedMain] ERROR org.springframework.boot.SpringApplication.reportFailure:858 - Application run failed
+org.springframework.context.ApplicationContextException: Unable to start web server; nested exception is java.lang.RuntimeException: java.lang.NullPointerException
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.onRefresh(ServletWebServerApplicationContext.java:157)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:543)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:142)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:775)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:397)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:316)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1260)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1248)
+	at com.offerslook.api.*****Application.main(*****Application.java:22)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.springframework.boot.devtools.restart.RestartLauncher.run(RestartLauncher.java:49)
+Caused by: java.lang.RuntimeException: java.lang.NullPointerException
+	at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:252)
+	at org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory.createDeploymentManager(UndertowServletWebServerFactory.java:284)
+	at org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory.getWebServer(UndertowServletWebServerFactory.java:208)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.createWebServer(ServletWebServerApplicationContext.java:181)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.onRefresh(ServletWebServerApplicationContext.java:154)
+	... 13 common frames omitted
+Caused by: java.lang.NullPointerException: null
+	at io.undertow.servlet.core.ManagedServlet.setupMultipart(ManagedServlet.java:107)
+	at io.undertow.servlet.spec.ServletRegistrationImpl.setMultipartConfig(ServletRegistrationImpl.java:117)
+	at org.springframework.boot.web.servlet.ServletRegistrationBean.configure(ServletRegistrationBean.java:201)
+	at org.springframework.boot.web.servlet.ServletRegistrationBean.configure(ServletRegistrationBean.java:51)
+	at org.springframework.boot.web.servlet.DynamicRegistrationBean.register(DynamicRegistrationBean.java:115)
+	at org.springframework.boot.web.servlet.RegistrationBean.onStartup(RegistrationBean.java:54)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.selfInitialize(ServletWebServerApplicationContext.java:235)
+	at org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory$Initializer.onStartup(UndertowServletWebServerFactory.java:616)
+	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:203)
+	at io.undertow.servlet.core.DeploymentManagerImpl$1.call(DeploymentManagerImpl.java:185)
+	at io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:42)
+	at io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
+	at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:250)
+	... 17 common frames omitted
+{code}
+",2019/08/02 3:46 AM
+UNDERTOW-1581,"RoutingHandler routing = Handlers.routing()
+    .get(""/{param1}"", ResponseCodeHandler.HANDLE_200)
+    .post(""/{param2}"", ResponseCodeHandler.HANDLE_200); // throws!
+
+{noformat}
+java.lang.IllegalStateException: UT000071: Cannot add path template /{param2}, matcher already contains an equivalent pattern /{param1}
+	at io.undertow.util.PathTemplateMatcher.add(PathTemplateMatcher.java:110)
+	at io.undertow.util.PathTemplateMatcher.add(PathTemplateMatcher.java:151)
+	at io.undertow.server.RoutingHandler.add(RoutingHandler.java:129)
+{noformat}
+
+If both registrations use the same parameter name, it works fine. Because the parameters are named differently the check in RoutingHandler:128 doesn't skip registration with allMethodsMatcher as it would otherwise.",2019/08/01 9:10 PM
+UNDERTOW-1578,"Configure '/secured/*' as protected path, the following request should return 401, but it returns 302 instead.
+
+{code:java}
+curl -v http://localhost:8080/helloworld/secured
+{code}
+
+NOTE: there is no trailing slash in above request.",2019/07/24 10:02 AM
+UNDERTOW-1575,"HttpServletRequest.getRequestedSessionID() is incorrectly returning a newly generated session ID instead of the requested ID in EAP 7 when using URL session tracking.
+
+Reproduction:
+- deploy attached test.war.
+- access http://localhost:8080/test/
+  (or modify the host:port as necessary)
+
+It makes two calls to request.getRequestedSessionId(), one before creating a session and one after.
+These should both print null (since no jsessionid was passed on the URL).  But instead the second prints the new ID.
+
+Or access http://localhost:8080/test/;jsessionid=test
+This should print ""test"" twice, but instead the second prints the new ID.
+
+The issue appears to be specific to URL session tracking, and was not reproduced when using COOKIE tracking.
+
+The issue is specific to EAP 7 and does not occur on EAP 6.",2019/07/23 3:11 AM
+UNDERTOW-1574,There are some failing tests for access log feature testing. Test failure has been introduced by fix for this issue UNDERTOW-1530 with [this commit|https://github.com/undertow-io/undertow/commit/5ccc9c7e48ac9456fe3ec0948d037d4084cd9304].,2019/07/21 10:01 AM
+UNDERTOW-1573,"In ServletInitialHandler...
+
+{code:java}
+        if (!exchange.isDispatched() && !(exchange.getConnection() instanceof MockServerConnection)) {
+            servletRequestContext.getOriginalResponse().responseDone();
+            servletRequestContext.getOriginalRequest().clearAttributes();
+        }
+{code}
+
+There are cases I'm seeing where responseDone() does not always trigger the exchange completion, because the request hasn't cleaned up yet, and exchange completion requires both the request and response to trigger completion. If the request is not completed, by the time the exchange completes, the attributes are already cleared, so the access log exchange completion listener does not see request attributes.
+
+This is frustrating for access logs, because I cannot reliably include servlet request attributes in them and have had to resort to awkward workarounds.
+
+Out of curiosity, why are request attributes cleared anyway?
+
+Feel free to reach out to my @redhat.com address if needed.",2019/07/17 8:37 PM
+UNDERTOW-1572,"{{ProxyProtocolTestCase#testProxyProtocolV2Local}} fails when IPv6 is enabled.
+
+Test has hard-coded expectation to see string ""result: /127.0.0.1"" in the response, which is not satisfied when IPv6 address is returned instead.",2019/07/15 4:56 AM
+UNDERTOW-1570,"This issue might be related to UNDERTOW-358
+
+This is how I create a websocket client endpoint:
+
+ClientEndpointConfig config = ClientEndpointConfig.Builder.create().build();
+config.getUserProperties().put(""io.undertow.websocket.CONNECT_TIMEOUT"", 10);
+WebSocketContainer socketContainer = ContainerProvider.getWebSocketContainer();
+MyClient client = new MyClient(); // extends Endpoint
+session = socketContainer.connectToServer(client, config, getEventStreamURI());
+
+With this code the @OnMessage method of my client will never get called. Every time a message is sent I see ""[XNIO-1 I/O-1] DEBUG io.undertow.websockets.core.request  - UT025003: Decoding WebSocket Frame with opCode 1"" in the log but that's it.
+However, if I create the client without passing the config parameter to connectToServer() it works perfectly fine (but then I won't get notified when the server goes down so I have to provide the timeout parameter).",2019/07/08 10:15 AM
+UNDERTOW-1569,"HttpServletRequest getLocalName() returns IP instead of hostname
+
+If I deploy the below sample code on EAP 7.x
+
+{code:java}
+protected void doGet(HttpServletRequest request, HttpServletResponse response)
+throws ServletException, IOException {
+          System.out.println(request.getLocalName());
+          System.out.println(request.getClass());
+}
+{code}
+
+Output on EAP 7
+
+{code:java}
+17:10:06,950 INFO  [stdout] (default task-1) 10.65.193.93
+17:10:06,950 INFO  [stdout] (default task-1) class io.undertow.servlet.spec.HttpServletRequestImpl
+{code}
+
+IP address instead of hostname 
+
+
+",2019/06/28 4:24 AM
+UNDERTOW-1568,"When trying to log a WebSocketChannel (toString()), I get:
+
+{noformat}
+SLF4J: Failed toString() invocation on an object of type [io.undertow.websockets.core.protocol.version13.WebSocket13Channel]
+Reported exception:
+java.util.ConcurrentModificationException
+	at java.util.LinkedList$ListItr.checkForComodification(LinkedList.java:966)
+	at java.util.LinkedList$ListItr.next(LinkedList.java:888)
+	at java.util.AbstractCollection.toString(AbstractCollection.java:461)
+	at io.undertow.server.protocol.framed.AbstractFramedChannel.toString(AbstractFramedChannel.java:1097)
+
+{noformat}
+
+
+AbstractFramedChannel.toString() looks like this:
+
+{code:java}
+   @Override
+    public String toString() {
+        return getClass().getSimpleName() + "" peer "" + channel.getPeerAddress() + "" local "" + channel.getLocalAddress() + ""[ "" + (receiver == null ? ""No Receiver"" : receiver.toString()) + "" "" + pendingFrames.toString() + "" -- "" + heldFrames.toString() + "" -- "" + newFrames.toString() + ""]"";
+    }
+{code}
+
+I noticed that List<S> pendingFrames is always used in synchronized blocks... shouldn't toString() be synchronized, too?
+
+
+",2019/06/26 9:43 AM
+UNDERTOW-1567,"After upgrading to EAP 7.2, redirects to absolute URLs are broken if containing special characters (such as #, \{, \}).  This did not occur with EAP 6 or EAP 7.1 and earlier.  But with 7.2, a redirect call like this:
+{code}
+   response.sendRedirect(""http://test.com/foobar?test={abc}"");
+{code}
+A bad redirect location is returned like so:
+{code}
+Location: http://localhost:8080/app/http:/test.com/foobar?test={abc}
+{code}",2019/06/25 10:29 AM
+UNDERTOW-1565,"See the following thread:
+https://developer.jboss.org/thread/280195?_sscc=t",2019/06/24 10:07 AM
+UNDERTOW-1564,"When creating a client SSL Connection via a HTTP proxy, the destination address indicated in the SSL connection is the address of the _proxy_. This is wrong and leads to a CertificateException:
+{code}
+  java.security.cert.CertificateException: No subject alternative names matching IP address 127.0.0.1 found
+  	at java.base/sun.security.util.HostnameChecker.matchIP(HostnameChecker.java:160)
+  	at java.base/sun.security.util.HostnameChecker.match(HostnameChecker.java:96)
+  	at java.base/sun.security.ssl.X509TrustManagerImpl.checkIdentity(X509TrustManagerImpl.java:459)
+  	at java.base/sun.security.ssl.X509TrustManagerImpl.checkIdentity(X509TrustManagerImpl.java:434)
+  	at java.base/sun.security.ssl.X509TrustManagerImpl.checkTrusted(X509TrustManagerImpl.java:291)
+  	at java.base/sun.security.ssl.X509TrustManagerImpl.checkServerTrusted(X509TrustManagerImpl.java:141)
+  	at java.base/sun.security.ssl.CertificateMessage$T12CertificateConsumer.checkServerCerts(CertificateMessage.java:620)
+  	at java.base/sun.security.ssl.CertificateMessage$T12CertificateConsumer.onCertificate(CertificateMessage.java:461)
+  	at java.base/sun.security.ssl.CertificateMessage$T12CertificateConsumer.consume(CertificateMessage.java:361)
+  	at java.base/sun.security.ssl.SSLHandshake.consume(SSLHandshake.java:392)
+  	at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:448)
+  	at java.base/sun.security.ssl.SSLEngineImpl$DelegatedTask$DelegatedAction.run(SSLEngineImpl.java:1065)
+  	at java.base/sun.security.ssl.SSLEngineImpl$DelegatedTask$DelegatedAction.run(SSLEngineImpl.java:1052)
+  	at java.base/java.security.AccessController.doPrivileged(Native Method)
+  	at java.base/sun.security.ssl.SSLEngineImpl$DelegatedTask.run(SSLEngineImpl.java:999)
+  	at io.undertow.protocols.ssl.SslConduit$5.run(SslConduit.java:1111)
+  	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+  	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+  	at java.base/java.lang.Thread.run(Thread.java:834)}
+{code}
+(in this case the proxy was running on 127.0.0.1).",2019/06/24 7:28 AM
+UNDERTOW-1558,"When using an application that uses SSL, the class DirectByteBufferDeallocator is wrongly initialized if the security manager is enabled. That class is only used when a buffer should be freed so it's complicated to trigger the error. The exception generated is like the following:
+
+{noformat}
+2019-06-13 09:21:47,862 ERROR [io.undertow] (default task-1) UT005091: Failed to initialize DirectByteBufferDeallocator: java.security.AccessControlException: WFSM000001: Permission check failed (permission ""(""java.lang.reflect.ReflectPermission"" ""suppressAccessChecks"")"" in code source ""(vfs:/content/helloworld-ssl.war/WEB-INF/classes <no signer certificates>)"" of ""ModuleClassLoader for Module ""deployment.helloworld-ssl.war"" from Service Module Loader"")
+        at org.wildfly.security.manager.WildFlySecurityManager.checkPermission(WildFlySecurityManager.java:295)
+        at org.wildfly.security.manager.WildFlySecurityManager.checkPermission(WildFlySecurityManager.java:192)
+        at java.lang.reflect.AccessibleObject.setAccessible(AccessibleObject.java:128)
+        at io.undertow.server.DirectByteBufferDeallocator.<clinit>(DirectByteBufferDeallocator.java:37)
+        at io.undertow.server.DefaultByteBufferPool.queueIfUnderMax(DefaultByteBufferPool.java:209)
+        at io.undertow.server.DefaultByteBufferPool.freeInternal(DefaultByteBufferPool.java:201)
+        at io.undertow.server.DefaultByteBufferPool.access$200(DefaultByteBufferPool.java:40)
+        at io.undertow.server.DefaultByteBufferPool$DefaultPooledBuffer.close(DefaultByteBufferPool.java:271)
+        at io.undertow.servlet.spec.ServletInputStreamImpl.read(ServletInputStreamImpl.java:179)
+        at sun.nio.cs.StreamDecoder.readBytes(StreamDecoder.java:284)
+        at sun.nio.cs.StreamDecoder.implRead(StreamDecoder.java:326)
+        at sun.nio.cs.StreamDecoder.read(StreamDecoder.java:178)
+        at java.io.InputStreamReader.read(InputStreamReader.java:184)
+        at java.io.BufferedReader.fill(BufferedReader.java:161)
+        at java.io.BufferedReader.read(BufferedReader.java:182)
+        at org.jboss.as.quickstarts.helloworld.HelloWorldServlet.doPost(HelloWorldServlet.java:68)
+        at javax.servlet.http.HttpServlet.service(HttpServlet.java:706)
+        at javax.servlet.http.HttpServlet.service(HttpServlet.java:791)
+        ...
+{noformat}",2019/06/13 9:28 AM
+UNDERTOW-1556,"With mappings like below, the filter is not invoked for a MyServlet request:
+{code}
+    <servlet-mapping>
+        <servlet-name>MyServlet</servlet-name>
+        <url-pattern>/MyServlet</url-pattern>
+    </servlet-mapping>
+
+    <filter-mapping>
+        <filter-name>MyFilter</filter-name>
+        <url-pattern>/MyServlet/*</url-pattern>
+    </filter-mapping>
+{code}
+
+This worked with EAP 6 and is avoided on EAP 7 if the servlet is mapped the the same /* path
+{code}
+    <servlet-mapping>
+        <servlet-name>MyServlet</servlet-name>
+        <url-pattern>/MyServlet/*</url-pattern>
+    </servlet-mapping>
+
+    <filter-mapping>
+        <filter-name>MyFilter</filter-name>
+        <url-pattern>/MyServlet/*</url-pattern>
+    </filter-mapping>
+{code}",2019/06/12 11:57 AM
+UNDERTOW-1553,"Related/similar to UNDERTOW-1540
+
+The user in this forum thread https://developer.jboss.org/message/989396#989396 notes that the reader/writer obtained via the request/response on a servlet doesn't use the correct charset, when the charset is set at the ServletContext level (through the use of setRequestCharacterEncoding and/or setResponseCharacterEncoding)
+
+Looking at the code in HttpServletRequestImpl and HttpServletResponseImpl there indeed seems to be a bug.",2019/06/03 8:36 AM
+UNDERTOW-1551,"[CookieAttribute (%\{c,cookie_name})|https://github.com/undertow-io/undertow/blob/2.0.21.Final/core/src/main/java/io/undertow/attribute/CookieAttribute.java] already exists for cookie. However, CookieAttribute#readAttribute() reads a *request* cookie and CookieAttribute#writeAttribute() writes a *response* cookie. This should have been two attributes, one for request cookie and another for response cookie.
+
+The current CookieAttribute can't be changed due to compatibility concerns. So, we need to add two new attributes to fix this. I would like to propose the following two attributes:
+
+ - RequestCookieAttribute (%\{req-cookie,cookie_name}) for request cookie
+ - ResponseCookieAttribute (%\{resp-cookie,cookie_name}) for response cookie
+
+If you have any other suggestion for the prefix name, please let me know.",2019/05/29 8:06 AM
+UNDERTOW-1550,"It looks like current master branch cannot be compiled with JDK11. I can see following error message during the build:
+{code}
+[INFO] --- maven-bundle-plugin:3.2.0:manifest (generate-manifest) @ undertow-core ---
+[ERROR] Manifest io.undertow:undertow-core:jar:2.0.21.Final-SNAPSHOT : Classes found in the wrong directory: {META-INF/versions/9/io/undertow/util/FastConcurrentDirectDeque$CLDSpliterator.class=io.undertow.util.FastConcurrentDirectDeque$CLDSpliterator, META-INF/versions/9/io/undertow/util/FastConcurrentDirectDeque$Itr.class=io.undertow.util.FastConcurrentDirectDeque$Itr, META-INF/versions/9/io/undertow/util/FastConcurrentDirectDeque$AbstractItr.class=io.undertow.util.FastConcurrentDirectDeque$AbstractItr, META-INF/versions/9/io/undertow/util/FastConcurrentDirectDeque$Node.class=io.undertow.util.FastConcurrentDirectDeque$Node, META-INF/versions/9/io/undertow/util/FastConcurrentDirectDeque$DescendingItr.class=io.undertow.util.FastConcurrentDirectDeque$DescendingItr, META-INF/versions/9/io/undertow/util/FastConcurrentDirectDeque.class=io.undertow.util.FastConcurrentDirectDeque}
+[ERROR] Error(s) found in manifest configuration
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary:
+[INFO] 
+[INFO] Undertow 2.0.21.Final-SNAPSHOT ..................... SUCCESS [  2.294 s]
+[INFO] Undertow Parser Generator .......................... SUCCESS [  5.834 s]
+[INFO] Undertow Core ...................................... FAILURE [ 27.628 s]
+[INFO] Undertow Servlet ................................... SKIPPED
+[INFO] Undertow WebSockets JSR356 implementations ......... SKIPPED
+[INFO] Undertow Examples .................................. SKIPPED
+[INFO] Undertow Karaf Features ............................ SKIPPED
+[INFO] Undertow Benchmarks 2.0.21.Final-SNAPSHOT .......... SKIPPED
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 36.227 s
+[INFO] Finished at: 2019-05-29T12:24:27+02:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.felix:maven-bundle-plugin:3.2.0:manifest (generate-manifest) on project undertow-core: Error(s) found in manifest configuration -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
+[ERROR] 
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <goals> -rf :undertow-core
+{code}
+
+Looks like commit with [jboss-parent upgrade|https://github.com/undertow-io/undertow/commit/965b37100a21dffb6d49fffb2c121497cb811ee3] is the culprit here. Previous revisions compiles without any problem with JDK-11.",2019/05/29 6:32 AM
+UNDERTOW-1548,See JBEAP-16975 for the details,2019/05/24 3:32 PM
+UNDERTOW-1543,WebSocket07FrameSinkChannel can use ThreadLocalRandom to scale with threads instead of active channels.,2019/05/22 8:20 PM
+UNDERTOW-1542,"If PUT method is being used, we cannot extract request parameters/values in Undertow using these methods below:
+----------------------------------------
+>  + getParameterNames
+>  + getParameterValues
+>  + getParameterMap
+----------------------------------------
+
+Similar bug was fixed via [UNDERTOW-916|https://issues.jboss.org/browse/UNDERTOW-916] however that was only for one method ""getParameter(String)"". We would like all these methods above fixed :)
+",2019/05/19 10:51 PM
+UNDERTOW-1540,"Reported by Tomoki Sato in the forum thread https://developer.jboss.org/thread/280089
+
+As noted in the referenced forum, the implementation of ServletContextImpl#setRequestCharacterEncoding has a bug where it doesn't set the passed encoding and instead set the encoding to the value of the context path.
+",2019/05/16 9:33 AM
+UNDERTOW-1537,This is clearly a typo. Response code 503 is the correct one,2019/05/10 4:35 PM
+UNDERTOW-1534,NoData,2019/05/01 10:29 PM
+UNDERTOW-1533,"When connecting with the WebSockets client via an HTTP Proxy server to a WebSockets server via SSL (TLS), the client *does not* include the SNI extension {{server_name}} indication.
+
+If the server that the client is connecting to is located behind a reverse proxy and the reverse proxy handles multiple servers via SNI, a wrong certificate may be selected (because the reverse proxy has no indication as to the specific target domain name).
+
+Picture:
+
+Client -> HTTP Proxy -> Reverse Proxy -> WebSockets server",2019/04/29 12:16 PM
+UNDERTOW-1532,"On Windows 10, when using an io.undertow.server.handlers.resource.PathResourceManager with a basePath from a shortened Windows path (like my temp file C:\Users\JEAN-S~1\AppData\Local\Temp\foo15582568227639031748), all getResource method call return null.
+
+This shortened Windows path is returned by default on my computer when I call Files.createTempDirectory(""foo"").
+
+This code always fails on the last assertion :
+{code:java}
+@Test
+public void pathResourceManager_getResource_KO() throws IOException {
+    // In my case, return ""C:\Users\JEAN-S~1\AppData\Local\Temp\foo15582568227639031748""
+    Path basePathShortened = Files.createTempDirectory(""foo"");
+
+    File file = new File(basePathShortened.toFile(), ""bar.txt"");
+    boolean fileCreated = file.createNewFile();
+
+    assertThat(fileCreated, is(true));
+
+    ResourceManager resourceManager = new PathResourceManager(basePathShortened);
+    Resource resource = resourceManager.getResource(""/bar.txt"");
+
+    assertThat(resource, is(notNullValue()));
+}
+{code}
+
+If I create a PathResourceManager with the same basePath but not shortened, there is no problem.
+
+This code works fine :
+{code:java}
+@Test
+public void pathResourceManager_getResource_OK() throws IOException {
+    // In this case, return ""C:\Users\Jean-Sébastien\AppData\Local\Temp\foo15582568227639031748""
+    Path basePathShortened = Files.createTempDirectory(Paths.get(""C:\\Users\\Jean-Sébastien\\AppData\\Local\\Temp""), ""foo"");
+
+    File file = new File(basePathShortened.toFile(), ""bar.txt"");
+    boolean fileCreated = file.createNewFile();
+
+    assertThat(fileCreated, is(true));
+
+    ResourceManager resourceManager = new PathResourceManager(basePathShortened);
+    Resource resource = resourceManager.getResource(""/bar.txt"");
+
+    assertThat(resource, is(notNullValue()));
+}
+{code}
+
+The problem seem to be in the method isFileSameCase of the class io.undertow.server.handlers.resource.PathResourceManager :
+{code:java}
+    /**
+     * Security check for case insensitive file systems.
+     * We make sure the case of the filename matches the case of the request.
+     * This is only a check for case sensitivity, not for non canonical . and ../ which are allowed.
+     *
+     * For example:
+     * file.getName() == ""page.jsp"" && file.getCanonicalFile().getName() == ""page.jsp"" should return true
+     * file.getName() == ""page.jsp"" && file.getCanonicalFile().getName() == ""page.JSP"" should return false
+     * file.getName() == ""./page.jsp"" && file.getCanonicalFile().getName() == ""page.jsp"" should return true
+     */
+    private boolean isFileSameCase(final Path file, String normalizeFile) throws IOException {
+        String canonicalName = file.toRealPath().toString();
+        return canonicalName.equals(normalizeFile);
+    }
+{code}
+
+In my example : 
+* _file_ is equal to a Path of ""C:\Users\JEAN-S~1\AppData\Local\Temp\foo15582568227639031748\bar.txt""
+* _normalizeFile_ is equal to ""C:\Users\JEAN-S~1\AppData\Local\Temp\foo15582568227639031748\bar.txt""
+* but the _canonicalName_  / realPath is equal to ""C:\Users\Jean-Sébastien\AppData\Local\Temp\foo2468601341669057457\bar.txt""
+
+So, the method call returns false when it should have returned true.",2019/04/26 5:01 PM
+UNDERTOW-1529,"My app redefines the http status code and use status code in [600,999] scope.
+When I return http status code 735, I got this exception:
+
+{code:java}
+Caused by: java.lang.ArrayIndexOutOfBoundsException: 735
+        at io.undertow.util.StatusCodes.getReason(StatusCodes.java:220)
+        at io.undertow.server.protocol.http.HttpResponseConduit.processWrite(HttpResponseConduit.java:182)
+        at io.undertow.server.protocol.http.HttpResponseConduit.write(HttpResponseConduit.java:634)
+        at io.undertow.conduits.ChunkedStreamSinkConduit.doWrite(ChunkedStreamSinkConduit.java:166)
+        at io.undertow.conduits.ChunkedStreamSinkConduit.write(ChunkedStreamSinkConduit.java:128)
+        at org.xnio.conduits.ConduitStreamSinkChannel.write(ConduitStreamSinkChannel.java:150)
+        at io.undertow.channels.DetachableStreamSinkChannel.write(DetachableStreamSinkChannel.java:240)
+        at io.undertow.server.HttpServerExchange$WriteDispatchChannel.write(HttpServerExchange.java:2103)
+        at io.undertow.servlet.spec.ServletOutputStreamImpl.writeBufferBlocking(ServletOutputStreamImpl.java:574)
+        at io.undertow.servlet.spec.ServletOutputStreamImpl.flushInternal(ServletOutputStreamImpl.java:489)
+        at io.undertow.servlet.spec.ServletOutputStreamImpl.flush(ServletOutputStreamImpl.java:476)
+        at org.springframework.security.web.util.OnCommittedResponseWrapper$SaveContextServletOutputStream.flush(OnCommittedResponseWrapper.java:514)
+        at org.springframework.security.web.util.OnCommittedResponseWrapper$SaveContextServletOutputStream.flush(OnCommittedResponseWrapper.java:514)
+
+{code}
+
+I check the source code, and find out StatusCodes use 0x2df(735 in decimalism) as array max index.
+
+Any workaround to solve this problem?
+ ",2019/04/20 3:22 AM
+UNDERTOW-1524,"{noformat}
+17:52:08,756 ERROR [io.undertow.request] (pool-2-thread-1) UT005071: Undertow request failed HttpServerExchange{ GET /unsecure request DefaultHttpHeaders[Host: localhost:7776, Connection: Keep-Alive, User-Agent: Apache-HttpClient/4.5.6 (Java/1.8.0_201), Accept-Encoding: gzip,deflate] response DefaultHttpHeaders[]}: java.lang.StackOverflowError
+	at io.undertow.util.HeaderMap.addLast(HeaderMap.java:199)
+	at io.undertow.util.HeaderMap.add(HeaderMap.java:182)
+	at io.undertow.util.HeaderMap.addLast(HeaderMap.java:199)
+	at io.undertow.util.HeaderMap.add(HeaderMap.java:182)
+{noformat}",2019/04/12 12:59 PM
+UNDERTOW-1506,"When I added a bad symlink to the *welcome-content* and allowed *directory-listing* in the file handler of the *welcome-content* server returns Internal Server Error (500) when accessing the folder containing the bad symlink. However, no exception is logged in the output on WildFly.
+
+I also tried to use simple  example application - _File Serving_ from [Undertow Examples|https://github.com/undertow-io/undertow/tree/master/examples] where I can see the following exception when accessing the directory with the bad symlink:
+{code}
+java.lang.RuntimeException: java.nio.file.NoSuchFileException: /home/akrajcik/Pictures/pictures
+	at io.undertow.server.handlers.resource.PathResource.getLastModified(PathResource.java:62)
+	at io.undertow.server.handlers.resource.DirectoryUtils.renderDirectoryListing(DirectoryUtils.java:139)
+	at io.undertow.server.handlers.resource.DirectoryUtils.renderDirectoryListing(DirectoryUtils.java:162)
+	at io.undertow.server.handlers.resource.ResourceHandler$1.handleRequest(ResourceHandler.java:233)
+	at io.undertow.server.Connectors.executeRootHandler(Connectors.java:364)
+	at io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:830)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1160)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.lang.Thread.run(Thread.java:811)
+Caused by: java.nio.file.NoSuchFileException: /home/akrajcik/Pictures/pictures
+	at sun.nio.fs.UnixException.translateToIOException(UnixException.java:98)
+	at sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:114)
+	at sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:119)
+	at sun.nio.fs.UnixFileAttributeViews$Basic.readAttributes(UnixFileAttributeViews.java:67)
+	at sun.nio.fs.UnixFileSystemProvider.readAttributes(UnixFileSystemProvider.java:156)
+	at sun.nio.fs.LinuxFileSystemProvider.readAttributes(LinuxFileSystemProvider.java:111)
+	at java.nio.file.Files.readAttributes(Files.java:1748)
+	at java.nio.file.Files.getLastModifiedTime(Files.java:2277)
+	at io.undertow.server.handlers.resource.PathResource.getLastModified(PathResource.java:60)
+	... 8 more
+{code}",2019/03/04 11:16 AM
+UNDERTOW-1501,"There is a wait-indefinitely bug in the WebSocket session container where `wait(0)` may be called due to a split condition/use problem. This could cause a thread to hang indefinitely if `current time < end` is checked with 1 tick to go, and `wait` is called after the next clock tick. If the thread blocks between calls, it could also spuriously throw an IllegalArgumentException due to a negative argument.
+
+Current code:
+
+{code:java}
+            long end = System.currentTimeMillis() + timeout;
+            try {
+                while (System.currentTimeMillis() < end && !openSessions.isEmpty()) {
+                    wait(end - System.currentTimeMillis());
+                }
+{code}
+
+Correct code:
+
+{code:java}
+            long cur,end = System.currentTimeMillis() + timeout;
+            try {
+                while ((cur=System.currentTimeMillis()) < end && !openSessions.isEmpty()) {
+                    wait(end - cur);
+                }
+{code}
+",2019/02/22 2:34 PM
+UNDERTOW-1498,"This two lines can throw exceptions in RequestLimit:
+
+task.exchange.addExchangeCompleteListener(COMPLETION_LISTENER);
+task.exchange.dispatch(task.next);
+
+There is a finally for calling the next listener, however decrementRequests() isn't in it. In case of an error the currently polled exchange will be skipped while decrementRequests() is also not called: oops, we lost a thread! At a larger workload we lose all the threads, sooner or later. We solved the problem with the change contained by this pull request.
+
+The most common exception we experienced is this (this stack is from 1.4.18, but the problem still exists with 2.x):
+
+java.lang.IllegalStateException: UT000139: Exchange already complete
+        at io.undertow.server.HttpServerExchange.addExchangeCompleteListener(HttpServerExchange.java:923)
+        at io.undertow.server.handlers.RequestLimit$2.exchangeEvent(RequestLimit.java:92)
+        at io.undertow.server.HttpServerExchange$ExchangeCompleteNextListener.proceed(HttpServerExchange.java:1845)
+        at io.undertow.server.handlers.proxy.ProxyHandler$2.exchangeEvent(ProxyHandler.java:196)
+        at io.undertow.server.HttpServerExchange$ExchangeCompleteNextListener.proceed(HttpServerExchange.java:1845)
+        at io.undertow.server.handlers.proxy.ProxyConnectionPool$3.exchangeEvent(ProxyConnectionPool.java:332)
+        at io.undertow.server.HttpServerExchange.invokeExchangeCompleteListeners(HttpServerExchange.java:1258)
+        at io.undertow.server.HttpServerExchange.terminateResponse(HttpServerExchange.java:1538)
+        at io.undertow.server.Connectors.terminateResponse(Connectors.java:143)
+        at io.undertow.server.protocol.http.ServerFixedLengthStreamSinkConduit.channelFinished(ServerFixedLengthStreamSinkConduit.java:56)
+        at io.undertow.conduits.AbstractFixedLengthStreamSinkConduit.exitFlush(AbstractFixedLengthStreamSinkConduit.java:316)
+        at io.undertow.conduits.AbstractFixedLengthStreamSinkConduit.flush(AbstractFixedLengthStreamSinkConduit.java:234)
+        at org.xnio.conduits.AbstractSinkConduit.flush(AbstractSinkConduit.java:86)
+        at org.xnio.conduits.ConduitStreamSinkChannel.flush(ConduitStreamSinkChannel.java:162)
+        at io.undertow.channels.DetachableStreamSinkChannel.flush(DetachableStreamSinkChannel.java:119)
+        at io.undertow.io.AsyncSenderImpl.close(AsyncSenderImpl.java:338)
+        at io.undertow.io.DefaultIoCallback.onComplete(DefaultIoCallback.java:54)
+        at io.undertow.io.AsyncSenderImpl.invokeOnComplete(AsyncSenderImpl.java:396)
+        at io.undertow.io.AsyncSenderImpl.send(AsyncSenderImpl.java:233)
+        at io.undertow.io.AsyncSenderImpl.send(AsyncSenderImpl.java:310)
+        at io.undertow.io.AsyncSenderImpl.send(AsyncSenderImpl.java:282)
+        at io.undertow.io.AsyncSenderImpl.send(AsyncSenderImpl.java:316)
+        ...",2019/02/19 1:45 PM
+UNDERTOW-1493,"
+Infinite loop in :
+package io.undertow.protocols.ssl;
+
+public class SslConduit implements StreamSourceConduit, StreamSinkConduit {
+
+try {
+SSLEngineResult result = null;
+while (result == null || (result.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_WRAP && result.getStatus() != SSLEngineResult.Status.BUFFER_OVERFLOW)) {
+if (userBuffers == null)
+{ result = engine.wrap(EMPTY_BUFFER, wrappedData.getBuffer()); }
+
+else
+{ result = engine.wrap(userBuffers, off, len, wrappedData.getBuffer()); }
+
+}
+
+----------
+
+package io.undertow.server;
+
+/**
+
+    A byte buffer pool that supports reference counted pools.
+    *
+    TODO: move this somewhere more appropriate
+    *
+    @author Stuart Douglas
+    */
+    public class DefaultByteBufferPool implements ByteBufferPool {
+
+...
+
+@Override
+public ByteBuffer getBuffer() {
+if(referenceCount == 0)
+{ throw UndertowMessages.MESSAGES.bufferAlreadyFreed(); }
+
+return buffer;
+}
+
+Looping on while condition with the following state :
+
+HandshakeStatus = NEED_WRAP / Status = OK / bytesConsumed = 0 / bytesProduced = 0
+
+Stake trace :
+
+""XNIO-1 I/O-1"" #25 prio=5 os_prio=0 cpu=3989340.17ms elapsed=64540.00s tid=0x00007fcd60cd7000 nid=0x7c0f runnable [0x00007fcd29a56000]
+java.lang.Thread.State: RUNNABLE
+at io.undertow.protocols.ssl.SslConduit.doWrap(SslConduit.java:898)
+at io.undertow.protocols.ssl.SslConduit.doUnwrap(SslConduit.java:671)
+at io.undertow.protocols.ssl.SslConduit.read(SslConduit.java:567)
+at org.xnio.conduits.ConduitStreamSourceChannel.read(ConduitStreamSourceChannel.java:127)
+at io.undertow.server.protocol.http.HttpReadListener.handleEventWithNoRunningRequest(HttpReadListener.java:158)
+at io.undertow.server.protocol.http.HttpReadListener.handleEvent(HttpReadListener.java:136)
+at io.undertow.server.protocol.http.HttpReadListener.handleEvent(HttpReadListener.java:59)
+at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+at org.xnio.conduits.ReadReadyHandler$ChannelListenerHandler.readReady(ReadReadyHandler.java:66)
+at io.undertow.protocols.ssl.SslConduit$SslReadReadyHandler.readReady(SslConduit.java:1175)
+at io.undertow.protocols.ssl.SslConduit$SslWriteReadyHandler.writeReady(SslConduit.java:1250)
+at org.xnio.nio.NioSocketConduit.handleReady(NioSocketConduit.java:93)
+at org.xnio.nio.WorkerThread.run(WorkerThread.java:561)
+",2019/02/12 10:36 AM
+UNDERTOW-1490,"When debugging issue [WFLY-11639|https://issues.jboss.org/browse/WFLY-11639] I found a bug in the FlexBase64 encoder on line 264.
+
+The code is:
+{code:java}
+    public static String encodeStringURL(ByteBuffer source, boolean wrap) {
+        return Encoder.encodeString(source, wrap, false);
+    }
+{code}
+
+But should be:
+{code:java}
+    public static String encodeStringURL(ByteBuffer source, boolean wrap) {
+        return Encoder.encodeString(source, wrap, true);
+    }
+{code}
+
+I'll send a pull request.",2019/02/08 4:40 AM
+UNDERTOW-1481,Simple fix for checkstyle and typo in one comment.,2019/01/15 2:34 AM
+UNDERTOW-1478,"Error pages are not receiving the forward attributes (javax.servlet.forward.XXXX) but only the error attributes (javax.servlet.error.XXXX).
+
+The problem seems to be that the request displatcher impl is using a specific method {{error}} that does not add those attributes (check class [RequestDispatcherImpl|https://github.com/undertow-io/undertow/blob/master/servlet/src/main/java/io/undertow/servlet/spec/RequestDispatcherImpl.java#L419]). In previous EAP 6 error pages also used the forward method and then the attributes were there.
+
+Note that the [servlet spec 3.1 chapter 10.9.1|https://javaee.github.io/servlet-spec/downloads/servlet-3.1/Final/servlet-3_1-final.pdf] says that those forward properties should be present in error pages: _""The request path and attributes are set as if a RequestDispatcher.forward to the error resource had been performed.""_",2019/01/09 5:50 AM
+UNDERTOW-1474,"Multiple users have reported that WildFly (13.x and even latest released 15.0.0) version leaks file handles to files that look like:
+{code}
+/opt/wildfly-15.0.0.Final/standalone/tmp/digital-archive.war/undertow449317228871190919upload (deleted)
+{code}
+
+A brief look at the Undertow code and many different manual upload tests, shows that there is (at least one) code path that can lead to such leaks. A specific manual test does reproduce this leak in {code}io.undertow.server.handlers.form.FormData.FileItem#write{code} where if a call to Files.move(...) fails for whatever reason, a Files.copy is attempted and while doing so a {code}InputStream{code} is opened but never closed.
+
+The forum reference has more details but it hasn't yet been narrowed down to some reproducible example.",2019/01/06 12:37 AM
+UNDERTOW-1471,"The issue is that 
+{code:java}WebSocketClient.connectionBuilder{code}
+
+expects an URI starting with ""_wws_"" in order to create the websocket client to an _HTTPS_ endpoint. 
+
+In my code, I had to write a method which replaces my actual url ""https://www.example.com/ws-endpoint"" to ""wss://www.example.com/ws-endpoint"" for _WebSocketClient_ to be happy... Otherwise _HTTP_ is used! The problem is that when a redirection occures, for example if the server returns a 301 with the new location ""https://www.example.com/another-ws-endpoint"", then you do this:
+
+https://github.com/undertow-io/undertow/blob/master/core/src/main/java/io/undertow/websockets/client/WebSocketClient.java#L336
+
+which runs:
+
+{code:java}final String scheme = uri.getScheme().equals(""wss"") ? ""https"" : ""http"";{code}
+https://github.com/undertow-io/undertow/blob/master/core/src/main/java/io/undertow/websockets/client/WebSocketClient.java#L215
+
+and then it tries a request on the new location. But since the server returned an ""_HTTPS_"" url as the new location, it is not equal to ""_wss_"" so ""_HTTP_"" is used to perform the new request, instead of ""_HTTPS_""! Of course the new request then fails.
+
+In my opinion, this line should be fixed:
+{code:java}final String scheme = uri.getScheme().equals(""wss"") ? ""https"" : ""http"";{code}
+
+",2019/01/03 9:19 AM
+UNDERTOW-1469,"resetBuffer resets only the pooled buffer, not the ByteBuffer from the pooled buffer. After invoking resetBuffer, the buffer itself may be clobbered, and writes to the stream will produce unexpected data.
+Without other components checking out the same buffer, the stream still fails because the buffer itself isn't reset and contents are still written to the stream.",2018/12/29 12:19 PM
+UNDERTOW-1468,"{noformat}
+tmpFile = Files.createTempFile(""foo."", "".upload"").toFile()
+file.transferTo(tmpFile)
+{noformat}
+
+
+io.undertow.server.handlers.form.FormData, from line 255
+{noformat}
+        public void write(Path target) throws IOException {
+            if (file != null) {
+                try {
+                    Files.move(file, target);
+                } catch (IOException e) {
+                    Files.copy(getInputStream(), target);
+                }
+            } else {
+                Files.copy(getInputStream(), target);
+            }
+        }
+{noformat}
+
+Both Files.move & Files.copy throw FileAlreadyExistsException if the target file exists but cannot be replaced because the REPLACE_EXISTING option is not specified.",2018/12/27 4:25 AM
+UNDERTOW-1467,"Exception in thread ""main"" java.lang.StringIndexOutOfBoundsException: String index out of range: -1
+	at java.lang.String.substring(String.java:1967)
+	at io.undertow.examples.Runner.main(Runner.java:54)",2018/12/26 12:21 AM
+UNDERTOW-1459,"According to the HTTP status codes docs, a server that's acting as a gateway or proxy and did not receive a timely response from the upstream server should return status code *504 Gateway Timeout*, currently the class _io.undertow.server.handlers.proxy.ProxyHandler_ returns *503 Service Unavailable*.",2018/12/12 8:24 AM
+UNDERTOW-1452,"The Javadoc for javax.websocket.server.ServerEndpointConfig indicates that it supports annotation-based endpoints, however the Undertow implementation does not. 
+
+This bug report + fix allows undertow to server annotation-based websocket endpoints that are configured with programmatic configuration.
+
+Proposed fix here: https://github.com/undertow-io/undertow/pull/694",2018/12/03 2:51 PM
+UNDERTOW-1433,"There are unnecessary version properties in pom.xml file that are leftovers from [incomplete commit|https://github.com/undertow-io/undertow/commit/1faa06fe4d4c4eabe78d6888413c790a43ddcb79]. I believe those can be safely removed. For more info, see linked PR.",2018/10/31 11:20 AM
+UNDERTOW-1426,"Current version of spotbugs-maven-plugin {{3.1.5}} has an issue when executed with JDK-11. New version {{3.1.7}} added support for JDK-11 already. Still there is some issue with false-positive errors [tracked here|https://github.com/spotbugs/spotbugs/issues/756] and caused probably by the way how java bytecode is created in JDK-11.
+
+We should perform update of the plugin to latest version to support JDK-11 execution. To avoid followup issue with false-positive errors we can introduce new maven profile which makes spotbugs-maven-plugin not to fail when executed with JDK-11.",2018/10/19 8:01 AM
+UNDERTOW-1423,NoData,2018/10/09 1:53 AM
+UNDERTOW-1419,"Possible bug as mentioned in https://developer.jboss.org/thread/278634. As mentioned in the thread, use of bumpTimeout may cause a session that may never expire.
+
+From [~jstourac@redhat.com]:
+{quote}
+The list of methods where 'bumpTimeout' is actually used in [InMemorySessionManager|https://github.com/undertow-io/undertow/blob/master/core/src/main/java/io/undertow/server/session/InMemorySessionManager.java] to following: createSession(), setMaxInactiveInterval(), getAttribute(), getAttributeNames(), setAttribute(), removeAttribute(). From this list usage in following methods is suspicious: getAttribute(), getAttributeNames(), setAttribute(), removeAttribute().
+
+All occurrences were added by [this commit|https://github.com/undertow-io/undertow/commit/be768b6cb98c13f02dfd19befe4ebf687f47d84f#diff-d98bd5b5413945d50c03478570716776] with initial session timeout implementation.
+
+The truth is the [Servlet 4.0, section 7.5|https://javaee.github.io/servlet-spec/downloads/servlet-4.0/servlet-4_0_FINAL.pdf] specification (Servlet 3.1 is almost identical) specifies that timeout depends on user activity only:
+
+""This means that the only mechanism that can be used to indicate when a client is no longer active is a time out period.""
+{quote}
+Response from [~stuartdouglas_jira] from mail:
+{quote}
+We could probably change that to just update the timeout in requestDone().
+{quote}",2018/10/04 9:16 AM
+UNDERTOW-1409,"When redirecting to a relative URL, the current URL is not correctly URL encoded. For example, take these redirections:
+{code}
+16:59:31,245 INFO  [stdout] (default task-1) Request at /testredirect-1.0-SNAPSHOT/
+16:59:31,245 INFO  [stdout] (default task-1) Redirecting to: http://localhost:8080/testredirect-1.0-SNAPSHOT/invalid-%5B123%5D/main
+16:59:31,255 INFO  [stdout] (default task-1) Request at /testredirect-1.0-SNAPSHOT/invalid-%5B123%5D/main
+16:59:31,264 INFO  [stdout] (default task-1) Redirecting to: http://localhost:8080/testredirect-1.0-SNAPSHOT/invalid-[123]/subpath (using sendRedirect(""./subpath""))
+16:59:31,265 INFO  [stdout] (default task-1) Request at /testredirect-1.0-SNAPSHOT/invalid-[123]/subpath
+{code}
+
+The problem seems to be in {{io.undertow.servlet.spec.HttpServletResponseImpl.sendRedirect}}. Here {{String current = exchange.getRelativePath();}} returns the path unencoded as '/invalid-[123]/'. This ends up in {{realPath}} and {{loc}}.
+
+I've attached a very simple example application that shows the erroneous redirect. Deploy this application and navigate to {{http://localhost:8080/testredirect-1.0-SNAPSHOT/}}.",2018/09/03 11:12 AM
+UNDERTOW-1407,Current version of Karaf dependency in master branch {{4.2.0}} still breaks compilation of Undertow with {{JDK-11}} early build.,2018/08/30 10:12 AM
+UNDERTOW-1404,"UT000072 exception is not handled as Bad Request on ajp-listener process. It needs Bad Request handling like a UNDERTOW-1021.
+
+{noformat}
+12:08:24,775 ERROR [io.undertow.request] (default I/O-3) UT005001: An exception occurred processing the request: java.lang.IllegalArgumentException: UT000072: Failed to decode url aaa%http to charset UTF-8
+        at io.undertow.util.URLUtils.decode(URLUtils.java:152)
+        at io.undertow.util.URLUtils$QueryStringParser.decode(URLUtils.java:273)
+        at io.undertow.util.URLUtils$QueryStringParser.parse(URLUtils.java:256)
+        at io.undertow.util.URLUtils.parseQueryString(URLUtils.java:53)
+        at io.undertow.server.protocol.ajp.AjpRequestParser.parse(AjpRequestParser.java:420)
+        at io.undertow.server.protocol.ajp.AjpReadListener.handleEvent(AjpReadListener.java:169)
+        at io.undertow.server.protocol.ajp.AjpOpenListener.handleEvent(AjpOpenListener.java:143)
+        at io.undertow.server.protocol.ajp.AjpOpenListener.handleEvent(AjpOpenListener.java:52)
+        at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+        at org.xnio.ChannelListeners$10.handleEvent(ChannelListeners.java:291)
+        at org.xnio.ChannelListeners$10.handleEvent(ChannelListeners.java:286)
+        at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+        at org.xnio.nio.QueuedNioTcpServer$1.run(QueuedNioTcpServer.java:131)
+        at org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:612)
+        at org.xnio.nio.WorkerThread.run(WorkerThread.java:479)
+{noformat}",2018/08/29 10:01 AM
+UNDERTOW-1402,"If AsyncContextImpl.onAsyncComplete() hits an exception, that can cause following response.responseDone() calls to be missed.
+
+For instance:
+
+1. async request a starts
+2. sync request b invalidates session
+3. async request a completes
+
+Upon completion, the async request does not unlock and throws following exception:
+{code}
+16:04:58,260 ERROR [stderr] (default task-18) Exception in thread ""default task-18"" java.lang.RuntimeException: java.lang.IllegalStateException: WFLYCLWEBUT0001: Session 8adSKXK1li8Qo15QnaIGrd31DrB6B83jEL4blzq1 is invalid
+16:04:58,260 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.ServletContextImpl.invokeRunnable(ServletContextImpl.java:944)
+16:04:58,260 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.AsyncContextImpl.onAsyncComplete(AsyncContextImpl.java:594)
+16:04:58,260 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.AsyncContextImpl.access$100(AsyncContextImpl.java:71)
+16:04:58,261 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.AsyncContextImpl$3.run(AsyncContextImpl.java:315)
+16:04:58,261 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.AsyncContextImpl$6.run(AsyncContextImpl.java:473)
+16:04:58,261 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.AsyncContextImpl$TaskDispatchRunnable.run(AsyncContextImpl.java:584)
+16:04:58,261 ERROR [stderr] (default task-18) 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+16:04:58,261 ERROR [stderr] (default task-18) 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+16:04:58,261 ERROR [stderr] (default task-18) 	at java.lang.Thread.run(Thread.java:748)
+16:04:58,261 ERROR [stderr] (default task-18) Caused by: java.lang.IllegalStateException: WFLYCLWEBUT0001: Session 8adSKXK1li8Qo15QnaIGrd31DrB6B83jEL4blzq1 is invalid
+16:04:58,261 ERROR [stderr] (default task-18) 	at org.wildfly.clustering.web.undertow.session.DistributableSession.validate(DistributableSession.java:57)
+16:04:58,261 ERROR [stderr] (default task-18) 	at org.wildfly.clustering.web.undertow.session.DistributableSession.getAttribute(DistributableSession.java:157)
+16:04:58,261 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.HttpSessionImpl.getAttribute(HttpSessionImpl.java:122)
+16:04:58,261 ERROR [stderr] (default task-18) 	at org.jboss.weld.context.http.HttpSessionContextImpl.checkBeanIdentifierIndexConsistency(HttpSessionContextImpl.java:98)
+16:04:58,261 ERROR [stderr] (default task-18) 	at org.jboss.weld.context.http.HttpSessionContextImpl.associate(HttpSessionContextImpl.java:47)
+16:04:58,261 ERROR [stderr] (default task-18) 	at org.jboss.weld.context.http.HttpSessionContextImpl.associate(HttpSessionContextImpl.java:23)
+16:04:58,261 ERROR [stderr] (default task-18) 	at org.jboss.weld.servlet.HttpContextLifecycle.requestInitialized(HttpContextLifecycle.java:237)
+16:04:58,261 ERROR [stderr] (default task-18) 	at org.jboss.weld.servlet.WeldInitialListener.requestInitialized(WeldInitialListener.java:152)
+16:04:58,261 ERROR [stderr] (default task-18) 	at io.undertow.servlet.core.ApplicationListeners.requestInitialized(ApplicationListeners.java:246)
+16:04:58,261 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.AsyncContextImpl.setupRequestContext(AsyncContextImpl.java:678)
+16:04:58,261 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.AsyncContextImpl.access$700(AsyncContextImpl.java:71)
+16:04:58,261 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.AsyncContextImpl$7.run(AsyncContextImpl.java:599)
+16:04:58,261 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.ServletContextImpl$2.call(ServletContextImpl.java:177)
+16:04:58,262 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.ServletContextImpl$2.call(ServletContextImpl.java:174)
+16:04:58,262 ERROR [stderr] (default task-18) 	at io.undertow.servlet.spec.ServletContextImpl.invokeRunnable(ServletContextImpl.java:942)
+16:04:58,262 ERROR [stderr] (default task-18) 	... 8 more
+{code}
+The skipped response.responseDone() call then causes hangs reported in WFLY-10923.",2018/08/27 11:29 AM
+UNDERTOW-1364,"The Gzip and Inflate encoding providers (GzipEncodingProvider and InflateEncodingProvider) have support for re-using Deflater and Inflater objects via ObjectPools; the simple object pool type, NewInstanceObjectPool, which these encoding providers default to, work fine - instances are properly created and then recycled.
+
+However, attempting to use a SimpleObjectPool, which allows for reuse of the same Deflater/Inflater instances (by returning them to an internal pool which they can be pulled from again), fails and causes the consumer of the object pool - in this case, the encoding providers - to hang indefinitely.
+
+The source of the problem is fortunately relatively easy - the main problem is that the Deflater/Inflater instances are not reset between usages, which causes undefined behavior when they are pulled from the pool again for attempted reuse. The fix for this involves just calling reset() on the instances either after they are returned to the internal pool of the SimpleObjectPool or before they are pulled from the pool.
+
+I've attached a unit test which is a copy of another GzipEncodingHandler unit test, but which uses the SimpleObjectPool instead of the NewInstanceObjectPool; the unit test hangs on my machine, though it could have other strange behavior on other systems/JDK implementations. I'll also provide a pull request with the aforementioned test and a potential fix (by adding a ""recycle"" lambda to a SimpleObjectPool which is called every time an object is returned to the pool).
+
+In the meanwhile, I've just created a custom implementation of an ObjectPool specialized to inflaters/deflaters which applies the above fix.
+
+Sorry in advance if this was far too wordy, and thanks in advance for any help. :)",2018/06/15 5:01 PM
+UNDERTOW-1349,"Unless I missed anything, implementation of {{HttpServletResponseImpl.setContentLength(int)}} and {{HttpServletResponseImpl.setContentLengthLong(long)}} can be unified. Now each method performs same steps. Only difference is {{len}} argument type. I believe we can unifiy these implementation so that {{setContentLength(int)}} method calls {{setContentLengthLong(long)}} method.",2018/05/17 8:44 AM
+UNDERTOW-1332,"If the following circumstances are all present:
+* WildFly 12 sits behind a reverse proxy,
+* The proxy-address-forwarding attribute is set to true for the http-listener,
+* The reverse proxy sends X-Forwarded-Host header,
+* and there is a call to getLocalAddr
+
+The following NPE can be seen:
+
+{noformat}
+Caused by: java.lang.NullPointerException
+	at io.undertow.servlet.spec.HttpServletRequestImpl.getLocalAddr(HttpServletRequestImpl.java:999)
+	at org.forgerock.http.servlet.HttpFrameworkServlet.createClientContext(HttpFrameworkServlet.java:320)
+	at org.forgerock.http.servlet.HttpFrameworkServlet.service(HttpFrameworkServlet.java:252)
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:790)
+	at io.undertow.servlet.handlers.ServletHandler.handleRequest(ServletHandler.java:74)
+{noformat}",2018/04/11 7:55 AM
+UNDERTOW-1322,"Our application is setup like this:
+
+!image-2018-03-29-09-00-26-835.png|thumbnail! 
+
+We obviously need to know the real client address inside the application. This is normally achieved by forwarding the client address inside the {{X-Forwarded-For}} header through the load balancer chain.
+
+Undertow, when used as a load balancer / proxy, provides two ways to handle {{X-Forwarded-*}} headers that arrive within the request (from a load balancer that handles the request before Undertow):
+
+# {{reuseXForwarded}} setting of {{ProxyHandler}} - ""inspect already existing X-Forwarded-* headers, append information about the current node""
+# {{ProxyPeerAddressHandler}} - ""take {{X-Forwarded-*}} headers and pretend that they contain real client address, protocol, etc""
+
+The problems:
+* {{reuseXForwarded}} cannot be set when Undertow's mod-proxy filter is used, because {{ProxyHandler}} instance gets dynamically built / instantiated by {{ModCluster}} and there's no possibility to control {{reuseXForwarded}}'s value
+* {{ProxyHandler}}, when used together with {{ProxyPeerAddressHandler}} (in Wildfly, this can be done by setting ""proxy-address-forwarding"" of ""http-listener"" to true), does not use {{sourceAddress}} set by {{ProxyPeerAddressHandler}}, but rather reads {{exchange.getConnection().getPeerAddress()}}. This ticket is about this bug.",2018/03/29 3:19 AM
+UNDERTOW-1315,"This is very easy to overlook because the attribute is extremely poorly named and missing from MCMP definition [1] completely. This is because mod_cluster aligned nomenclature with httpd mod_proxy's [2] which defines maxattempts as:
+
+{quote}Maximum number of *failover* attempts before giving up.{quote}
+
+[1] https://developer.jboss.org/docs/DOC-11425
+
+[2] https://httpd.apache.org/docs/2.4/mod/mod_proxy.html#proxypass",2018/03/22 12:43 PM
+UNDERTOW-1308,"HttpServletResponseImpl#sendRedirect checks for absolute urls by recognizing string ""://"".
+
+The schema part of URLs ends with colon, not colon double slash. This is not an issue for http(s) protocol URLs but for redirect URLs for native mobile apps.
+
+Defining redirect URLs for OAuth as defined in 
+https://tools.ietf.org/html/rfc8252#section-7.1
+will result in relative URL redirects.
+
+",2018/03/14 10:40 AM
+UNDERTOW-1291,"Improve SecureExchangeAttribute to use HttpServerExchange#isSecure(), which was added as a part of the fix for UNDERTOW-1182, instead of using HttpServerExchange#getRequestScheme().
+
+",2018/02/21 10:43 AM
+UNDERTOW-1290,"SecureExchangeAttribute has a token name ""$\{SECURE\}"" but I would assume the correct token name is ""%\{SECURE\}"".",2018/02/21 10:38 AM
+UNDERTOW-1287,Current version of Karaf (4.0.7) makes troubles when compiling Undertow with JDK-9. We need to update it to latest available version 4.2.0.M2 so we are able to successfully compile Undertow with JDK-9.,2018/02/20 3:49 AM
+UNDERTOW-1282,"{{HttpServletRequest.getLocalPort()}} method does not reflect case when Forwarded ~ by header is defined in request.
+
+{quote}
+Header value in request:
+
+Forwarded=for=192.121.210.60:455;proto=https;by=203.0.113.43:777
+
+What particular methods return in case of handler usage:
+
+HttpServerExchange.getSourceAddress() = /192.121.210.60:455
+HttpServerExchange.getRequestScheme() = https
+HttpServerExchange.getDestinationAddress() = /203.0.113.43:777
+
+Those are correct.
+
+Servlet case:
+
+HttpServletRequest.getRemoteAddr() = 192.121.210.60
+HttpServletRequest.getRemoteHost() = 192.121.210.60
+HttpServletRequest.getRemotePort() = 455
+HttpServletRequest.getScheme() = https
+HttpServletRequest.getLocalName() = 203.0.113.43
+HttpServletRequest.getLocalAddr() = 127.0.0.1    <--- this is fixed by UNDERTOW-1280
+HttpServletRequest.getLocalPort() = 8080
+{quote}
+
+Returned value of getLocalPort() does not reflect Forwarded ~ by header value. Correct value in this case should be 777.",2018/02/15 1:26 PM
+UNDERTOW-1267,"Currently a modcluster advertise UDP datagram is sent with a ttl (time to live) of 1, the default setting.
+Apache httpd mod_cluster uses a hard coded value of 10 (defined as MA_ADVERTISE_HOPS in mod_cluster-1.3.7.Final/native/advertise/mod_advertise.h).
+
+The ttl is reduced by every router on the route to its destination. If the ttl reaches zero before the datagram arrives at its destination, the datagram is discarded.
+This means that, with a ttl of 1, the advertise UDP datagram never reaches any modcluster listeners that are located behind a router.
+
+Two possible ways to resolve the issue:
+# add option to allow the modcluster advertise ttl to be set
+# use a hard coded advertise ttl value of 10 (match Apache httpd mod_cluster behaviour)
+
+I have the changes ready to be submitted, let me know which option and default ttl value you prefer.
+",2018/01/15 9:45 AM
+UNDERTOW-1222,"In an Undertow setup with IoThreads = 1, cacheConnections (smax) = 2, maxConnections = 16 and ttl = 10s, Apache HTTP server benchmarking tool load tests reveal:
+- 1 connection: all good, no connections closed
+- 2 concurrent connections: all good, no connections closed
+- 3-16 or more concurrent connections: connections closed *before* they reach their ttl
+
+I expect the 3rd to 16th connection to be maintained until they reach their ttl. But this does not happen.
+
+mod_cluster java documentation:
+{quote}
+smax: Soft maximum idle connection count (that is the smax in worker mod_proxy documentation).
+      The maximum value depends on the httpd thread configuration (ThreadsPerChild or 1).
+ttl:  Time to live (in seconds) for *idle connections above smax*
+{quote}
+URL: https://docs.jboss.org/mod_cluster/1.3.0/html/java.properties.html
+
+Node.java#getMaxCachedConnections() returns the value of NodeConfig.java#getCacheConnections(). NodeConfig.java#cacheConnections is the minimum number of connections to maintain.
+This means that the *maximum* number of cached connections is set to the *minimum* number of connections. This is wrong.
+
+Node.java#getMaxCachedConnections() should return the value of NodeConfig#getMaxConnections(). NodeConfig.java#maxConnections is the maximum number of connections that will be kept alive once they are idle.
+This means that the *maximum* number of cached connections is set to the *maximum* number of connections. This is correct.
+
+Now the Apache HTTP server benchmarking tool load tests reveal:
+- 1 connection: all good, no connections closed
+- 2 concurrent connections: all good, no connections closed
+- 3-16 concurrent connections: connections closed *after* they reach their ttl
+
+This is the correct behaviour.",2017/11/01 6:02 AM
+UNDERTOW-1219,"The number of idle connections should not drop below coreCachedConnections.
+
+Steps to reproduce:
+# Set ProxyConnectionPool configuration
+{quote}
+maxConnections = 16
+maxCachedConnections = 4
+coreCachedConnections = 2
+timeToLive = 10000
+{quote}
+# Run load test with 4 concurrent connections
+# 4 connections should be established
+# Wait for 11 seconds
+# 2 connections should still be established
+
+Result: only 1 connection is still established. This is incorrect, 2 connections should still be established.",2017/10/30 5:38 AM
+UNDERTOW-1206,"ModCluster handles ttl in milliseconds. Client sends ttl in seconds, but MCMPHandler does not convert the incoming value to milliseconds. Setting the ttl to 600 - client-side - results in a ttl of 0.6 seconds in undertow. This is not as intended.
+
+To keep DUMP and INFO output similar to that of apache httpd mod_cluster, MCMPInfoUtil should convert ttl from milliseconds to seconds. MCMPWebManager should match that behaviour.",2017/10/23 9:13 AM
+UNDERTOW-1205,"The NodeConfig defaults for queueNewRequests and ttl are always overridden in the constructor. It is better to have the defaults specified in ModCluster.
+
+This also solves the issue where the ttl is set to 0 instead of 60000.",2017/10/23 5:15 AM
+UNDERTOW-1203,"For the fix of issue JBEAP-10449 , there has to be made  some changes in undertow component. 
+For more details look into ""cloned from"" issue.",2017/10/20 3:21 AM
+UNDERTOW-1198,"Adding IPV6 loopback address ::1 is not accepted by IPAddressAccessControlHandler and throw  IllegalArgumentException ""Not a valid IP pattern %s"" .
+
+Using the full format of the address as 0000:0000:0000:0000:0000:0000:0000:0001 is accepted",2017/10/17 2:42 AM
+UNDERTOW-1166,See PR,2017/08/24 6:02 PM
+UNDERTOW-1159,"We are trying to migrate application from EAP 6.4.0 to EAP 7.0.0. Our application is using Struts 2 and sitemesh decorator.
+
+In JBoss 6.4 
+getServletPath() :: /transaction_summary.action 
+getRequestURI():: /projectname/transaction_summary.action
+
+In JBoss 7.0 
+getServletPath() :: /jsp/main/mainSummary.jsp 
+getRequestURI() :: /projectname/jsp/main/mainSummary.jsp",2017/08/15 12:56 AM
+UNDERTOW-1149,"IE pre-authenticates with Kerberos in all situations, even when the server does not require any more authentication (the authorization header is sent in all request with the associated kerberos token). The current implementation in jboss-negotiation 3.0.4 (NegotiationMechanism.java) does not take into account if the user was already authenticated and, therefore, a new re-negotiation is done for every request if the token is there. This is an overwhelming extra work for the infrastructure (AD/Kerberos server mainly).
+
+After a lot of work in issue JBEAP-11680 this problem seems related to CachedAuthenticatedSessionMechanism not being executed. In EAP 7.0.6 the order of authentication mechanisms is:
+
+{noformat}
+[stdout] (default task-1) traze AuthenticationMechanismsHandler handleRequest execute
+[stderr] (default task-1) AuthenticationMechanismsHandler.handleRequest: mechanisms.length=3
+[stderr] (default task-1) AuthenticationMechanismsHandler.handleRequest: mechanisms.length=org.jboss.security.negotiation.NegotiationMechanism@6ca0c877
+[stderr] (default task-1) AuthenticationMechanismsHandler.handleRequest: mechanisms.length=io.undertow.servlet.handlers.security.ServletFormAuthenticationMechanism@648a27fc
+[stderr] (default task-1) AuthenticationMechanismsHandler.handleRequest: mechanisms.length=io.undertow.security.impl.CachedAuthenticatedSessionMechanism@438cedb4
+{noformat}
+
+The CachedAuthenticatedSessionMechanism is executed after the NegotiationMechanism. It seems that undertow 1.3.x in DeploymentManagerImpl.java adds the CachedAuthenticatedSessionMechanism at the end but in 1.4.x is added first.",2017/08/09 9:38 AM
+UNDERTOW-1142,"Two typos in log messages.
+",2017/07/24 1:56 PM
+UNDERTOW-1139,"If a websocket ExtensionHandshake is available but fails negotiation against the client-supplied extensions, the websocket connection will die with a null pointer exception.
+
+The problem is that the Handshake class does not check the result of ExtensionHandshake.accept(WebSocketExtension ext) for null (meaning the extension should not be used) before adding this extension to the list of selected and configured extensions on the connection. The null blows up later.
+
+More concretely, [line 202 in master|https://github.com/undertow-io/undertow/blob/96e4763706ef053ec822a19644439abc00e8c4bf/core/src/main/java/io/undertow/websockets/core/protocol/Handshake.java#L202] currently reads:
+
+{code:java}
+                WebSocketExtension negotiated = extHandshake.accept(ext);
+                if (ext != null && !extHandshake.isIncompatible(configured)) {
+                    selected.add(negotiated);
+                    configured.add(extHandshake);
+                }
+{code}
+
+It should read:
+
+{code:java}
+                WebSocketExtension negotiated = extHandshake.accept(ext);
+                if (negotiated != null && !extHandshake.isIncompatible(configured)) {
+                    selected.add(negotiated);
+                    configured.add(extHandshake);
+                }
+{code}
+
+Note the null check was on ext (which is probably incorrect: Handshake.accept() will check it for null already and this item is from server configuration--its unlikely to have nulls in it). The null check should be on negotiated.
+
+
+",2017/07/18 1:48 PM
+UNDERTOW-1088,"I believe commit https://github.com/undertow-io/undertow/commit/595322a869494ba03610773b2e8084da8d4a8372 should be reverted.
+
+The issue is that sendRequest() calls clientCallback.completed() which is on the caller side and can block for a long time, thus blocking other users/threads from calling sendRequest().
+
+So, I think that any synchronization must be done by the callers. Or it must be implemented different than just making this whole method synchronized.",2017/05/31 4:11 PM
+UNDERTOW-1022,"Fix ALPN versions for JDK 8 u121 (and u112) inside pom.xml in 1.3.x branch. See https://www.eclipse.org/jetty/documentation/9.4.x/alpn-chapter.html#alpn-versions for details.
+
+This causes that a unit test WebSocketClient13TestCase hangs when building/testing 1.3.x branch on JDK u121. A surefire report WebSocketClient13TestCase-output.txt contains the following Exception:
+
+{code:title=io.undertow.websockets.client.version13.WebSocketClient13TestCase-output.txt}
+Exception in thread ""XNIO-1 task-1"" java.lang.NoSuchFieldError: DEFAULT
+	at sun.security.ssl.ServerHandshaker.setupEphemeralECDHKeys(ServerHandshaker.java:1484)
+	at sun.security.ssl.ServerHandshaker.trySetCipherSuite(ServerHandshaker.java:1274)
+	at sun.security.ssl.ServerHandshaker.chooseCipherSuite(ServerHandshaker.java:1078)
+	at sun.security.ssl.ServerHandshaker.clientHello(ServerHandshaker.java:744)
+	at sun.security.ssl.ServerHandshaker.processMessage(ServerHandshaker.java:227)
+	at sun.security.ssl.Handshaker.processLoop(Handshaker.java:1026)
+	at sun.security.ssl.Handshaker$1.run(Handshaker.java:966)
+	at sun.security.ssl.Handshaker$1.run(Handshaker.java:963)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at sun.security.ssl.Handshaker$DelegatedTask.run(Handshaker.java:1416)
+	at io.undertow.protocols.ssl.SslConduit$5.run(SslConduit.java:1027)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+{code}
+",2017/03/19 10:51 PM
+UNDERTOW-1021,"The following ERROR log message is shown when ajp-listener handles other protocol than AJP. For example, sending HTTP request agasint AJP port like {{""curl -v http://localhost:8009""}}:
+
+{code}
+ERROR [io.undertow.request] (default I/O-46) UT005001: An exception occurred processing the request: java.io.IOException: UT000066: Incorrect magic number 18245 for AJP packet header
+	at io.undertow.server.protocol.ajp.AjpRequestParser.parse(AjpRequestParser.java:189)
+	at io.undertow.server.protocol.ajp.AjpReadListener.handleEvent(AjpReadListener.java:166)
+	at io.undertow.server.protocol.ajp.AjpOpenListener.handleEvent(AjpOpenListener.java:131)
+	at io.undertow.server.protocol.ajp.AjpOpenListener.handleEvent(AjpOpenListener.java:51)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.ChannelListeners$10.handleEvent(ChannelListeners.java:291)
+	at org.xnio.ChannelListeners$10.handleEvent(ChannelListeners.java:286)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.nio.QueuedNioTcpServer$1.run(QueuedNioTcpServer.java:129)
+	at org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:588)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:468)
+{code}
+
+The following ERROR log message is shown when ajp-listener receives invalid Content-Length. For example, {{""Content-Length: a""}}. (Note: Most of front-end loadbalancer reject such invalid Content-Length before forwarding to a backend server. But, as far as I tested, mod_proxy forwards the request and causes this ERROR log.)
+
+{code}
+ERROR [io.undertow.request] (default I/O-14) UT005001: An exception occurred processing the request: java.lang.NumberFormatException: For input string: ""a""
+	at java.lang.NumberFormatException.forInputString(NumberFormatException.java:65)
+	at java.lang.Long.parseLong(Long.java:589)
+	at java.lang.Long.parseLong(Long.java:631)
+	at io.undertow.server.protocol.ajp.AjpReadListener.createSourceConduit(AjpReadListener.java:319)
+	at io.undertow.server.protocol.ajp.AjpReadListener.handleEvent(AjpReadListener.java:212)
+	at io.undertow.server.protocol.ajp.AjpOpenListener.handleEvent(AjpOpenListener.java:131)
+	at io.undertow.server.protocol.ajp.AjpOpenListener.handleEvent(AjpOpenListener.java:51)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.ChannelListeners$10.handleEvent(ChannelListeners.java:291)
+	at org.xnio.ChannelListeners$10.handleEvent(ChannelListeners.java:286)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.nio.QueuedNioTcpServer$1.run(QueuedNioTcpServer.java:129)
+	at org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:588)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:468)
+{code}
+
+The above should be treated as ""400 Bad Request"", so undertow should log at DEBUG level to avoid filling the logs.",2017/03/19 8:45 PM
+UNDERTOW-1020,"http listener output the following DEBUG log message when exceeding max-parameters/max-headers. However, ajp listener does not output any log mssage. ajp listener should output DEBUG log like http listener.
+
+{code}
+DEBUG [io.undertow.request.io] (default I/O-31) UT005014: Failed to parse HTTP request: io.undertow.server.protocol.http.HttpRequestParser$BadRequestException: UT000039: To many query parameters, cannot have more than 5 query parameters
+	at io.undertow.server.protocol.http.HttpRequestParser.handleQueryParameters(HttpRequestParser.java:523)
+	at io.undertow.server.protocol.http.HttpRequestParser.beginQueryParameters(HttpRequestParser.java:450)
+	at io.undertow.server.protocol.http.HttpRequestParser.handlePath(HttpRequestParser.java:374)
+	at io.undertow.server.protocol.http.HttpRequestParser.handle(HttpRequestParser.java:215)
+	at io.undertow.server.protocol.http.HttpReadListener.handleEventWithNoRunningRequest(HttpReadListener.java:185)
+	at io.undertow.server.protocol.http.HttpReadListener.handleEvent(HttpReadListener.java:134)
+	at io.undertow.server.protocol.http.HttpOpenListener.handleEvent(HttpOpenListener.java:148)
+	at io.undertow.server.protocol.http.HttpOpenListener.handleEvent(HttpOpenListener.java:92)
+	at io.undertow.server.protocol.http.HttpOpenListener.handleEvent(HttpOpenListener.java:51)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.ChannelListeners$10.handleEvent(ChannelListeners.java:291)
+	at org.xnio.ChannelListeners$10.handleEvent(ChannelListeners.java:286)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.nio.QueuedNioTcpServer$1.run(QueuedNioTcpServer.java:130)
+	at org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:588)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:468)
+{code}
+{code}
+DEBUG [io.undertow.request.io] (default I/O-41) UT005014: Failed to parse HTTP request: io.undertow.server.protocol.http.HttpRequestParser$BadRequestException: UT000040: To many headers, cannot have more than 5 header
+	at io.undertow.server.protocol.http.HttpRequestParser.handleHeaderValueCacheMiss(HttpRequestParser.java:720)
+	at io.undertow.server.protocol.http.HttpRequestParser.handleHeaderValue(HttpRequestParser.java:657)
+	at io.undertow.server.protocol.http.HttpRequestParser.handle(HttpRequestParser.java:256)
+	at io.undertow.server.protocol.http.HttpReadListener.handleEventWithNoRunningRequest(HttpReadListener.java:185)
+	at io.undertow.server.protocol.http.HttpReadListener.handleEvent(HttpReadListener.java:134)
+	at io.undertow.server.protocol.http.HttpOpenListener.handleEvent(HttpOpenListener.java:148)
+	at io.undertow.server.protocol.http.HttpOpenListener.handleEvent(HttpOpenListener.java:92)
+	at io.undertow.server.protocol.http.HttpOpenListener.handleEvent(HttpOpenListener.java:51)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.ChannelListeners$10.handleEvent(ChannelListeners.java:291)
+	at org.xnio.ChannelListeners$10.handleEvent(ChannelListeners.java:286)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.nio.QueuedNioTcpServer$1.run(QueuedNioTcpServer.java:130)
+	at org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:588)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:468)
+{code}",2017/03/19 8:44 PM
+UNDERTOW-1016,"Start EAP with set mod-cluster filter to IPV6 subinterface
+{noformat}
+[31m15:28:27,457 ERROR [org.jboss.msc.service.fail] (MSC service thread 1-2) MSC000001: Failed to start service jboss.undertow.filter.modcluster: org.jboss.msc.service.StartException in service jboss.undertow.filter.modcluster: Failed to start service
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.run(ServiceControllerImpl.java:1978)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+Caused by: java.lang.NullPointerException
+	at io.undertow.server.handlers.proxy.mod_cluster.MCMPConfig.<init>(MCMPConfig.java:46)
+	at io.undertow.server.handlers.proxy.mod_cluster.MCMPConfig$Builder.build(MCMPConfig.java:191)
+	at org.wildfly.extension.undertow.filters.ModClusterService.start(ModClusterService.java:175)
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.startService(ServiceControllerImpl.java:2032)
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.run(ServiceControllerImpl.java:1955)
+	... 3 more
+{noformat}",2017/03/15 12:47 PM
+UNDERTOW-976,The session listener that handles SSO destruction on session invalidation is not registered if session was added to SSO by a remote node.,2017/01/27 11:40 AM
+UNDERTOW-932,"Configure one hot standby worker as
+
+{noformat}
+/subsystem=modcluster/mod-cluster-config=configuration/dynamic-load-provider=configuration:remove
+/subsystem=modcluster/mod-cluster-config=configuration/:write-attribute(name=simple-load-provider,value=0
+{noformat}
+
+register with balancer
+
+{noformat}
+14:56:59,323 INFO  [io.undertow] (default task-83) UT005053: Registering node node4, connection: ajp://127.0.0.1:8309/?#
+14:56:59,325 INFO  [io.undertow] (default task-84) UT005045: Registering context /clusterbench-granular, for node node4
+14:56:59,326 INFO  [io.undertow] (default task-85) UT005045: Registering context /, for node node4
+14:56:59,328 INFO  [io.undertow] (default task-86) UT005045: Registering context /clusterbench-passivating, for node node4
+{noformat}
+
+503 on access.",2016/12/13 9:01 AM
+UNDERTOW-931,"When ChannelUpgradeHandler.removeProtocol() is called, it raises an UnsupportedOperationException:
+
+{noformat}
+11:43:25,626 WARN  [org.jboss.msc.service.fail] (MSC service thread 1-5) MSC000004: Failure during stop of service jboss.messaging-activemq.http-upgrade-service
+.http-acceptor-throughput.legacy: java.lang.UnsupportedOperationException
+        at java.util.concurrent.CopyOnWriteArrayList$COWIterator.remove(CopyOnWriteArrayList.java:1176) [rt.jar:1.8.0_112]
+        at io.undertow.server.handlers.ChannelUpgradeHandler.removeProtocol(ChannelUpgradeHandler.java:160)
+        at org.wildfly.extension.messaging.activemq.HTTPUpgradeService.stop(HTTPUpgradeService.java:177)
+        at org.jboss.msc.service.ServiceControllerImpl$StopTask.stopService(ServiceControllerImpl.java:2071) [jboss-msc-1.2.7.Final-redhat-1.jar:1.2.7.Final-red
+hat-1]
+        at org.jboss.msc.service.ServiceControllerImpl$StopTask.run(ServiceControllerImpl.java:2032) [jboss-msc-1.2.7.Final-redhat-1.jar:1.2.7.Final-redhat-1]
+        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142) [rt.jar:1.8.0_112]
+        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617) [rt.jar:1.8.0_112]
+        at java.lang.Thread.run(Thread.java:745) [rt.jar:1.8.0_112]
+{noformat}
+
+The holders list is a CopyOnWriteArrayList and its iterator does not allow to call remove().",2016/12/12 8:21 AM
+UNDERTOW-898,"h3. Undertow task
+We would like to have this bit of configurable logic, off by default, implemented in Undertow. The C implementation is clear enough, the algorithm is just one line. I believe it could be translated to Undertow mod_cluster Proxy logic.
+
+See: https://github.com/modcluster/mod_proxy_cluster/pull/8/files
+
+h3. Description
+Under the following conditions:
+1. A request arrives for a session with an unknown route
+2. A request arrives for a session with a known route in an error state, or if the intended worker is unresponsive and needs to failover
+
+... the failover target must be chosen in a deterministic way.  This is meant to mitigate the situation where concurrent requests failover to different nodes and cause cluster-wide contention for the session.  Given a consistent ordering of workers (e.g. lexographically), the failover target should be chosen by something like: hash code of session id % active worker count.",2016/11/16 10:05 AM
+UNDERTOW-852,"According to HTTP/1.1 specification, the server should return 501 in case of the method being completely unknown to the origin server. The Undertow returns in such case 405, which is incorrect.
+
+{quote}
+5.1.1 Method
+
+   The Method  token indicates the method to be performed on the
+   resource identified by the Request-URI. The method is case-sensitive.
+
+       Method         = ""OPTIONS""                ; Section 9.2
+                      | ""GET""                    ; Section 9.3
+                      | ""HEAD""                   ; Section 9.4
+                      | ""POST""                   ; Section 9.5
+                      | ""PUT""                    ; Section 9.6
+                      | ""DELETE""                 ; Section 9.7
+                      | ""TRACE""                  ; Section 9.8
+                      | ""CONNECT""                ; Section 9.9
+                      | extension-method
+       extension-method = token
+
+   The list of methods allowed by a resource can be specified in an
+   Allow header field (section 14.7). The return code of the response
+   always notifies the client whether a method is currently allowed on a
+   resource, since the set of allowed methods can change dynamically. An
+   origin server SHOULD return the status code 405 (Method Not Allowed)
+   if the method is known by the origin server but not allowed for the
+   requested resource, and 501 (Not Implemented) if the method is
+   unrecognized or not implemented by the origin server. The methods GET
+   and HEAD MUST be supported by all general-purpose servers. All other
+   methods are OPTIONAL; however, if the above methods are implemented,
+   they MUST be implemented with the same semantics as those specified
+   in section 9.
+{quote}",2016/09/30 9:56 AM
+UNDERTOW-851,"According to RFC for HTTP/1.1 the server should provide Allow header in case of responding with 405 \[1\], but Undertow doesn't send it.
+
+\[1\]
+https://www.ietf.org/rfc/rfc2616.txt
+{quote}
+10.4.6 405 Method Not Allowed
+
+   The method specified in the Request-Line is not allowed for the
+   resource identified by the Request-URI. The response MUST include an
+   Allow header containing a list of valid methods for the requested
+   resource.
+{quote}",2016/09/30 9:49 AM
+UNDERTOW-822,"According to the [HTTP2 spec - Connection-Specific Header Fields|https://tools.ietf.org/html/rfc7540#section-8.1.2.2], HTTP2 request
+# must not contain ""connection"" header
+# may contain 'te' header but only with 'trailers' value
+
+{quote}
+HTTP/2 does not use the Connection header field to indicate
+   connection-specific header fields; in this protocol, connection-
+   specific metadata is conveyed by other means.  An endpoint MUST NOT
+   generate an HTTP/2 message containing connection-specific header
+   fields; any message containing connection-specific header fields MUST
+   be treated as malformed (Section 8.1.2.6).
+
+The only exception to this is the TE header field, which MAY be
+   present in an HTTP/2 request; when it is, it MUST NOT contain any
+   value other than ""trailers"".
+{quote}
+
+Currently there is no such check in Undertow processing request. Thus such requests are processed successfully instead of being rejected as malformed.",2016/09/06 9:47 AM
+UNDERTOW-816,"In current implementation there is not sufficient check for pseudo-headers presense in HTTP2 request from client.
+
+According to the specification https://tools.ietf.org/html/rfc7540#section-8.1.2.3:
+{quote}
+All HTTP/2 requests MUST include exactly one valid value for the
+       "":method"", "":scheme"", and "":path"" pseudo-header fields, unless it is
+       a CONNECT request (Section 8.3).  An HTTP request that omits
+       mandatory pseudo-header fields is malformed (Section 8.1.2.6).
+{quote}",2016/09/01 10:41 AM
+UNDERTOW-799,"At load with WebSockets on SSL, we have been seeing IllegalStateException
+exceptions which we suspect are due to dirty connection closes. The
+observed stack in 1.3.23.Final is:
+
+{noformat}
+[org.xnio.nio] (default I/O-15) XNIO000011: Task io.undertow.protocols.ssl.SslConduit$1@959ab9 failed with an exception: java.lang.IllegalStateException: UT000091: Buffer has already been freed
+        at io.undertow.server.DefaultByteBufferPool$DefaultPooledBuffer.getBuffer(DefaultByteBufferPool.java:196)
+        at io.undertow.protocols.ssl.SslConduit.doUnwrap(SslConduit.java:744)
+        at io.undertow.protocols.ssl.SslConduit.doHandshake(SslConduit.java:603)
+        at io.undertow.protocols.ssl.SslConduit.access$500(SslConduit.java:63)
+        at io.undertow.protocols.ssl.SslConduit$SslReadReadyHandler.readReady(SslConduit.java:1029)
+        at io.undertow.protocols.ssl.SslConduit$1.run(SslConduit.java:225)
+        at org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:580)
+        at org.xnio.nio.WorkerThread.run(WorkerThread.java:464)
+{noformat}
+
+If past the {{this.unwrappedData = unwrappedData;}} call on about 753,
+the class-level unwrappedData is the same as the stack instance. After
+that point, any RuntimeException or IOException will result in a call
+to this.unwrappedData.close() via close()->closed(). As a result, this
+exception case will always call unwrappedData.getBuffer() on a closed
+PooledByteBuffer and throw the IllegalStateException. Since this is
+thrown from the finally block, it will mask the original exception.
+
+I've been unable to reproduce this locally, but this seems like a
+potential issue that should be fixed. I also don't see another
+case where unwrappedData is non-null and non-open.",2016/08/18 1:07 PM
+UNDERTOW-787,"There is a [bug|https://github.com/undertow-io/undertow/blob/master/core/src/main/java/io/undertow/attribute/ResponseTimeAttribute.java#L52] in Undertow's way of converting response time to seconds format for access log. In {{milis}} variable is expected to be time in milliseconds but as {{timeUnit}} is {{TimeUnit.SECONS}} actually, there are just seconds after such conversion.
+
+You can see it for example when use 'time-taken' identifier in access log and perform some long running request - see 'Steps to Reproduce' section.",2016/08/02 3:22 AM
+UNDERTOW-767,"When a user attempts to access an invalidated session, they will get a ""Session not found"" message.
+""Session is invalid"" would be more appropriate.",2016/07/08 7:48 AM
+UNDERTOW-721,NoData,2016/06/01 7:59 PM
+UNDERTOW-695,"{noformat}
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /home/darranl/src/wildfly10/undertow/websockets-jsr/src/main/java/io/undertow/websockets/jsr/ServerWebSocketContainer.java:[141,165] incompatible types: java.util.List<java.lang.Object> cannot be converted to java.util.List<javax.websocket.Extension>
+[ERROR] /home/darranl/src/wildfly10/undertow/websockets-jsr/src/main/java/io/undertow/websockets/jsr/Bootstrap.java:[91,80] incompatible types: java.util.List<java.lang.Object> cannot be converted to java.util.List<javax.websocket.Extension.Parameter>
+[INFO] 2 errors 
+{noformat}",2016/04/21 5:53 AM
+UNDERTOW-678,"When calculating the rotation time for log files the constant {{Calendar.HOUR}} is used to set the hour to 0 for midnight. It should use the {{Calendar.HOUR_OF_DAY}} or set the {{AM_PM}} value as well.
+
+{quote}
+{code}
+public static final int HOUR
+{code}
+Field number for get and set indicating the hour of the morning or afternoon. HOUR is used for the 12-hour clock (0 - 11). Noon and midnight are represented by 0, not by 12. E.g., at 10:04:15.250 PM the HOUR is 10.
+
+{code}
+public static final int HOUR_OF_DAY
+{code}
+Field number for get and set indicating the hour of the day. HOUR_OF_DAY is used for the 24-hour clock. E.g., at 10:04:15.250 PM the HOUR_OF_DAY is 22.
+See Also:
+HOUR, Constant Field Values
+{quote}",2016/04/04 5:29 PM
+UNDERTOW-651,"* X-Manager-Address needs to be formatted
+* zone indices do not work MODCLUSTER-483",2016/03/02 4:59 PM
+UNDERTOW-641,"Getting the following compilation error building the 1.4.x branch: -
+
+{noformat}
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /home/darranl/src/wildfly10/undertow/core/src/main/java/io/undertow/security/impl/BasicAuthenticationMechanism.java:[104,109] incompatible types: java.util.Map<java.lang.Object,java.lang.Object> cannot be converted to java.util.Map<java.util.regex.Pattern,java.nio.charset.Charset>
+[INFO] 1 error
+{noformat}
+
+The reason for this is although the code is identical between upstream and 1.4.x the 1.4.x branch is still set to use Java 7 so automatic conversion is not possible.",2016/02/22 6:41 AM
+UNDERTOW-586,When having defined max-active-sessions and enabled statistics the setting of max-active-sessions is ignored.,2015/11/17 1:35 PM
+UNDERTOW-570,"Reporting of processing time does not work: 
+* maxProcessingTime is always 0 (zero)
+* processingTime is huge negative number, for example -8487404155063010
+
+Root cause is very simple and obvious from sources:
+# request start time is recorded in nanoseconds (System.nanoTime())
+# request end time is taken in milliseconds (System.currentTimeMillis())
+# their difference is, therefore, huge negative number
+",2015/10/27 6:00 AM
+UNDERTOW-569,"If 2 sessions associated with the same SSO invalidate at the same time, the triggered SSO session destroyed listener will attempt to invalidate each other.  In the case of distributed web sessions/SSO, this can easily deadlock, as one thread will have the lock on the SSO and be attempting to acquire a lock on the associated session in order to invalidate it.  If another thread is concurrently timing out its session, it will be waiting to acquire a lock on the SSO, causing a deadlock.
+
+To fix this, we should perform invalidation of associated sessions *after* removing the SSO, thus only 1 thread will actually attempt the invalidation of the others, since only one thread will attempt to remove the SSO, the other will not find it.
+
+N.B. This actually affects 1.3.3.Final, but the versions in jira are not up to date.",2015/10/23 12:17 PM
+UNDERTOW-567,"{noformat}
+16:58:03,864 ERROR [stderr] (XNIO-1 task-4) java.lang.IllegalArgumentException: UT000025: Unexpected token 'ManagementRealm"", nonce' within header.
+16:58:03,865 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.util.HeaderTokenParser.parseHeader(HeaderTokenParser.java:68)
+16:58:03,865 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.impl.DigestAuthorizationToken.parseHeader(DigestAuthorizationToken.java:79)
+16:58:03,865 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.impl.DigestAuthenticationMechanism.authenticate(DigestAuthenticationMechanism.java:156)
+{noformat}",2015/10/21 12:06 PM
+UNDERTOW-548,"Authentication mechanisms should not be setting the status code as where multiple mechanisms are in use together different mechanisms may require a different code - after all mechanisms have set their challenge we then choose the code to use.
+
+Although the mechanism does not set the code directly I believe it is a side effect of the 'forward' call,",2015/09/22 10:43 AM
+UNDERTOW-545,"The SPNEGO authentication test case fails on IBM JDK as when the server is requested, it returns forbidden (403) instead of unauthorized (401).
+
+{noformat}
+testSpnegoSuccess(io.undertow.server.security.SpnegoAuthenticationTestCase)  Time elapsed: 0.403 sec  <<< FAILURE!
+java.lang.AssertionError: expected:<401> but was:<403>
+	at org.junit.Assert.fail(Assert.java:88)
+	at org.junit.Assert.failNotEquals(Assert.java:834)
+	at org.junit.Assert.assertEquals(Assert.java:645)
+	at org.junit.Assert.assertEquals(Assert.java:631)
+	at io.undertow.server.security.SpnegoAuthenticationTestCase.testSpnegoSuccess(SpnegoAuthenticationTestCase.java:94)
+{noformat}",2015/09/18 8:16 AM
+UNDERTOW-506,"When WFLY with configured kerberos security realm is bound to IPv6 address (e.g. 2620:52:0:2804:56ee:75ff:fe2d:980f), undertow is trying to match keytabs against incorrectly parsed address ""[2620"" (should be ""[2620:52:0:2804:56ee:75ff:fe2d:980f]"").",2015/07/29 6:36 AM
+UNDERTOW-375,"I have a sample Spring Boot application (available at https://github.com/dankelleher/UndertowFilterTester) which registers programmatically (no web.xml) two filters, one mapped by servlet name, and one by url pattern.
+
+On startup I get the following exception:
+
+java.lang.reflect.InvocationTargetException
+        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.lang.reflect.Method.invoke(Method.java:606)
+        at org.springframework.boot.maven.RunMojo$LaunchRunner.run(RunMojo.java:418)
+        at java.lang.Thread.run(Thread.java:744)
+Caused by: org.springframework.context.ApplicationContextException: Unable to start embedded container; nested exception is java.lang.RuntimeException: java.lang.IndexOutOfBoundsException: Index: 4, Size: 0
+        at org.springframework.boot.context.embedded.EmbeddedWebApplicationContext.onRefresh(EmbeddedWebApplicationContext.java:133)
+        at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:474)
+        at org.springframework.boot.context.embedded.EmbeddedWebApplicationContext.refresh(EmbeddedWebApplicationContext.java:118)
+        at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:688)
+        at org.springframework.boot.SpringApplication.run(SpringApplication.java:321)
+        at org.springframework.boot.SpringApplication.run(SpringApplication.java:958)
+        at org.springframework.boot.SpringApplication.run(SpringApplication.java:947)
+        at Example.main(Example.java:22)
+        ... 6 more
+Caused by: java.lang.RuntimeException: java.lang.IndexOutOfBoundsException: Index: 4, Size: 0
+        at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:222)
+        at org.springframework.boot.context.embedded.undertow.UndertowEmbeddedServletContainerFactory.createDeploymentManager(UndertowEmbeddedServletContainerFactory.java:344)
+        at org.springframework.boot.context.embedded.undertow.UndertowEmbeddedServletContainerFactory.getEmbeddedServletContainer(UndertowEmbeddedServletContainerFactory.java:204)
+        at org.springframework.boot.context.embedded.EmbeddedWebApplicationContext.createEmbeddedServletContainer(EmbeddedWebApplicationContext.java:157)
+        at org.springframework.boot.context.embedded.EmbeddedWebApplicationContext.onRefresh(EmbeddedWebApplicationContext.java:130)
+        ... 13 more
+Caused by: java.lang.IndexOutOfBoundsException: Index: 4, Size: 0
+        at java.util.ArrayList.rangeCheckForAdd(ArrayList.java:643)
+        at java.util.ArrayList.add(ArrayList.java:455)
+        at io.undertow.servlet.api.DeploymentInfo.insertFilterServletNameMapping(DeploymentInfo.java:354)
+        at io.undertow.servlet.spec.ServletContextImpl.addMappingForServletNames(ServletContextImpl.java:836)
+        at io.undertow.servlet.spec.FilterRegistrationImpl.addMappingForServletNames(FilterRegistrationImpl.java:54)
+        at org.springframework.boot.context.embedded.FilterRegistrationBean.configure(FilterRegistrationBean.java:287)
+        at org.springframework.boot.context.embedded.FilterRegistrationBean.onStartup(FilterRegistrationBean.java:256)
+        at org.springframework.boot.context.embedded.EmbeddedWebApplicationContext.selfInitialize(EmbeddedWebApplicationContext.java:222)
+        at org.springframework.boot.context.embedded.EmbeddedWebApplicationContext.access$000(EmbeddedWebApplicationContext.java:84)
+        at org.springframework.boot.context.embedded.EmbeddedWebApplicationContext$1.onStartup(EmbeddedWebApplicationContext.java:206)
+        at org.springframework.boot.context.embedded.undertow.UndertowEmbeddedServletContainerFactory$Initializer.onStartup(UndertowEmbeddedServletContainerFactory.java:517)
+        at io.undertow.servlet.core.DeploymentManagerImpl.deploy(DeploymentManagerImpl.java:182)
+        ... 17 more
+",2015/01/25 4:31 AM
+UNDERTOW-344,"Otherwise we can end up with an error like this: -
+
+{noformat}
+13:20:41,619 INFO  [stdout] (XNIO-1 task-4) [JGSS_DBG_CRED]  XNIO-1 task-4 getName found name: HTTP/web.dal.wildfly.org@DAL.WILDFLY.ORG, mech=1.2.840.113554.1.2.2
+13:20:41,620 INFO  [stdout] (XNIO-1 task-4) [JGSS_DBG_CRED]  XNIO-1 task-4 Krb5 name type = 0
+13:22:09,371 INFO  [stdout] (XNIO-1 task-4) [JGSS_DBG_UNMARSH]  XNIO-1 task-4 Real token len 692
+13:22:09,372 INFO  [stdout] (XNIO-1 task-4) [JGSS_DBG_UNMARSH]  XNIO-1 task-4 Token oid 1.3.6.1.5.5.2
+13:22:09,373 INFO  [stdout] (XNIO-1 task-4) [JGSS_DBG_UNMARSH]  XNIO-1 task-4 inner token len 684
+13:22:09,374 ERROR [stderr] (XNIO-1 task-4) java.security.PrivilegedActionException: org.ietf.jgss.GSSException, major code: 13, minor code: 0
+13:22:09,375 ERROR [stderr] (XNIO-1 task-4) 	major string: Invalid credentials
+13:22:09,375 ERROR [stderr] (XNIO-1 task-4) 	minor string: Cannot obtain mechanism credential for mechanism 1.3.6.1.5.5.2
+13:22:09,376 ERROR [stderr] (XNIO-1 task-4) 	at java.security.AccessController.doPrivileged(AccessController.java:375)
+13:22:09,377 ERROR [stderr] (XNIO-1 task-4) 	at javax.security.auth.Subject.doAs(Subject.java:572)
+13:22:09,378 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.impl.GSSAPIAuthenticationMechanism.runGSSAPI(GSSAPIAuthenticationMechanism.java:168)
+13:22:09,378 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.impl.GSSAPIAuthenticationMechanism.authenticate(GSSAPIAuthenticationMechanism.java:119)
+13:22:09,379 ERROR [stderr] (XNIO-1 task-4) 	at org.jboss.as.domain.http.server.security.AuthenticationMechanismWrapper.authenticate(AuthenticationMechanismWrapper.java:52)
+13:22:09,380 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.impl.SecurityContextImpl$AuthAttempter.transition(SecurityContextImpl.java:280)
+13:22:09,381 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.impl.SecurityContextImpl$AuthAttempter.transition(SecurityContextImpl.java:297)
+13:22:09,382 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.impl.SecurityContextImpl$AuthAttempter.access$100(SecurityContextImpl.java:267)
+13:22:09,383 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.impl.SecurityContextImpl.attemptAuthentication(SecurityContextImpl.java:130)
+13:22:09,384 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.impl.SecurityContextImpl.authTransition(SecurityContextImpl.java:105)
+13:22:09,385 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.impl.SecurityContextImpl.authenticate(SecurityContextImpl.java:98)
+13:22:09,386 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.handlers.AuthenticationCallHandler.handleRequest(AuthenticationCallHandler.java:50)
+13:22:09,386 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.server.Connectors.executeRootHandler(Connectors.java:199)
+13:22:09,387 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:767)
+13:22:09,387 ERROR [stderr] (XNIO-1 task-4) 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1177)
+13:22:09,388 ERROR [stderr] (XNIO-1 task-4) 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+13:22:09,388 ERROR [stderr] (XNIO-1 task-4) 	at java.lang.Thread.run(Thread.java:857)
+13:22:09,389 ERROR [stderr] (XNIO-1 task-4) Caused by: org.ietf.jgss.GSSException, major code: 13, minor code: 0
+13:22:09,389 ERROR [stderr] (XNIO-1 task-4) 	major string: Invalid credentials
+13:22:09,389 ERROR [stderr] (XNIO-1 task-4) 	minor string: Cannot obtain mechanism credential for mechanism 1.3.6.1.5.5.2
+13:22:09,390 ERROR [stderr] (XNIO-1 task-4) 	at com.ibm.security.jgss.i18n.I18NException.throwGSSException(I18NException.java:9)
+13:22:09,391 ERROR [stderr] (XNIO-1 task-4) 	at com.ibm.security.jgss.GSSContextImpl.acceptSecContext(GSSContextImpl.java:33)
+13:22:09,391 ERROR [stderr] (XNIO-1 task-4) 	at com.ibm.security.jgss.GSSContextImpl.acceptSecContext(GSSContextImpl.java:396)
+13:22:09,392 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.impl.GSSAPIAuthenticationMechanism$AcceptSecurityContext.run(GSSAPIAuthenticationMechanism.java:221)
+13:22:09,392 ERROR [stderr] (XNIO-1 task-4) 	at io.undertow.security.impl.GSSAPIAuthenticationMechanism$AcceptSecurityContext.run(GSSAPIAuthenticationMechanism.java:191)
+13:22:09,393 ERROR [stderr] (XNIO-1 task-4) 	at java.security.AccessController.doPrivileged(AccessController.java:369)
+13:22:09,393 ERROR [stderr] (XNIO-1 task-4) 	... 16 more
+{noformat}
+
+The client is sending a SPNEGO message (1.3.6.1.5.5.2) but the default GSSCredential is for Kerberos (1.2.840.113554.1.2.2) so we need to ensure we are creating a GSSCredential ourselves that is compatible with SPNEGO.",2014/11/18 11:48 AM
+UNDERTOW-317,"Previously within WildFly we have been making sure a redirect port is always available, this is even if the user has not configured a https listener so the end result is clients getting redirected to a port not being used.
+
+This change will allow us to report to the client a real server issue and an opportunity to log an appropriate error.
+",2014/09/30 6:35 AM
+UNDERTOW-295,"Happens after I try to login to our webapp.
+{noformat}
+java.lang.NullPointerException
+        at io.undertow.servlet.core.SessionListenerBridge.sessionDestroyed(SessionListenerBridge.java:78) [undertow-servlet-1.1.0.Beta5.jar:1.1.0.Beta5]
+        at io.undertow.server.session.SessionListeners.sessionDestroyed(SessionListeners.java:56) [undertow-core-1.1.0.Beta5.jar:1.1.0.Beta5]
+        at io.undertow.server.session.InMemorySessionManager$SessionImpl.invalidate(InMemorySessionManager.java:395) [undertow-core-1.1.0.Beta5.jar:1.1.0.Beta5]
+        at io.undertow.server.session.InMemorySessionManager$SessionImpl.invalidate(InMemorySessionManager.java:381) [undertow-core-1.1.0.Beta5.jar:1.1.0.Beta5]
+        at io.undertow.servlet.spec.HttpSessionImpl.invalidate(HttpSessionImpl.java:197) [undertow-servlet-1.1.0.Beta5.jar:1.1.0.Beta5]
+{noformat}
+Full stack trace can be found here: http://pastebin.com/mp6rT2we
+Caused by changes made in UNDERTOW-261.",2014/08/08 3:26 AM
+UNDERTOW-291,"The sessionDestroyed(...) method in SingleSignOnAuthenticationMechanism looks for the SSO_ID via the session attribute.  However, due to the order in which the session listeners are invoked upon session invalidation, the session never has any attributes when it reaches this method.  Consequently, sessions for other session associated with the SSO to which the invalidated session is associated are never invalidated.
+
+This seems to be because the SingleSignOnAuthenticationMechanism's listener gets invoked after the SessionListenerBridge removes all the attributes from the session.  Either this listener needs to be invoked before the SessionListenerBridge removes the attributes, or a different mechanism is needed to discover the SSO_ID (e.g. look to the request cookie).  The former seems preferable.
+
+See the linked forum post for details.",2014/07/29 12:12 PM
+UNDERTOW-285,I expect that after restarting new log messages would be appended to the previously existing access.log. That was the case with JBoss Web.,2014/07/24 6:43 AM
+UNDERTOW-264,"This regression was introduced in [1a8454102b1b836c28a28d8053e970c884b7ddff|https://github.com/undertow-io/undertow/commit/1a8454102b1b836c28a28d8053e970c884b7ddff].
+
+It's ok to wait for the timer to expire but only if the new value is higher.
+
+The following CDI TCK test fails and might be used as a reproducer:
+https://github.com/cdi-spec/cdi-tck/blob/master/impl/src/main/java/org/jboss/cdi/tck/tests/context/session/SessionContextTest.java#L140",2014/06/20 3:57 AM
+UNDERTOW-226,"Typo in if statement, the ssl variable is always ignored.
+
+Thanks for Masuda-san pointing this out. https://twitter.com/masudanaika/status/461471495328251904",2014/04/30 8:25 AM
+UNDERTOW-187,"As a result of https://github.com/undertow-io/undertow/commit/6c8a5cf, PathMatchPredicate cannot match relative path """". The PathMatcher will convert any """" to ""/"" so no match is possible.
+
+This is the cause of https://issues.jboss.org/browse/JBCTS-1379. When no user is available in the WildFly security realm, a redirect to /error occurs. WildFly then tries to evaluate a predicate to decide whether to redirect to the index.html. There is no match, so the redirect doesn't happen, the ResourceHandler tries to handle the request, there's no Resource at """" and a 404 is issued.
+
+I think the fix to use the getExactPath() method introduced (but not used) in the commit ^^^. I suspect this was the intent but it got left out. Pull request coming.",2014/02/05 11:11 PM
+UNDERTOW-101,"{code}
+09:08:18,867 ERROR [io.undertow.request] (default task-2) Servlet request failed HttpServerExchange{ GET /test/servlet/startConversation}: java.lang.NullPointerException
+	at java.nio.CharBuffer.wrap(CharBuffer.java:483) [rt.jar:1.7.0_10]
+	at io.undertow.servlet.spec.ServletPrintWriter.print(ServletPrintWriter.java:130) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.spec.ServletPrintWriter.println(ServletPrintWriter.java:179) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.spec.ServletPrintWriterDelegate.println(ServletPrintWriterDelegate.java:201) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at org.jboss.weld.tests.contexts.conversation.weld1418.Servlet.service(Servlet.java:36) [classes:]
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:790) [jboss-servlet-api_3.1_spec-1.0.0.Beta1.jar:1.0.0.Beta1]
+	at io.undertow.servlet.handlers.ServletHandler.handleRequest(ServletHandler.java:87) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.handlers.FilterHandler$FilterChainImpl.doFilter(FilterHandler.java:130) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.websockets.jsr.JsrWebSocketFilter.doFilter(JsrWebSocketFilter.java:138) [undertow-websockets-jsr-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.core.ManagedFilter.doFilter(ManagedFilter.java:56) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.handlers.FilterHandler$FilterChainImpl.doFilter(FilterHandler.java:132) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.handlers.FilterHandler.handleRequest(FilterHandler.java:85) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.handlers.security.ServletSecurityRoleHandler.handleRequest(ServletSecurityRoleHandler.java:56) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.handlers.ServletDispatchingHandler.handleRequest(ServletDispatchingHandler.java:36) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at org.wildfly.extension.undertow.security.SecurityContextAssociationHandler.handleRequest(SecurityContextAssociationHandler.java:78)
+	at io.undertow.servlet.handlers.security.SSLInformationAssociationHandler.handleRequest(SSLInformationAssociationHandler.java:115) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.security.handlers.AuthenticationCallHandler.handleRequest(AuthenticationCallHandler.java:52) [undertow-core-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.security.handlers.AbstractConfidentialityHandler.handleRequest(AbstractConfidentialityHandler.java:45) [undertow-core-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.handlers.security.CachedAuthenticatedSessionHandler.handleRequest(CachedAuthenticatedSessionHandler.java:65) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.security.handlers.SecurityInitialHandler.handleRequest(SecurityInitialHandler.java:70) [undertow-core-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:25) [undertow-core-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at org.wildfly.extension.undertow.security.SecurityContextCreationHandler.handleRequest(SecurityContextCreationHandler.java:54)
+	at io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:25) [undertow-core-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.handlers.ServletInitialHandler.handleFirstRequest(ServletInitialHandler.java:185) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.handlers.ServletInitialHandler.dispatchRequest(ServletInitialHandler.java:172) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.handlers.ServletInitialHandler.access$000(ServletInitialHandler.java:56) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.servlet.handlers.ServletInitialHandler$1.handleRequest(ServletInitialHandler.java:107) [undertow-servlet-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.server.HttpHandlers.executeRootHandler(HttpHandlers.java:36) [undertow-core-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:629) [undertow-core-1.0.0.Beta3.jar:1.0.0.Beta3]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1110) [rt.jar:1.7.0_10]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:603) [rt.jar:1.7.0_10]
+	at java.lang.Thread.run(Thread.java:722) [rt.jar:1.7.0_10]
+{code}",2013/09/05 3:13 AM
+UNDERTOW-81,This occurs when onTimeout() callback is invoked on an application AsyncListener.,2013/06/26 4:42 AM
+UNDERTOW-32,NoData,2013/04/10 11:04 AM
+UNDERTOW-29,"I'm testing a WS exchange requiring secure transport; the internal Apache CXF impl relies on the javax.servlet.request.cipher_suite prop content for internal security policy configurations and checks. That prop is currently not set, while it was set to TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA by jboss-web when running the same test.
+
+
+We are missing whole 3.9 section of servlet 3.1 spec
+missing attributes:
+{noformat}
+javax.servlet.request.cipher_suite
+javax.servlet.request.key_size
+javax.servlet.request.ssl_session_id
+javax.servlet.request.X509Certificate 
+{noformat}",2013/04/09 9:53 AM

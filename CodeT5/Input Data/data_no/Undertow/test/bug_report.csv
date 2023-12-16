@@ -1,0 +1,1983 @@
+bug_report_id,bug_report_desc,bug_report_time
+UNDERTOW-1924,"If the read or transferTo method of this conduit is invoked and an exception is thrown before the operation finishes, an IOException complaining that the operation finished without reading all bytes is thrown from the finally block, suppressing the original exception.",2021/07/19 1:54 AM
+UNDERTOW-1917,"The following code points hide exceptions. A good description of the issue can be found here [https://wiki.sei.cmu.edu/confluence/display/java/ERR04-.+Do+not+complete+abruptly+from+a+finally+block]
+
+* [https://github.com/undertow-io/undertow/blob/2.2.8.Final/core/src/main/java/io/undertow/protocols/http2/Http2PushBackParser.java#L75]
+* [https://github.com/undertow-io/undertow/blob/2.2.8.Final/core/src/main/java/io/undertow/security/impl/FormAuthenticationMechanism.java#L137]
+* [https://github.com/undertow-io/undertow/blob/2.2.8.Final/core/src/main/java/io/undertow/server/protocol/ajp/AjpServerRequestConduit.java#L333]
+
+Please include the method signature in your analysis - it declares a IOException.",2021/07/16 6:46 PM
+UNDERTOW-1910,"On specific occasions (see WFLY-14656), Firefox fails to send WINDOW_UPDATE messages. In this case, the awaitWritable call never returns.
+",2021/07/01 6:31 AM
+UNDERTOW-1906,"java.lang.NullPointerException
+	at io.undertow.core@2.2.8.Final//io.undertow.server.handlers.resource.CachingResourceManager.getResource(CachingResourceManager.java:82)
+	at io.undertow.core@2.2.8.Final//io.undertow.server.handlers.resource.CachingResourceManager.getResource(CachingResourceManager.java:32)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.spec.ServletContextImpl.getResourceAsStream(ServletContextImpl.java:318)
+	at org.wildfly.security.elytron-web.undertow-server-servlet@1.9.1.Final//org.wildfly.elytron.web.undertow.server.servlet.ElytronHttpServletExchange$1.getResource(ElytronHttpServletExchange.java:203)
+	at org.wildfly.security.elytron-base@1.16.0.CR1//org.wildfly.security.http.form.FormAuthenticationMechanism.sendPage(FormAuthenticationMechanism.java:365)
+	at org.wildfly.security.elytron-base@1.16.0.CR1//org.wildfly.security.http.form.FormAuthenticationMechanism.lambda$error$1(FormAuthenticationMechanism.java:191)
+	at org.wildfly.security.elytron-base@1.16.0.CR1//org.wildfly.security.http.HttpAuthenticator$AuthenticationExchange.authenticate(HttpAuthenticator.java:357)
+	at org.wildfly.security.elytron-base@1.16.0.CR1//org.wildfly.security.http.HttpAuthenticator$AuthenticationExchange.access$800(HttpAuthenticator.java:301)
+	at org.wildfly.security.elytron-base@1.16.0.CR1//org.wildfly.security.http.HttpAuthenticator.authenticate(HttpAuthenticator.java:94)
+	at org.wildfly.security.elytron-web.undertow-server@1.9.1.Final//org.wildfly.elytron.web.undertow.server.SecurityContextImpl.authenticate(SecurityContextImpl.java:107)
+	at org.wildfly.security.elytron-web.undertow-server-servlet@1.9.1.Final//org.wildfly.elytron.web.undertow.server.servlet.ServletSecurityContextImpl.authenticate(ServletSecurityContextImpl.java:115)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.handlers.security.ServletAuthenticationCallHandler.handleRequest(ServletAuthenticationCallHandler.java:55)
+	at io.undertow.core@2.2.8.Final//io.undertow.server.handlers.DisableCacheHandler.handleRequest(DisableCacheHandler.java:33)
+	at io.undertow.core@2.2.8.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at io.undertow.core@2.2.8.Final//io.undertow.security.handlers.AuthenticationConstraintHandler.handleRequest(AuthenticationConstraintHandler.java:53)
+	at io.undertow.core@2.2.8.Final//io.undertow.security.handlers.AbstractConfidentialityHandler.handleRequest(AbstractConfidentialityHandler.java:46)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.handlers.security.ServletConfidentialityConstraintHandler.handleRequest(ServletConfidentialityConstraintHandler.java:64)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.handlers.security.ServletSecurityConstraintHandler.handleRequest(ServletSecurityConstraintHandler.java:59)
+	at io.undertow.core@2.2.8.Final//io.undertow.security.handlers.AbstractSecurityContextAssociationHandler.handleRequest(AbstractSecurityContextAssociationHandler.java:43)
+	at org.wildfly.security.elytron-web.undertow-server-servlet@1.9.1.Final//org.wildfly.elytron.web.undertow.server.servlet.CleanUpHandler.handleRequest(CleanUpHandler.java:38)
+	at io.undertow.core@2.2.8.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at org.wildfly.extension.undertow@24.0.0.Final-SNAPSHOT//org.wildfly.extension.undertow.security.jacc.JACCContextIdHandler.handleRequest(JACCContextIdHandler.java:61)
+	at io.undertow.core@2.2.8.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at org.wildfly.extension.undertow@24.0.0.Final-SNAPSHOT//org.wildfly.extension.undertow.deployment.GlobalRequestControllerHandler.handleRequest(GlobalRequestControllerHandler.java:68)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.handlers.SendErrorPageHandler.handleRequest(SendErrorPageHandler.java:52)
+	at io.undertow.core@2.2.8.Final//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.handlers.ServletInitialHandler.handleFirstRequest(ServletInitialHandler.java:269)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.handlers.ServletInitialHandler.access$100(ServletInitialHandler.java:78)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:133)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:130)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:48)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
+	at org.wildfly.extension.undertow@24.0.0.Final-SNAPSHOT//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1535)
+	at org.wildfly.extension.undertow@24.0.0.Final-SNAPSHOT//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1535)
+	at org.wildfly.extension.undertow@24.0.0.Final-SNAPSHOT//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1535)
+	at org.wildfly.extension.undertow@24.0.0.Final-SNAPSHOT//org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1535)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.handlers.ServletInitialHandler.dispatchRequest(ServletInitialHandler.java:249)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.handlers.ServletInitialHandler.access$000(ServletInitialHandler.java:78)
+	at io.undertow.servlet@2.2.8.Final//io.undertow.servlet.handlers.ServletInitialHandler$1.handleRequest(ServletInitialHandler.java:99)
+	at io.undertow.core@2.2.8.Final//io.undertow.server.Connectors.executeRootHandler(Connectors.java:387)
+	at io.undertow.core@2.2.8.Final//io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:841)
+	at org.jboss.threads@2.4.0.Final//org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35)
+	at org.jboss.threads@2.4.0.Final//org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:1990)
+	at org.jboss.threads@2.4.0.Final//org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1486)
+	at org.jboss.threads@2.4.0.Final//org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1377)
+	at org.jboss.xnio@3.8.4.Final//org.xnio.XnioWorker$WorkerThreadFactory$1$1.run(XnioWorker.java:1280)
+	at java.base/java.lang.Thread.run(Thread.java:834)
+
+",2021/06/24 7:23 AM
+UNDERTOW-1899,"Consider the following web.xml
+{code:xml}
+<?xml version=""1.0"" encoding=""UTF-8""?>
+<web-app xmlns=""http://xmlns.jcp.org/xml/ns/javaee"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""
+	xsi:schemaLocation=""http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd""
+	version=""4.0"">
+
+	<servlet>
+		<servlet-name>ErrorHandler</servlet-name>
+		<servlet-class>ErrorHandler</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>ErrorHandler</servlet-name>
+		<url-pattern>/ErrorHandler</url-pattern>
+	</servlet-mapping>
+
+	<error-page>
+		<exception-type>java.lang.Exception</exception-type>
+		<location>/ErrorHandler</location>
+	</error-page>
+
+</web-app>
+{code}
+
+The `ErrorHandler` servlet received an incorrect value when calling `HttpServletRequest.getHttpServletMapping()` after forwarded by <error-page/> definition in web.xml.
+It is expected to return the servlet mapping info of `ErrorHandler` servlet but it incorrectly returned the servlet mapping info which the original error happened before forwarding.
+
+Checked with Tomcat 9.0.46 and Jetty 10.0.3 which they correctly returned servlet mapping info after forwarded by <error-page/>, so suspected this should be a bug in Undertow.
+
+Attached sample war for reproduce this issue ( [^UNDERTOW-1899.war] ).
+Accessing [http://localhost:8080/UNDERTOW-1899/|http://localhost:8080/UNDERTOW-1899/] will trigger exception and forward to `ErrorHandler` servlet, which just print the servlet mapping info.
+Expecting to print `servletName: ErrorHandler, pattern: /ErrorHandler, mappingMatch: EXACT, matchValue: ErrorHandler` in the server log but actually got `servletName: jsp, pattern: *.jsp, mappingMatch: EXTENSION, matchValue: index`",2021/06/05 4:27 AM
+UNDERTOW-1898,"If an application contains a directory starting with WEB-INF or META-INF, such as WEB-INFOOBAR or META-INFOOBAR, the DefaultServlet cannot serve any static content out of these directories.
+
+This was not an issue on prior EAP 6/JBossWeb or Tomcat environments.",2021/06/04 3:37 PM
+UNDERTOW-1894,"When using the *rewrite()* handler with a query string like so:
+{code:java}
+regex('^/jobs/([^/]+)/?(.*)$') -> rewrite('/jobseekers/home.cfm?joblocation=${1}');
+{code}
+the *RelativePathAttribute* mishandles the *?* and leaves it in the query string which causes the final URL inside the exchange to have two question marks. 
+{code:java}
+/jobseekers/home.cfm??joblocation=atlanta
+{code}
+The work around for now is to set the query string via a separate handler
+{code:java}
+regex('^/jobs/([^/]+)/?(.*)$') -> {
+  rewrite('/jobseekers/home.cfm');
+  set(attribute='%{QUERY_STRING}', value='joblocation=${1}')
+}
+{code}
+On a related note, the *QueryStringAttribute* has a similar inconsistency where it includes the *?* when reading the query string, but will not remove an incoming *?* when writing the attribute.  I would recommend having the *?* cleaned off when writing for consistency between reading and writing the attribute.  
+
+In actuality, both of the issues above can be solved in one go if the *HTTPServerExchange* simply removes any leading *?* from the start of a query string in the *setQueryString()* method since both the *RelativePathAttribute* and the *QueryStringAttribute* are calling that method to set their query string.
+
+ ",2021/05/24 7:03 PM
+UNDERTOW-1885,"[~bdw429s]
+
+This was found using CommandBox CLI's integration with Undertow. ",2021/04/23 4:44 PM
+UNDERTOW-1882,"UndertowOptions.ALLOW_UNESCAPED_CHARACTERS_IN_URL is read in HttpRequestParser.java here: https://github.com/undertow-io/undertow/blob/2abb6a2822c6a97904bba4d4b7a601b8e95c4122/core/src/main/java/io/undertow/server/protocol/http/HttpRequestParser.java#L215
+
+and it is used when checking characters here: https://github.com/undertow-io/undertow/blob/2abb6a2822c6a97904bba4d4b7a601b8e95c4122/core/src/main/java/io/undertow/server/protocol/http/HttpRequestParser.java#L392
+
+This works fine for HTTP 1.x but for HTTP/2 the same functionality is missing.
+
+In Http2ReceiveListener here: https://github.com/undertow-io/undertow/blob/2abb6a2822c6a97904bba4d4b7a601b8e95c4122/core/src/main/java/io/undertow/server/protocol/http2/Http2ReceiveListener.java#L323 it always checks for valid characters but does not take UndertowOptions.ALLOW_UNESCAPED_CHARACTERS_IN_URL into account.
+
+It should not check for the valid characters if UndertowOptions.ALLOW_UNESCAPED_CHARACTERS_IN_URL enabling the same functionality in HTTP/2 as is in place with HTTP/1.x today.
+
+This replaces of UNDERTOW-1878 which did not have an accurate description of the actual problem.",2021/04/15 2:44 PM
+UNDERTOW-1877,"The http2 implementation in undertow returns promises even when the request being processed is a push promise. [This is forbidden by spec|https://tools.ietf.org/html/rfc7540#section-6.]:
+{quote}PUSH_PROMISE frames MUST only be sent on a peer-initiated stream that is in either the ""open"" or ""half-closed (remote)"" state.
+{quote}
+The error can be reproduced using a servlet that serves several resources and uses promises in some of them. For example:
+{code:java}
+if (request.getServletPath().endsWith("".html"") || request.getPathInfo().endsWith("".html"")) {
+            PushBuilder pushBuilder = request.newPushBuilder();
+            if (pushBuilder != null) {
+                // pushing css and js in advance
+                pushBuilder.path(""resources/one.css"").push();
+                pushBuilder.path(""resources/one.js"").push();
+            }
+            // slow the index to let chrome to receive the invalid push promise
+            try {Thread.sleep(1000L);} catch (InterruptedException e) {}
+            getServletContext()
+                    .getRequestDispatcher(""/WEB-INF/index.html"")
+                    .forward(request, response);
+        } else if (request.getPathInfo().endsWith("".css"")) {
+            PushBuilder pushBuilder = request.newPushBuilder();
+            if (pushBuilder != null) {
+                // pushing images in advance
+                pushBuilder.path(""resources/one.png"").push();
+            }
+            getServletContext()
+                    .getRequestDispatcher(""/WEB-INF/sample.css"")
+                    .forward(request, response);
+        } else if (request.getPathInfo().endsWith("".js"")) {
+            getServletContext()
+                    .getRequestDispatcher(""/WEB-INF/sample.js"")
+                    .forward(request, response);
+        } else if (request.getPathInfo().endsWith("".png"")) {
+            getServletContext()
+                    .getRequestDispatcher(""/WEB-INF/sample.png"")
+                    .forward(request, response);
+        } else {
+            throw new ServletException(""Invalid request"");
+        }
+{code}
+The {{index.html}} generates two promises ({{one.css}} and {{one.js}}) and in turn {{one.css}} generates another promise for {{one.png}}. This is not very common but it should be OK for the server. Right now the browser receives a promise from for the png file initiated by the css promise, which is incorrect by spec because the css file was not requested by the client.",2021/04/06 5:37 AM
+UNDERTOW-1873,"Path is not canonicalized when forwarding to path that begins with ""/"" at [HttpServletRequestImpl.getRequestDispatcher()|https://github.com/undertow-io/undertow/blob/2.0.33.Final/servlet/src/main/java/io/undertow/servlet/spec/HttpServletRequestImpl.java#L972-L985].
+
+This can be a cause of the JSP recompilation issue that is reported as JBEAP-21383",2021/03/29 1:01 PM
+UNDERTOW-1872,"I have this exception
+
+java.io.IOException: UT000185: Invalid IP address 2607:5300:203:5509::
+ at io.undertow.util.NetworkUtils.parseIpv6Address(NetworkUtils.java:101)
+
+ 
+
+2607:5300:203:5509:: is a valid IPv6 according to the first validator that pop ups in a google search http://sqa.fyicenter.com/1000334_IPv6_Address_Validator.html
+
+ ",2021/03/29 11:26 AM
+UNDERTOW-1869,"UNDERTOW-175 made it possible for a session ID being passed in to be used for session creation, however if multiple requests come in at once with the same ""new"" session ID the following error can be reported:
+{code:java}
+2021-03-23 15:02:03,309 ERROR [io.undertow.request] (default task-2) UT005023: Exception handling request to /hello-world-jsf-3/session: java.lang.IllegalStateException: UT000196: Session with id dLA4P9OPnFMMe3Q2uIJqtr74o2J2jY0rkISdMJ7l already exists2021-03-23 15:02:03,309 ERROR [io.undertow.request] (default task-2) UT005023: Exception handling request to /hello-world-jsf-3/session: java.lang.IllegalStateException: UT000196: Session with id dLA4P9OPnFMMe3Q2uIJqtr74o2J2jY0rkISdMJ7l already exists at io.undertow.core@2.2.5.Final//io.undertow.server.session.InMemorySessionManager.createSession(InMemorySessionManager.java:180) at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.spec.ServletContextImpl.getSession(ServletContextImpl.java:948) at io.undertow.servlet@2.2.5.Final//io.undertow.servlet.spec.HttpServletRequestImpl.getSession(HttpServletRequestImpl.java:421) at org.wildfly.security.elytron-web.undertow-server-servlet@1.9.0.Final//org.wildfly.elytron.web.undertow.server.servlet.ElytronHttpServletExchange$3.create(ElytronHttpServletExchange.java:259) at org.wildfly.security.elytron-private@1.15.1.Final//org.wildfly.security.http.util.sso.DefaultSingleSignOnSession.put(DefaultSingleSignOnSession.java:98) {code}
+This is just a call to getSession(true) but if this is called by two threads at the same time it is possible both threads will call InMemorySessionManager.createSession with one getting the above error.
+
+This can be easily triggered by a single web page concurrently requesting multiple resources concurrently.
+
+ ",2021/03/23 11:08 AM
+UNDERTOW-1864,"This issue is for exploded web app.
+If sending a request to context-root or other directory even once before adding a welcome file, EAP returns 403 even after adding the content.
+{code}
+http://localhost:8080/hello/ -> 403
+{code}
+
+But the following request can return the content without redeploy.
+{code}
+http://localhost:8080/hello/index.html -> 200
+{code}",2021/03/10 2:54 AM
+UNDERTOW-1849,"When StoredResponseHandler (store-response) is enabled to dump response body with RequestDumpingHandler (dump-request), NullPointerException happens at io.undertow.conduits.StoredResponseStreamSinkConduit.terminateWrites() at the end of the request processing.
+
+{code}
+ERROR [io.undertow.request] (default task-1) UT005071: Undertow request failed HttpServerExchange{ GET /helloworld-rs/rest/xml}: java.lang.NullPointerException
+	at io.undertow.conduits.StoredResponseStreamSinkConduit.terminateWrites(StoredResponseStreamSinkConduit.java:148)
+	at org.xnio.conduits.ConduitStreamSinkChannel.shutdownWrites(ConduitStreamSinkChannel.java:178)
+	at io.undertow.channels.DetachableStreamSinkChannel.shutdownWrites(DetachableStreamSinkChannel.java:79)
+	at io.undertow.servlet.spec.ServletOutputStreamImpl.close(ServletOutputStreamImpl.java:618)
+	at io.undertow.servlet.spec.HttpServletResponseImpl.closeStreamAndWriter(HttpServletResponseImpl.java:534)
+	at io.undertow.servlet.spec.HttpServletResponseImpl.responseDone(HttpServletResponseImpl.java:623)
+	at io.undertow.servlet.handlers.ServletInitialHandler.handleFirstRequest(ServletInitialHandler.java:328)
+	at io.undertow.servlet.handlers.ServletInitialHandler.access$100(ServletInitialHandler.java:78)
+	at io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:133)
+	at io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:130)
+	at io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:48)
+	at io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
+	at org.wildfly.extension.undertow.security.SecurityContextThreadSetupAction.lambda$create$0(SecurityContextThreadSetupAction.java:105)
+	at org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1530)
+	at org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1530)
+	at org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1530)
+	at org.wildfly.extension.undertow.deployment.UndertowDeploymentInfoService$UndertowThreadSetupAction.lambda$create$0(UndertowDeploymentInfoService.java:1530)
+	at io.undertow.servlet.handlers.ServletInitialHandler.dispatchRequest(ServletInitialHandler.java:249)
+	at io.undertow.servlet.handlers.ServletInitialHandler.access$000(ServletInitialHandler.java:78)
+	at io.undertow.servlet.handlers.ServletInitialHandler$1.handleRequest(ServletInitialHandler.java:99)
+	at io.undertow.server.Connectors.executeRootHandler(Connectors.java:370)
+	at io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:830)
+	at org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35)
+	at org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:1982)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1486)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1377)
+	at org.xnio.XnioWorker$WorkerThreadFactory$1$1.run(XnioWorker.java:1280)
+	at java.lang.Thread.run(Thread.java:748)
+{code}",2021/02/22 4:35 AM
+UNDERTOW-1848,"On Windows I can see failures of following tests in {{SimpleSSLTestCase}}:
+
+{code}
+[ERROR]   SimpleSSLTestCase.parallelWithBlockingDispatch:138->runTest:186
+[ERROR]   SimpleSSLTestCase.parallelWithDispatch:125->runTest:186
+{code}
+
+{code:title=complete exceptions}
+[INFO] Running io.undertow.server.ssl.SimpleSSLTestCase
+[ERROR] Tests run: 5, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 56.201 s <<< FAILURE! - in io.undertow.server.ssl.SimpleSSLTestCase
+[ERROR] parallelWithDispatch(io.undertow.server.ssl.SimpleSSLTestCase)  Time elapsed: 16.356 s  <<< FAILURE!
+java.lang.AssertionError
+        at org.junit.Assert.fail(Assert.java:87)
+        at org.junit.Assert.assertTrue(Assert.java:42)
+        at org.junit.Assert.assertFalse(Assert.java:65)
+        at org.junit.Assert.assertFalse(Assert.java:75)
+        at io.undertow.server.ssl.SimpleSSLTestCase.runTest(SimpleSSLTestCase.java:186)
+        at io.undertow.server.ssl.SimpleSSLTestCase.parallelWithDispatch(SimpleSSLTestCase.java:125)
+        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.lang.reflect.Method.invoke(Method.java:498)
+        at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+        at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+        at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+        at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+        at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+        at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+        at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+        at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+        at io.undertow.testutils.DefaultServer.runChild(DefaultServer.java:532)
+        at io.undertow.testutils.DefaultServer.runChild(DefaultServer.java:105)
+        at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+        at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+        at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+        at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+        at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+        at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+        at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+        at io.undertow.testutils.DefaultServer.run(DefaultServer.java:302)
+        at org.junit.runners.Suite.runChild(Suite.java:128)
+        at org.junit.runners.Suite.runChild(Suite.java:27)
+        at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+        at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+        at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+        at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+        at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+        at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+        at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+        at org.apache.maven.surefire.junitcore.JUnitCore.run(JUnitCore.java:55)
+        at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.createRequestAndRun(JUnitCoreWrapper.java:137)
+        at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.executeEager(JUnitCoreWrapper.java:107)
+        at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.execute(JUnitCoreWrapper.java:83)
+        at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.execute(JUnitCoreWrapper.java:75)
+        at org.apache.maven.surefire.junitcore.JUnitCoreProvider.invoke(JUnitCoreProvider.java:158)
+        at org.apache.maven.surefire.booter.ForkedBooter.invokeProviderInSameClassLoader(ForkedBooter.java:383)
+        at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:344)
+        at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:125)
+        at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:417)
+
+[ERROR] parallelWithBlockingDispatch(io.undertow.server.ssl.SimpleSSLTestCase)  Time elapsed: 32.784 s  <<< FAILURE!
+java.lang.AssertionError
+        at org.junit.Assert.fail(Assert.java:87)
+        at org.junit.Assert.assertTrue(Assert.java:42)
+        at org.junit.Assert.assertFalse(Assert.java:65)
+        at org.junit.Assert.assertFalse(Assert.java:75)
+        at io.undertow.server.ssl.SimpleSSLTestCase.runTest(SimpleSSLTestCase.java:186)
+        at io.undertow.server.ssl.SimpleSSLTestCase.parallelWithBlockingDispatch(SimpleSSLTestCase.java:138)
+        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.lang.reflect.Method.invoke(Method.java:498)
+        at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+        at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+        at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+        at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+        at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+        at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+        at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+        at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+        at io.undertow.testutils.DefaultServer.runChild(DefaultServer.java:532)
+        at io.undertow.testutils.DefaultServer.runChild(DefaultServer.java:105)
+        at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+        at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+        at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+        at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+        at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+        at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+        at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+        at io.undertow.testutils.DefaultServer.run(DefaultServer.java:302)
+        at org.junit.runners.Suite.runChild(Suite.java:128)
+        at org.junit.runners.Suite.runChild(Suite.java:27)
+        at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+        at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+        at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+        at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+        at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+        at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+        at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+        at org.apache.maven.surefire.junitcore.JUnitCore.run(JUnitCore.java:55)
+        at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.createRequestAndRun(JUnitCoreWrapper.java:137)
+        at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.executeEager(JUnitCoreWrapper.java:107)
+        at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.execute(JUnitCoreWrapper.java:83)
+        at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.execute(JUnitCoreWrapper.java:75)
+        at org.apache.maven.surefire.junitcore.JUnitCoreProvider.invoke(JUnitCoreProvider.java:158)
+        at org.apache.maven.surefire.booter.ForkedBooter.invokeProviderInSameClassLoader(ForkedBooter.java:383)
+        at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:344)
+        at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:125)
+        at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:417)
+{code}
+
+{code:title=basic env info}
+$ mvn --version
+Apache Maven 3.6.3 (cecedd343002696d0abb50b32b541b8a6ba2883f)
+Maven home: T:\opt\apache-maven-3.6.3
+Java version: 1.8.0_241, vendor: Oracle Corporation, runtime: C:\tools_cache\opt\windows\amd64\jdk1.8.0_last\jre
+Default locale: en_US, platform encoding: Cp1252
+OS name: ""windows server 2016"", version: ""10.0"", arch: ""amd64"", family: ""windows""
+$ uname -a
+CYGWIN_NT-10.0  2.10.0(0.325/5/3) 2018-02-02 15:16 x86_64 Cygwin
+{code}
+
+In surefire reports, I can see also following log messages:
+
+{code}
+java.net.SocketTimeoutException: Read timed out
+        at java.net.SocketInputStream.socketRead0(Native Method)
+        at java.net.SocketInputStream.socketRead(SocketInputStream.java:116)
+        at java.net.SocketInputStream.read(SocketInputStream.java:171)
+        at java.net.SocketInputStream.read(SocketInputStream.java:141)
+        at sun.security.ssl.InputRecord.readFully(InputRecord.java:465)
+        at sun.security.ssl.InputRecord.read(InputRecord.java:503)
+        at sun.security.ssl.SSLSocketImpl.readRecord(SSLSocketImpl.java:975)
+        at sun.security.ssl.SSLSocketImpl.readDataRecord(SSLSocketImpl.java:933)
+        at sun.security.ssl.AppInputStream.read(AppInputStream.java:105)
+        at org.apache.http.impl.conn.LoggingInputStream.read(LoggingInputStream.java:84)
+        at org.apache.http.impl.io.SessionInputBufferImpl.streamRead(SessionInputBufferImpl.java:137)
+        at org.apache.http.impl.io.SessionInputBufferImpl.fillBuffer(SessionInputBufferImpl.java:153)
+        at org.apache.http.impl.io.SessionInputBufferImpl.readLine(SessionInputBufferImpl.java:280)
+        at org.apache.http.impl.conn.DefaultHttpResponseParser.parseHead(DefaultHttpResponseParser.java:138)
+        at org.apache.http.impl.conn.DefaultHttpResponseParser.parseHead(DefaultHttpResponseParser.java:56)
+        at org.apache.http.impl.io.AbstractMessageParser.parse(AbstractMessageParser.java:259)
+        at org.apache.http.impl.DefaultBHttpClientConnection.receiveResponseHeader(DefaultBHttpClientConnection.java:163)
+        at org.apache.http.impl.conn.CPoolProxy.receiveResponseHeader(CPoolProxy.java:157)
+        at org.apache.http.protocol.HttpRequestExecutor.doReceiveResponse(HttpRequestExecutor.java:273)
+        at org.apache.http.protocol.HttpRequestExecutor.execute(HttpRequestExecutor.java:125)
+        at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:272)
+        at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+        at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+        at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+        at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+        at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+        at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:108)
+        at io.undertow.server.ssl.SimpleSSLTestCase$6.run(SimpleSSLTestCase.java:168)
+        at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+        at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+        at java.lang.Thread.run(Thread.java:748)
+19:09:51,716 DEBUG (XNIO-1 I/O-2) [io.undertow.request.io] <HttpReadListener.java:160> Error reading request: java.io.IOException: An established connection was aborted by the software in your host machine
+        at sun.nio.ch.SocketDispatcher.read0(Native Method)
+        at sun.nio.ch.SocketDispatcher.read(SocketDispatcher.java:43)
+        at sun.nio.ch.IOUtil.readIntoNativeBuffer(IOUtil.java:223)
+        at sun.nio.ch.IOUtil.read(IOUtil.java:192)
+        at sun.nio.ch.SocketChannelImpl.read(SocketChannelImpl.java:380)
+        at org.xnio.nio.NioSocketConduit.read(NioSocketConduit.java:289)
+        at io.undertow.protocols.ssl.SslConduit.doUnwrap(SslConduit.java:719)
+        at io.undertow.protocols.ssl.SslConduit.read(SslConduit.java:583)
+        at org.xnio.conduits.AbstractStreamSourceConduit.read(AbstractStreamSourceConduit.java:51)
+        at io.undertow.conduits.BytesReceivedStreamSourceConduit.read(BytesReceivedStreamSourceConduit.java:67)
+        at org.xnio.conduits.ConduitStreamSourceChannel.read(ConduitStreamSourceChannel.java:127)
+        at io.undertow.server.protocol.http.HttpReadListener.handleEventWithNoRunningRequest(HttpReadListener.java:158)
+        at io.undertow.server.protocol.http.HttpReadListener.handleEvent(HttpReadListener.java:136)
+        at io.undertow.server.protocol.http.HttpReadListener.handleEvent(HttpReadListener.java:59)
+        at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+        at org.xnio.conduits.ReadReadyHandler$ChannelListenerHandler.readReady(ReadReadyHandler.java:66)
+        at io.undertow.protocols.ssl.SslConduit$SslReadReadyHandler.readReady(SslConduit.java:1213)
+        at org.xnio.nio.NioSocketConduit.handleReady(NioSocketConduit.java:89)
+        at org.xnio.nio.WorkerThread.run(WorkerThread.java:591)
+{code}
+
+Attaching full surefire-reports.",2021/02/14 3:09 PM
+UNDERTOW-1844,"Given a servlet registered to ""/*"" and ""*.ext"", requests which attempt to read {{getHttpServletMapping}} result in {{StringIndexOutOfBoundsException}} attempting to substring an empty string.
+ The problem is the current implementation expects the matched portion to match the uri, however it doesn't contain the trailing component when an extension is matched.
+{noformat}
+Caused by: java.lang.StringIndexOutOfBoundsException: begin 0, end -5, length 0
+        at java.base/java.lang.String.checkBoundsBeginEnd(String.java:3319)
+        at java.base/java.lang.String.substring(String.java:1874)
+        at io.undertow.servlet.spec.HttpServletRequestImpl.getHttpServletMapping(HttpServletRequestImpl.java:258)
+        at org.springframework.web.util.UrlPathHelper$Servlet4Delegate.skipServletPathDetermination(UrlPathHelper.java:780)
+        at org.springframework.web.util.UrlPathHelper.skipServletPathDetermination(UrlPathHelper.java:272)
+        at org.springframework.web.util.UrlPathHelper.getLookupPathForRequest(UrlPathHelper.java:251)
+        at org.springframework.web.util.UrlPathHelper.resolveAndCacheLookupPath(UrlPathHelper.java:200){noformat}",2021/02/09 7:53 PM
+UNDERTOW-1839,"On certain specific scenarios, this could lead to a server crash.",2021/02/01 11:04 PM
+UNDERTOW-1837,See JBEAP-20907 for the details,2021/01/27 8:04 AM
+UNDERTOW-1834,"There are Http2EndExchangeTestCase and LoadBalancingProxyHTTP2TestCase failing when testsuite is executed under IBM JDK. Since there is already an [ALPN support in IBM JDK|https://www.ibm.com/support/knowledgecenter/cs/SSD28V_liberty/com.ibm.websphere.wlp.core.doc/ae/cwlp_alpnsupport.html] since 8.0.5.15, there should not be an issue for these tests to pass.
+
+When running test with '-Dtest.level=DEBUG', I can see following line in the test output:
+{code}
+16:57:47,819 DEBUG (XNIO-4 I/O-5) [io.undertow.request] <AlpnOpenListener.java:247> ALPN has been configured however TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 is not present or TLS1.2 is not enabled, falling back to default protocol
+{code}
+
+see e.g.:
+* {{core/target/surefire-reports/io.undertow.server.handlers.proxy.LoadBalancingProxyHTTP2TestCase-output.txt}} 
+* or {{core/target/surefire-reports/io.undertow.server.protocol.http2.Http2EndExchangeTestCase-output.txt}}
+
+Whole test output files are attached.",2021/01/24 11:10 AM
+UNDERTOW-1833,"This is a trivial change of removal unused and unnecessary code in the Http2EndExchangeTestCase.java test case.
+
+Apart from that, I slightly changed the way how test fails in case that HTTP2 connection is not correctly established - I unified this failure with other failures in the test.
+
+There is no other problem in the test as it is passing just fine. I just got around this when I was investigating something else.
+
+In case of curiosity, you can check it is still okay e.g. by:
+{code}
+mvn test --show-version -Dmaven.javadoc.skip=true -DskipUnitTests -Pproxy -Denforcer.skip -Dtest=Http2EndExchangeTestCase.java -DfailIfNoTests=false
+{code}",2021/01/24 10:39 AM
+UNDERTOW-1832,"I was playing with HTTP/2 Push feature using Undertow as server and I found out that Undertow sends Pushes only for first request within HTTP/2 connection. 
+
+I've debugged undertow a little bit, seems like the problem is in frame ordering algorithm in  Http2FramePriority class.
+
+The
+{noformat}
+newFrame.getChannel().isClient() {noformat}
+part of the 
+{noformat}
+(newFrame.getChannel().isClient() && newFrame instanceof Http2HeadersStreamSinkChannel){noformat}
+condition prevents execution of the code that increments nextId when last frame is added.
+
+Therefore all Push frames on second and later requests (having stream id of 3 and larger) are added into heldFrames queue in the AbstractFramedChannel and never pulled from that queue.
+
+ ",2021/01/16 1:49 PM
+UNDERTOW-1820,See more information in the PR: https://github.com/undertow-io/undertow/pull/991,2020/12/02 2:37 PM
+UNDERTOW-1819,NoData,2020/12/02 2:18 PM
+UNDERTOW-1817,NoData,2020/12/01 11:51 AM
+UNDERTOW-1807,"InetSocketAddress.toString changed in this release, so the test must normalize values across runtime versions.
+
+For context, see
+[https://bugs.openjdk.java.net/browse/JDK-8225499]
+[https://mail.openjdk.java.net/pipermail/net-dev/2019-June/012741.html]",2020/11/16 3:20 PM
+UNDERTOW-1806,"If a HTTP/2 connection is closed by the remote client (or RST_STREAM is sent), then the completion listener is currently directly invoked by the IO thread.
+
+ 
+
+This is problematic as the request might be 'owned' by a different thread, which means that the exchange state can change while the other thread is working on it.
+
+ 
+
+This is particularly problematic for the reverse proxy, as if the exchange is ended the connection is returned to the pool, even though it is still processing. Another request can then get allocating this connection, and the request will need to wait until the first backend request has finished.
+
+ 
+
+ ",2020/10/23 12:34 AM
+UNDERTOW-1795,We used to sort cookies according to name before. We should continue to do so.,2020/10/06 12:59 PM
+UNDERTOW-1791,"I have found that my Undertow-based proxy doesn't work for TLS-based connections after I have updated to Java 15 - every request now throws an exception. In Java 13 this worked fine. Non-TLS connections works fine also in Java 15.
+
+ 
+
+Java version from [https://bell-sw.com/] .
+
+openjdk version ""15"" 2020-09-15
+OpenJDK Runtime Environment (build 15+36)
+OpenJDK 64-Bit Server VM (build 15+36, mixed mode, sharing)
+
+ 
+
+Error message:
+
+[XNIO-2 I/O-2] ERROR org.xnio.listener - XNIO001007: A channel event listener threw an exception[XNIO-2 I/O-2] ERROR org.xnio.listener - XNIO001007: A channel event listener threw an exceptionjava.lang.UnsupportedOperationException: This method is deprecated and marked for removal. Use the getPeerCertificates() method instead. at java.base/javax.net.ssl.SSLSession.getPeerCertificateChain(SSLSession.java:295) at io.undertow.server.protocol.http2.Http2SslSessionInfo.getPeerCertificateChain(Http2SslSessionInfo.java:76) at io.undertow.server.handlers.proxy.ProxyHandler$ProxyAction.run(ProxyHandler.java:551) at io.undertow.util.SameThreadExecutor.execute(SameThreadExecutor.java:35) at io.undertow.server.HttpServerExchange.dispatch(HttpServerExchange.java:826) at io.undertow.server.handlers.proxy.ProxyHandler$ProxyClientHandler.completed(ProxyHandler.java:335) at io.undertow.server.handlers.proxy.ProxyHandler$ProxyClientHandler.completed(ProxyHandler.java:309) at io.undertow.server.handlers.proxy.ProxyConnectionPool.connectionReady(ProxyConnectionPool.java:353) at io.undertow.server.handlers.proxy.ProxyConnectionPool.access$900(ProxyConnectionPool.java:61) at io.undertow.server.handlers.proxy.ProxyConnectionPool$2.completed(ProxyConnectionPool.java:287) at io.undertow.server.handlers.proxy.ProxyConnectionPool$2.completed(ProxyConnectionPool.java:274) at io.undertow.client.http2.Http2ClientProvider$4.handleEvent(Http2ClientProvider.java:138) at io.undertow.client.http2.Http2ClientProvider$4.handleEvent(Http2ClientProvider.java:135) at io.undertow.client.ALPNClientSelector$2.handleSelected(ALPNClientSelector.java:125) at io.undertow.client.ALPNClientSelector$2.handleEvent(ALPNClientSelector.java:83) at io.undertow.client.ALPNClientSelector$2.handleEvent(ALPNClientSelector.java:77) at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92) at org.xnio.conduits.ReadReadyHandler$ChannelListenerHandler.readReady(ReadReadyHandler.java:66) at io.undertow.protocols.ssl.SslConduit$SslReadReadyHandler.readReady(SslConduit.java:1211) at io.undertow.protocols.ssl.SslConduit$1.run(SslConduit.java:180) at org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:612) at org.xnio.nio.WorkerThread.run(WorkerThread.java:479)",2020/10/03 8:22 AM
+UNDERTOW-1788,%r and %U in the access log still output the forwarded URL if the forwarded URL is then dispatched to error page.  This flow results in RequestDispatcher.FORWARD_REQUEST_URI containing the original URI and RequestDispatcher.ERROR_REQUEST_URI containing the forwarded URI that hit the error.  ServletRequestURLAttribute prefers returning the ERROR_REQUEST_URI first to cause that so it should return the FORWARD_REQUEST_URI first instead.,2020/09/23 11:52 AM
+UNDERTOW-1787,"When undertow/EAP is behind an apache proxy (ProxyPass directive, using the SSLHeaderHandler to recover SSL information from the headers) there are several issues:
+
+1. The [session ID is obtained decoding a base64 from the header SSL_SESSION_ID value|https://github.com/undertow-io/undertow/blob/2.2.0.Final/core/src/main/java/io/undertow/server/BasicSSLSessionInfo.java#L131] but this header is not a base64 is just an hex array (see [apache doc|https://httpd.apache.org/docs/2.4/mod/mod_ssl.html#envvars]). So the session id is incorrectly set.
+
+2. Related to the previous one although not related to the proxy setting, the attribute {{javax.servlet.request.ssl_session_id}} is by spec a String but [undertow is setting just the byte array|https://github.com/undertow-io/undertow/blob/2.2.0.Final/servlet/src/main/java/io/undertow/servlet/handlers/security/SSLInformationAssociationHandler.java#L125]. The old jbossweb (EAP 6) returned also the hex dump of the byte array.
+
+In EAP 6 the returned attribute is just an HEX dump of the byte array:
+{noformat}
+SSL Session ID: 2105840a61cd715fb9feeddbdd60badd73ed194c715c4bc5fa0a8c6503912799
+{noformat}
+
+But in EAP 7.3 is the byte array itself:
+{noformat}
+SSL Session ID: [B@6057a05
+{noformat}
+
+3. The attribute {{javax.servlet.request.key_size}} is also sent by the apache proxy in the header SSL_CIPHER_USEKEYSIZE. Right now it is not taken into account and that spec attribute is always 0 when undertow is behind an apache proxy. This was also OK in EAP 6 / jbossweb.
+
+4. Finally the attribute {{javax.servlet.request.X509Certificate}} is set to the certificate in the connection if the proxy sends ""(null)"" in the header SSL_CLIENT_CERT. The apache proxy can be configured to request the certificate as optional, and when the final client did not send any certificate, teh proxy sends ""(null)"" in SSL_CLIENT_CERT. Right now it defaults to connection (and it can show the certificate configured in the apache server, the one configured in the proxy to communicate with the undertow server, which is wrong).
+",2020/09/22 4:49 AM
+UNDERTOW-1786,"Undertow does not handle client-side termination of the connection opened in the asynchronous mode. Instead, it waits until the connection times-out on the server side. AsyncListener.onError does not get called.
+
+This has further implications when working with SseEmitters from Spring Framework  +  Undertow.",2020/09/15 4:54 AM
+UNDERTOW-1782,"The exception can be seen when using EJB over SSL in WildFly as explained in WFLY-13748.
+
+{code}
+2020-07-31 08:46:47,731 INFO [org.wildfly.naming] [RegistrationStateChangeNotification-pool-27-thread-1] WildFly Naming version 1.0.12.Final
+2020-07-31 08:46:47,786 INFO [org.wildfly.security] [RegistrationStateChangeNotification-pool-27-thread-1] ELY00001: WildFly Elytron version 1.11.4.Final
+2020-07-31 08:46:47,826 INFO [org.xnio] [RegistrationStateChangeNotification-pool-27-thread-1] XNIO version 3.7.7.Final
+2020-07-31 08:46:47,837 INFO [org.xnio.nio] [RegistrationStateChangeNotification-pool-27-thread-1] XNIO NIO Implementation Version 3.7.7.Final
+2020-07-31 08:46:47,868 INFO [org.jboss.threads] [RegistrationStateChangeNotification-pool-27-thread-1] JBoss Threads version 2.3.3.Final
+2020-07-31 08:46:48,004 INFO [org.jboss.remoting] [RegistrationStateChangeNotification-pool-27-thread-1] JBoss Remoting version 5.0.17.Final
+2020-07-31 08:46:48,045 INFO [org.jboss.ejb.client] [RegistrationStateChangeNotification-pool-27-thread-1] JBoss EJB Client version 4.0.30.Final
+2020-07-31 08:46:48,206 ERROR [com.application.lifecycle.internal.dataservice.ServiceImpl] [RegistrationStateChangeNotification-pool-27-thread-1] RemoteException while accessing ServiceRemote on cluster: Error; nested exception is:
+java.io.IOException: java.lang.IllegalArgumentException: Contains non-LDH ASCII characters
+java.rmi.RemoteException: Error; nested exception is:
+java.io.IOException: java.lang.IllegalArgumentException: Contains non-LDH ASCII characters
+at org.jboss.ejb.client.EJBInvocationHandler.invoke(EJBInvocationHandler.java:219)
+at org.jboss.ejb.client.EJBInvocationHandler.invoke(EJBInvocationHandler.java:125)
+at com.sun.proxy.$Proxy12.register(Unknown Source)
+at com.application.lifecycle.internal.dataservice.ServiceImpl$1.exec(ServiceImpl.java:41)
+at com.application.lifecycle.internal.dataservice.ServiceImpl$1.exec(ServiceImpl.java:38)
+at com.service.remoteservice.AbstractStatelessRemoteServiceProxy.exec(AbstractStatelessRemoteServiceProxy.java:128)
+at com.application.lifecycle.internal.dataservice.ServiceImpl.register(ServiceImpl.java:38)
+at com.application.lifecycle.internal.model.BusinessTierClusterModelImpl.register(BusinessTierClusterModelImpl.java:94)
+at com.application.lifecycle.internal.action.RegisterAction.execute(RegisterAction.java:51)
+at com.af.app.action.DefaultActionManager.executeRequest(DefaultActionManager.java:176)
+at com.service.message.DelegatingMessageReceiver.delegate(DelegatingMessageReceiver.java:68)
+at com.service.message.DelegatingMessageReceiver.receive(DelegatingMessageReceiver.java:50)
+at com.af.app.message.DefaultMessageReceiver.execute(DefaultMessageReceiver.java:65)
+at com.af.app.action.DefaultActionManager.executeRequest(DefaultActionManager.java:176)
+at com.af.app.message.DefaultMessageReceiver.onMessage(DefaultMessageReceiver.java:154)
+at com.af.app.impl.LocalMessageSenderImpl$SenderRunnable.run(LocalMessageSenderImpl.java:189)
+at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+at java.lang.Thread.run(Thread.java:748)
+Caused by: java.io.IOException: java.lang.IllegalArgumentException: Contains non-LDH ASCII characters
+at io.undertow.protocols.ssl.UndertowXnioSsl$StreamConnectionChannelListener.handleEvent(UndertowXnioSsl.java:450)
+at io.undertow.protocols.ssl.UndertowXnioSsl$StreamConnectionChannelListener.handleEvent(UndertowXnioSsl.java:416)
+at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+at org.xnio.nio.WorkerThread$ConnectHandle.handleReady(WorkerThread.java:333)
+at org.xnio.nio.WorkerThread.run(WorkerThread.java:591)
+Caused by: java.lang.IllegalArgumentException: Contains non-LDH ASCII characters
+at java.net.IDN.toASCIIInternal(IDN.java:296)
+at java.net.IDN.toASCII(IDN.java:122)
+at javax.net.ssl.SNIHostName.<init>(SNIHostName.java:99)
+at io.undertow.protocols.ssl.UndertowXnioSsl$StreamConnectionChannelListener.handleEvent(UndertowXnioSsl.java:434)
+.. 4 more
+2020-07-31 08:46:48,208 WARN [com.application.lifecycle.internal.action.RegisterAction] [RegistrationStateChangeNotification-pool-27-thread-1] Failed to register with business tier. Retrying in 10 seconds.
+com.Exception: RemoteException while accessing ServiceRemote on cluster
+at com.service.remoteservice.AbstractStatelessRemoteServiceProxy.handleRemoteException(AbstractStatelessRemoteServiceProxy.java:112)
+at com.service.remoteservice.AbstractStatelessRemoteServiceProxy.exec(AbstractStatelessRemoteServiceProxy.java:130)
+at com.application.lifecycle.internal.dataservice.ServiceImpl.register(ServiceImpl.java:38)
+at com.application.lifecycle.internal.model.BusinessTierClusterModelImpl.register(BusinessTierClusterModelImpl.java:94)
+at com.application.lifecycle.internal.action.RegisterAction.execute(RegisterAction.java:51)
+at com.af.app.action.DefaultActionManager.executeRequest(DefaultActionManager.java:176)
+at com.service.message.DelegatingMessageReceiver.delegate(DelegatingMessageReceiver.java:68)
+at com.service.message.DelegatingMessageReceiver.receive(DelegatingMessageReceiver.java:50)
+at com.af.app.message.DefaultMessageReceiver.execute(DefaultMessageReceiver.java:65)
+at com.af.app.action.DefaultActionManager.executeRequest(DefaultActionManager.java:176)
+at com.af.app.message.DefaultMessageReceiver.onMessage(DefaultMessageReceiver.java:154)
+at com.af.app.impl.LocalMessageSenderImpl$SenderRunnable.run(LocalMessageSenderImpl.java:189)
+at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+at java.lang.Thread.run(Thread.java:748)
+Caused by: java.rmi.RemoteException: Error; nested exception is:
+java.io.IOException: java.lang.IllegalArgumentException: Contains non-LDH ASCII characters
+at org.jboss.ejb.client.EJBInvocationHandler.invoke(EJBInvocationHandler.java:219)
+at org.jboss.ejb.client.EJBInvocationHandler.invoke(EJBInvocationHandler.java:125)
+at com.sun.proxy.$Proxy12.register(Unknown Source)
+at com.application.lifecycle.internal.dataservice.ServiceImpl$1.exec(ServiceImpl.java:41)
+at com.application.lifecycle.internal.dataservice.ServiceImpl$1.exec(ServiceImpl.java:38)
+at com.service.remoteservice.AbstractStatelessRemoteServiceProxy.exec(AbstractStatelessRemoteServiceProxy.java:128)
+.. 13 more
+Caused by: java.io.IOException: java.lang.IllegalArgumentException: Contains non-LDH ASCII characters
+at io.undertow.protocols.ssl.UndertowXnioSsl$StreamConnectionChannelListener.handleEvent(UndertowXnioSsl.java:450)
+at io.undertow.protocols.ssl.UndertowXnioSsl$StreamConnectionChannelListener.handleEvent(UndertowXnioSsl.java:416)
+at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+at org.xnio.nio.WorkerThread$ConnectHandle.handleReady(WorkerThread.java:333)
+at org.xnio.nio.WorkerThread.run(WorkerThread.java:591)
+Caused by: java.lang.IllegalArgumentException: Contains non-LDH ASCII characters
+at java.net.IDN.toASCIIInternal(IDN.java:296)
+at java.net.IDN.toASCII(IDN.java:122)
+at javax.net.ssl.SNIHostName.<init>(SNIHostName.java:99)
+at io.undertow.protocols.ssl.UndertowXnioSsl$StreamConnectionChannelListener.handleEvent(UndertowXnioSsl.java:434)
+.. 4 more
+{code}",2020/09/13 12:57 PM
+UNDERTOW-1779,Some fields in Http2Channel can be marked final because they never change.,2020/09/11 3:13 AM
+UNDERTOW-1773,SessionListeners does not invoke next listener if a listener throws an exception.  This also causes a leak with a distributed cache as expired sessions are not effectively cleaned up after a listener exception.,2020/08/21 10:22 AM
+UNDERTOW-1772,"Listeners are currently initialized eagerly and even before any servlet container initializers were created/executed. This prevents Weld integration and subsequently makes it impossible to perform injection into listeners because Weld attempts to register [{{EnhancedListener}}|https://github.com/weld/core/blob/3.1/environments/servlet/core/src/main/java/org/jboss/weld/environment/servlet/EnhancedListener.java] (implementing {{ServletContainerInitializer}}) in order to bootstrap and only after that it is able to serve Undertow bean instances of listeners.
+
+ 
+This has been hidden bug for a long time as [Weld test|https://github.com/weld/core/blob/3.1/environments/servlet/core/src/test/java/org/jboss/weld/environment/servlet/undertow/UndertowSmokeTest.java] verifying this was using very old Undertow version where this worked.
+
+I've gone over the details with [~flaviarnn] via Zulip and I'll send a PR shortly.",2020/08/20 7:06 AM
+UNDERTOW-1766,NoData,2020/08/05 4:46 PM
+UNDERTOW-1763,"DefaultAccessLogReceiver may throw ""IOException: Stream closed"" or NullPointerException due to a concurrency issue between DefaultAccessLogReceiver#run() and DefaultAccessLogReceiver#close().
+
+If DefaultAccessLogReceiver#close() is invoked while another task thread is executing inside the ""finally"" clause of DefaultAccessLogReceiver#run(), there's a concurrency issue that allows multiple task threads execute run() in parallel.
+
+This can cause the following ""java.io.IOException: Stream closed"" or NullPointerException inside run() or writeMessage():
+
+{code}
+ERROR [io.undertow] (default task-1) UT005016: Error writing access log: java.io.IOException: Stream closed
+	at java.io.BufferedWriter.ensureOpen(BufferedWriter.java:116)
+	at java.io.BufferedWriter.write(BufferedWriter.java:221)
+	at java.io.Writer.write(Writer.java:157)
+	at io.undertow.server.handlers.accesslog.DefaultAccessLogReceiver.writeMessage(DefaultAccessLogReceiver.java:245)
+	at io.undertow.server.handlers.accesslog.DefaultAccessLogReceiver.run(DefaultAccessLogReceiver.java:188)
+	at org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35)
+	at org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:1982)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1486)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1377)
+	at java.lang.Thread.run(Thread.java:748)
+{code}
+
+{code}
+ERROR [org.jboss.threads.errors] (default task-1) Thread Thread[default task-1,5,main] threw an uncaught exception: java.lang.NullPointerException
+	at io.undertow.server.handlers.accesslog.DefaultAccessLogReceiver.writeMessage(DefaultAccessLogReceiver.java:245)
+	at io.undertow.server.handlers.accesslog.DefaultAccessLogReceiver.run(DefaultAccessLogReceiver.java:188)
+	at org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35)
+	at org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:1982)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1486)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1377)
+	at java.lang.Thread.run(Thread.java:748)
+{code}
+
+{code}
+ERROR [io.undertow] (default task-1) UT005016: Error writing access log: java.io.IOException: Stream closed
+	at java.io.BufferedWriter.ensureOpen(BufferedWriter.java:116)
+	at java.io.BufferedWriter.flushBuffer(BufferedWriter.java:126)
+	at java.io.BufferedWriter.flush(BufferedWriter.java:253)
+	at io.undertow.server.handlers.accesslog.DefaultAccessLogReceiver.run(DefaultAccessLogReceiver.java:201)
+	at org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35)
+	at org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:1982)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1486)
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1377)
+	at java.lang.Thread.run(Thread.java:748)
+{code}
+
+{code}
+ERROR [org.jboss.threads.errors] (default task-1) Thread Thread[default task-3,5,main] threw an uncaught exception: java.lang.NullPointerException
+        at io.undertow.server.handlers.accesslog.DefaultAccessLogReceiver.run(DefaultAccessLogReceiver.java:201)
+        at org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35)
+        at org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:1982)
+        at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1486)
+        at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1348)
+        at java.lang.Thread.run(Thread.java:748)
+{code}
+
+This happens because the ""state"" is reset to 0 (not running) at the beginning of the ""finally"" clause of DefaultAccessLogReceiver#run(). So, if another thread (MSC service thread in EAP/WildFly) invokes DefaultAccessLogReceiver#close() at the same time, it has a possibility to trigger ""logWriteExecutor.execute(this)"" to spawn a new thread that executes run(). (In a normal scenario, ""logWriteExecutor.execute(this)"" needs to be executed here in order to close a writer. So, I think close() itself is fine.)
+
+I think the ""state"" should be set at the end of the finally clause to prevent other threads from entering DefaultAccessLogReceiver#run().
+
+",2020/08/04 7:36 PM
+UNDERTOW-1762,"With the jsp-config set for development mode, org.apache.jasper.servlet.JspServletWrapper wraps the ServletException with a JasperException.  io.undertow.servlet.core.ErrorPages.getErrorLocation then does not check the original cause of that JasperException, so it won't find the error page for the original exception type.  So then a config like this cannot work for a custom exception-type in development mode:
+{code:java}
+ <error-page>
+ <exception-type>com.redhat.exception.CustomException</exception-type>
+ <location>/error.jsp</location>
+ </error-page>{code}
+ ",2020/07/30 11:52 AM
+UNDERTOW-1745,"ExchangeCompletionListener is not invoked for HTTP/2 POST request on HTTP Upgrade based connection. So, AccessLogHandler or RequestDumpingHandler does not work.
+
+ExchangeCompletionListener is triggered after both HttpServerExchange#terminateRequest() and HttpServerExchange#terminateResponse() are invoked. However, HttpServerExchange#terminateRequest() is never invoked for HTTP/2 POST request on HTTP Upgrade based connection. 
+
+This issue does not happen for HTTP/2 request through TLS ALPN, or HTTP/2 GET request on HTTP Upgrade based connection.
+
+Because, HttpServerExchange#terminateRequest() is invoked at [here|https://github.com/undertow-io/undertow/blob/2.1.3.Final/core/src/main/java/io/undertow/server/protocol/http2/Http2ReceiveListener.java#L173-L182] for HTTP/2 request through TLS ALPN. Also, it's invoked at [here|https://github.com/undertow-io/undertow/blob/2.1.3.Final/core/src/main/java/io/undertow/server/protocol/http2/Http2ReceiveListener.java#L238] for HTTP/2 GET request on HTTP Upgrade based connection.
+
+",2020/07/02 7:55 PM
+UNDERTOW-1743,"While investigating a [Spring Boot issue|[https://github.com/spring-projects/spring-boot/issues/21557#issuecomment-648819654],] we have identified a regression in Undertow 2.1.2.Final and later that results in request attributes being cleared too soon. This happens when a client closes a connection while the response is still being written. With thanks to Arnaud Heritier for identifying it, I believe that [this commit|https://github.com/undertow-io/undertow/commit/a549027dc129ae61c94c08b046086aa2377c06a6] is the likely cause. The loss of the request attributes prevents Spring Boot from stopping a timer for the request that was stored in the attributes.",2020/07/01 9:52 AM
+UNDERTOW-1726,"There was a Java 8 backport of ALPN support in [Java 8 251/252|https://hg.openjdk.java.net/jdk8u/jdk8u41/jdk/rev/b26b096d4c89]. Also see the [release notes|https://www.oracle.com/technetwork/java/javase/8u251-relnotes-5972664.html#JDK-8051498]. The reasoning was explain in an [email|https://mail.openjdk.java.net/pipermail/jdk8u-dev/2019-November/010573.html].
+
+Since these new methods exist on the newest versions of Java 8 there is an attempt to use the {{JDK9AlpnProvider}}. If the {{SSLEngine}} provided however does not implement these methods there would be issues. A property called {{io.undertow.protocols.alpn.jdk8}} will be introduced to disable this check for SSL engines that run on JDK8 and support the new methods.",2020/06/03 3:10 PM
+UNDERTOW-1722,"With UNDERTOW-1573, attributes are no longer cleared from requests and we have a leakage when going from Session to Request to request attributes.
+Please, see attached image for an example of a stack.
+We need to clear attributes after the listeners are invoked so we don't break the fix for UNDERTOW-1573 while still preventing a memory leak.",2020/06/01 4:27 PM
+UNDERTOW-1720,If the callback dispatches to another thread that then writes the code designed to prevent overflows can result in two threads writing the same data.,2020/05/28 12:14 AM
+UNDERTOW-1719,"When using path parameters in the URL there are some cases that finishes in a wrong URI or Path set:
+
+* /path/somepath;p1/more => Incorrectly assigns HostIncludedInRequestURI and then getRedirectURI strips the first path.
+* /some;p1=v1/path;p1=v2/more?q1=v3 => Incorrectly returns the path params in the request Path.
+
+This issue was introduced by UNDERTOW-1464.
+",2020/05/27 12:08 PM
+UNDERTOW-1717,"Undertow currently returns ""206 Partial Content"" with the ""Content-Length: 0"" when first-byte-pos of the Range request header is equal to the size of the content.
+
+However, RFC 7233 (https://tools.ietf.org/html/rfc7233#section-2.1) states:
+
+{quote}
+2.1.  Byte Ranges
+   ...(snip)...
+
+   If a valid byte-range-set includes at least one byte-range-spec with a first-byte-pos that is less than the current length of the representation,
+   or at least one suffix-byte-range-spec with a non-zero suffix-length, then the byte-range-set is satisfiable.
+   Otherwise, the byte-range-set is unsatisfiable.
+{quote}
+
+So, ""416 Range Not Satisfiable"" should be returned in this case.
+
+---
+
+As a side note, if you use older Undertow than the version that contains the fix for UNDERTOW-1595, the same NullPointerException as UNDERTOW-1595 happens in this case, too. 
+",2020/05/26 10:54 PM
+UNDERTOW-1716,"As of JBEAP-16975 / UNDERTOW-1548, http separators are not allowed in V0 cookie value unless io.undertow.legacy.cookie.ALLOW_HTTP_SEPARATORS_IN_V0 is set to true.
+So, Undertow truncates the cookie value after any http separators by default (because of being compatible with EAP 6).
+
+However, ""<hostcontroller-name>:<server-name>"" (e.g. master:node1) is added to the JSESSIONID cookie as jvmRoute (instance-id) by default in WildFly domain mode. Hence, colon "":"" (one of http separators) is included in the cookie value. For example:
+
+{code}
+JSESSIONID=""WCGWBPJ8DUmv0fvREqVQZb8E6bzW92iHnzysV_q_.master:node1""
+{code}
+
+So, the request cookie will be parsed and handled as WCGWBPJ8DUmv0fvREqVQZb8E6bzW92iHnzysV_q_.master (= the cookie value only before colon "":"").
+
+This behavior is still okay when it's working as an application server. Because a cookie value is decoded by [WildFly's CodecSessionConfig|https://github.com/wildfly/wildfly/blob/19.1.0.Final/undertow/src/main/java/org/wildfly/extension/undertow/session/CodecSessionConfig.java#L61] and WildFly handles only the cookie value before period ""."" (WCGWBPJ8DUmv0fvREqVQZb8E6bzW92iHnzysV_q_ in the above example). So, the result is the same regardless of having colon "":"" in after period ""."" in the cookie value. So far so good.
+
+However, this default behavior becomes a problem when WildFly/Undertow runs as a load balancer (configured with <reverse-proxy> or <mod-cluster>). Because Undertow needs to handle the jvmRoute part (master:node1 in the above example) which contains "":"" correctly in the request cookie value to maintain the sticky session.
+
+Let's change Undertow to allow "":"" in the request cookie value regardless of the io.undertow.legacy.cookie.ALLOW_HTTP_SEPARATORS_IN_V0 setting.
+",2020/05/21 1:07 PM
+UNDERTOW-1709,"Sending an incorrect AJP request to the AJP listener causes a NPE:
+{code}
+ERROR [io.undertow.request.io] (default I/O-7) UT005090: Unexpected failure: java.lang.NullPointerException
+	at io.undertow.server.HttpServerExchange.closeAndFlushResponse(HttpServerExchange.java:1716)
+	at io.undertow.server.HttpServerExchange.endExchange(HttpServerExchange.java:1700)
+	at io.undertow.server.protocol.ajp.AjpReadListener.handleEvent(AjpReadListener.java:262)
+	at io.undertow.server.protocol.ajp.AjpOpenListener.handleEvent(AjpOpenListener.java:156)
+	at io.undertow.server.protocol.ajp.AjpOpenListener.handleEvent(AjpOpenListener.java:56)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.ChannelListeners$10.handleEvent(ChannelListeners.java:291)
+	at org.xnio.ChannelListeners$10.handleEvent(ChannelListeners.java:286)
+	at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.xnio.nio.QueuedNioTcpServer$1.run(QueuedNioTcpServer.java:134)
+	at org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:612)
+	at org.xnio.nio.WorkerThread.run(WorkerThread.java:479)
+
+{code}
+
+The _getRequestMethod()_ call in [HttpServerExchange|https://github.com/undertow-io/undertow/blob/master/core/src/main/java/io/undertow/server/HttpServerExchange.java#L1716] returns _null_ .
+
+This is a regression in Undertow 2.0.30.SP2. Seems to be caused by the fix for JBEAP-19204",2020/05/15 12:59 AM
+UNDERTOW-1702,"If HTTP request doesn't contain user-agent header, the new SameSiteCookieHandler throws NPE if mode is set to ""None"" and SameSiteNoneIncompatibleClientChecker hasn't been explicitly disabled.
+
+This is because on [SameSiteCookieHandler.java:78|https://github.com/undertow-io/undertow/blob/f1c7d8f380afe84e6639db8c0d87a87639663b83/core/src/main/java/io/undertow/server/handlers/SameSiteCookieHandler.java#L78] passes {{exchange.getRequestHeaders().getFirst(Headers.USER_AGENT)}}  directly to {{io.undertow.util.SameSiteNoneIncompatibleClientChecker}}, which will try to use the possible null value in regex match, which will throw.
+
+I know user-agent is usually included, but it's not strictly required by standard and some non-browser clients might not send it.
+
+Stacktrace:
+
+{noformat}
+java.lang.NullPointerException: Cannot invoke ""java.lang.CharSequence.length()"" because ""this.text"" is null
+        at java.util.regex.Matcher.getTextLength(Matcher.java:1770) ~[?:?]
+        at java.util.regex.Matcher.reset(Matcher.java:416) ~[?:?]
+        at java.util.regex.Matcher.<init>(Matcher.java:253) ~[?:?]
+        at java.util.regex.Pattern.matcher(Pattern.java:1135) ~[?:?]
+        at io.undertow.util.SameSiteNoneIncompatibleClientChecker.isIosVersion(SameSiteNoneIncompatibleClientChecker.java:90) ~[undertow-core-2.1.0.Final.jar:2.1.0.Final]
+        at io.undertow.util.SameSiteNoneIncompatibleClientChecker.hasWebKitSameSiteBug(SameSiteNoneIncompatibleClientChecker.java:73) ~[undertow-core-2.1.0.Final.jar:2.1.0.Final]
+        at io.undertow.util.SameSiteNoneIncompatibleClientChecker.isSameSiteNoneIncompatible(SameSiteNoneIncompatibleClientChecker.java:68) ~[undertow-core-2.1.0.Final.jar:2.1.0.Final]
+        at io.undertow.util.SameSiteNoneIncompatibleClientChecker.shouldSendSameSiteNone(SameSiteNoneIncompatibleClientChecker.java:63) ~[undertow-core-2.1.0.Final.jar:2.1.0.Final]
+        at io.undertow.server.handlers.SameSiteCookieHandler$1.beforeCommit(SameSiteCookieHandler.java:78) ~[undertow-core-2.1.0.Final.jar:2.1.0.Final]
+{noformat}
+",2020/04/21 1:14 AM
+UNDERTOW-1685,Very slight test extension for samesite cookie tests.,2020/04/16 11:39 AM
+UNDERTOW-1680,"getSize() in javax.servlet.http.Part should return the number of bytes in the part.
+
+If a multipart request is received with a part having charset=UTF-8 and a body with just a non-ascii letter like ""å"", then getSize() returns 1, but I would expect 2 as it's encoded as two bytes with the UTF-8 charset.
+
+The example HTTP request would look something like this:
+
+POST / HTTP/1.1
+Content-Type: multipart/form-data; boundary=9WZrRBh_HG1r4SRLa2zdF0HF9ADOKF; charset=US-ASCII
+Host: localhost:8000
+
+--9WZrRBh_HG1r4SRLa2zdF0HF9ADOKF
+Content-Disposition: form-data; name=""ex""
+Content-Type: text/plain; charset=UTF-8
+
+å",2020/04/06 10:56 AM
+UNDERTOW-1678,"Some tests in the testsuite don't respect value of the {{default.server.address}} property that is read by {{io.undertow.testutils.DefaultServer#getHostAddress()}}. As such, in case that one configures this property to some value that matches actual hostname of the machine, these tests simply fail as they continues to expect {{localhost}} value in assertions.
+
+Note: this is only tests issue. Not functional.",2020/03/30 11:06 AM
+UNDERTOW-1677,"A WFLYCLWEBUT0002 error occurs in a cross-context request that creates a session when the sub-deployments use session sharing:
+{code}
+ERROR  [io.undertow.request] (ajp task-1) UT005023: Exception handling request to /: org.apache.jasper.JasperException: javax.servlet.ServletException: javax.servlet.jsp.JspException: java.lang.RuntimeException: org.apache.jasper.JasperException: javax.servlet.ServletException: java.lang.IllegalStateException: WFLYCLWEBUT0002: Session 57_Q1ZxooUX07ReWe1L0DCrmOOW89I6NhDmPKlJZ already exists
+    at org.apache.jasper.servlet.JspServletWrapper.handleJspException(JspServletWrapper.java:581) [jastow-2.0.7.Final-redhat-00001.jar:2.0.7.Final-redhat-00001]
+    at org.apache.jasper.servlet.JspServletWrapper.service(JspServletWrapper.java:456) [jastow-2.0.7.Final-redhat-00001.jar:2.0.7.Final-redhat-00001]
+    at org.apache.jasper.servlet.JspServlet.serviceJspFile(JspServlet.java:403) [jastow-2.0.7.Final-redhat-00001.jar:2.0.7.Final-redhat-00001]
+    at org.apache.jasper.servlet.JspServlet.service(JspServlet.java:347) [jastow-2.0.7.Final-redhat-00001.jar:2.0.7.Final-redhat-00001]
+    at javax.servlet.http.HttpServlet.service(HttpServlet.java:791) [jboss-servlet-api_4.0_spec-1.0.0.Final-redhat-1.jar:1.0.0.Final-redhat-1]
+    at io.undertow.servlet.handlers.ServletHandler.handleRequest(ServletHandler.java:74) [undertow-servlet-2.0.26.SP3-redhat-00001.jar:2.0.26.SP3-redhat-00001]
+    at io.undertow.servlet.handlers.FilterHandler$FilterChainImpl.doFilter(FilterHandler.java:129) [undertow-servlet-2.0.26.SP3-redhat-00001.jar:2.0.26.SP3-redhat-00001]
+...
+Caused by: java.lang.IllegalStateException: WFLYCLWEBUT0002: Session 57_Q1ZxooUX07ReWe1L0DCrmOOW89I6NhDmPKlJZ already exists
+    at org.wildfly.clustering.web.undertow.session.DistributableSessionManager.createSession(DistributableSessionManager.java:113)
+    at io.undertow.servlet.spec.ServletContextImpl.getSession(ServletContextImpl.java:923) [undertow-servlet-2.0.26.SP3-redhat-00001.jar:2.0.26.SP3-redhat-00001]
+    at io.undertow.servlet.spec.HttpServletRequestImpl.getSession(HttpServletRequestImpl.java:418) [undertow-servlet-2.0.26.SP3-redhat-00001.jar:2.0.26.SP3-redhat-00001]
+    at io.undertow.servlet.spec.HttpServletRequestImpl.getSession(HttpServletRequestImpl.java:423) [undertow-servlet-2.0.26.SP3-redhat-00001.jar:2.0.26.SP3-redhat-00001]
+    at org.apache.jasper.runtime.PageContextImpl.initialize(PageContextImpl.java:137) [jastow-2.0.7.Final-redhat-00001.jar:2.0.7.Final-redhat-00001]
+    at org.apache.jasper.runtime.JspFactoryImpl.internalGetPageContext(JspFactoryImpl.java:109) [jastow-2.0.7.Final-redhat-00001.jar:2.0.7.Final-redhat-00001]
+    at org.apache.jasper.runtime.JspFactoryImpl.getPageContext(JspFactoryImpl.java:60) [jastow-2.0.7.Final-redhat-00001.jar:2.0.7.Final-redhat-00001]
+{code}",2020/03/24 6:34 PM
+UNDERTOW-1671,The correct separator is ';',2020/03/10 10:10 PM
+UNDERTOW-2277,"Because those classes do not check for the remaining content length when writing and flush, we could have a mimatch caused by a bug in the servlet code, in case the servlet sets a content length that is not equal to the amount of bytes it is writing.
+
+As a result, Undertow sends an invalid HTTP response, one where the content length header does not match the actual length of the response date.
+
+This can cause issues with clients, and it causes issues with Undertow itself. When tests are run in proxy mode + HTTP2, we can see the proxy closes the stream when receiving the faulty header.",2023/06/06 6:18 AM
+UNDERTOW-2276,"{code:java}
+    @Test
+    public void testContainsAfterClear() {
+        HeaderMap headerMap = new HeaderMap();
+        HttpString header = Headers.HOST;
+        headerMap.put(header, ""a"");
+        headerMap.get(header).clear();
+        // Either of these headerMap.contains invocations will throw an NPE
+        assertFalse(headerMap.contains(header));
+        assertFalse(headerMap.contains(header.toString()));
+    }
+{code}
+
+This is due to the check here:
+https://github.com/undertow-io/undertow/blob/219e23a0700e6c52f22459c3958301b1e0596343/core/src/main/java/io/undertow/util/HeaderMap.java#L803-L811
+
+In the case that {{size}} is zero, the value may be null, and the null check is on the HeaderValues instance, not the HeaderValues.value instance. So, the next check that the value is a string returns false, the implementation assumes the value must be an array, however it is actually null. The same defect exists in both the String and HttpString overloads of the contains method.
+",2023/06/02 7:36 PM
+UNDERTOW-2270,"We found the change introduced by  [ticket|https://issues.redhat.com/browse/UNDERTOW-2245] cause Fuse/Integration product test failure. More specifically, the new added
+{code:java}
++        requestImpl.setAttribute(ASYNC_MAPPING, requestImpl.getHttpServletMapping());
+{code}
+will call into io.undertow.servlet.spec.HttpServletRequestImpl line 241, the match is null, hence NPE thrown. We can hit this NPE when io.undertow.servlet.spec.AsyncContextImpl is used
+
+appended a reproducer project(rest-ssl-test.zip) crafted by [~fmariani@redhat.com] to expose this issue. Just run ""mvn clean verify"" you can see the NPE.",2023/05/29 6:32 AM
+UNDERTOW-2258,"The continue responses are not treated properly. After a continue response is sent, the stream source channel created by AbstractFrameChannel.receive() is left without a read listener and future frames for that stream are not added to the pendingFrames list.
+
+ ",2023/04/12 3:12 AM
+UNDERTOW-2255,"When using the ProxyHandler and LoadBalancingProxyClient to send a request to a backend HTTP server that supports HTTP/2 the server responds with a 503 instead of routing the request.
+
+I've written an SSCCE here: [https://github.com/codemonstur/loadbalancer-bug]
+
+When line 38 is commented out (i.e. HTTP/2 is not enabled on the backend) the request succeeds normally and I get the ""Hello, world!"" message. When the line is left in I see this error:
+{code:java}
+Apr 02, 2023 4:40:05 PM io.undertow.server.handlers.proxy.ProxyHandler handleFailure
+ERROR: UT005028: Proxy request to / failed
+java.nio.channels.ClosedChannelException
+    at io.undertow.client.http2.Http2ClientConnection.close(Http2ClientConnection.java:306)
+    at org.xnio.IoUtils.safeClose(IoUtils.java:152)
+    at io.undertow.client.http2.Http2ClientConnection$Http2ReceiveListener.handleEvent(Http2ClientConnection.java:490)
+    at io.undertow.client.http2.Http2ClientConnection$Http2ReceiveListener.handleEvent(Http2ClientConnection.java:387)
+    at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+    at io.undertow.server.protocol.framed.AbstractFramedChannel$FrameReadListener.handleEvent(AbstractFramedChannel.java:959)
+    at io.undertow.server.protocol.framed.AbstractFramedChannel$FrameReadListener.handleEvent(AbstractFramedChannel.java:939)
+    at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+    at io.undertow.server.protocol.framed.AbstractFramedChannel$FrameReadListener$1.run(AbstractFramedChannel.java:971)
+    at io.undertow.server.protocol.framed.AbstractFramedChannel$1.run(AbstractFramedChannel.java:144)
+    at org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:612)
+    at org.xnio.nio.WorkerThread.run(WorkerThread.java:479) {code}",2023/04/02 2:58 PM
+UNDERTOW-2251,"The bug described in UNDERTOW-2031 is not fully fixed:
+{code}
+$ curl --http2 -X PUT  localhost:8080/ -d foo -X PUT -H 'Expect: 100-continue' --http2-prior-knowledge -v
+*   Trying 127.0.0.1...
+* TCP_NODELAY set
+* Connected to localhost (127.0.0.1) port 8080 (#0)
+* Using HTTP2, server supports multi-use
+* Connection state changed (HTTP/2 confirmed)
+* Copying HTTP/2 data in stream buffer to connection buffer after upgrade: len=0
+* Using Stream ID: 1 (easy handle 0x55a9becbe6b0)
+> PUT / HTTP/2
+> Host: localhost:8080
+> User-Agent: curl/7.61.1
+> Accept: */*
+> Expect: 100-continue
+> Content-Length: 3
+> Content-Type: application/x-www-form-urlencoded
+> 
+* Connection state changed (MAX_CONCURRENT_STREAMS == 4294967295)!
+* HTTP/2 stream 0 was not closed cleanly: PROTOCOL_ERROR (err 1)
+* stopped the pause stream!
+* Connection #0 to host localhost left intact
+curl: (92) HTTP/2 stream 0 was not closed cleanly: PROTOCOL_ERROR (err 1)
+{code}
+
+The only part that was addressed by previous fix was this error message, that no longer occurs:
+{code}
+http2 error: Invalid HTTP header field was received: frame type: 1, stream: 1, name: [content-length], value: [0]
+{code}",2023/03/25 9:05 AM
+UNDERTOW-2246,"This class pulls system property ""java.specification.version"" and expects the value to be an integer or starts with 1. However on Android, this value is always 0.9. Therefore the code is broken at 
+
+Integer.parseInt(versionString).
+
+This bug directly impacts usage of HttpServerExchange.getInputStream().read() function.   
+
+See error log:
+
+Caused by: java.lang.NumberFormatException: For input string: ""0.9""
+        at java.lang.Integer.parseInt(Integer.java:747)
+        at java.lang.Integer.parseInt(Integer.java:865)
+        at io.undertow.server.DirectByteBufferDeallocator.<clinit>(DirectByteBufferDeallocator.java:28)
+        at io.undertow.server.DirectByteBufferDeallocator.free(DirectByteBufferDeallocator.java:71) 
+        at io.undertow.server.DefaultByteBufferPool.queueIfUnderMax(DefaultByteBufferPool.java:209) 
+        at io.undertow.server.DefaultByteBufferPool.freeInternal(DefaultByteBufferPool.java:201) 
+        at io.undertow.server.DefaultByteBufferPool.-$$Nest$mfreeInternal(Unknown Source:0) 
+        at io.undertow.server.DefaultByteBufferPool$DefaultPooledBuffer.close(DefaultByteBufferPool.java:274) 
+        at io.undertow.io.UndertowInputStream.read(UndertowInputStream.java:123) ",2023/03/15 10:59 PM
+UNDERTOW-2243,"This can happen with big post requests. We need to find a workaround that will prevent the eager flush/close, or an option to quit this behavior when disruptive.",2023/02/14 8:24 PM
+UNDERTOW-2241,"Undertow write-timeout can cause closing a connection for a long-polling request without sending the last zero-length chunk like 0\r\n\r\n. This behavior causes a browser-side error, e.g. net::ERR_INCOMPLETE_CHUNKED_ENCODING in Google Chrome.
+
+In current Undertow implementation of write-timeout, for requests that re-use a keep-alive connection, the write-timeout set during the previous request processing is taken over to the next request. As a result, a zero chunk truncated response is returned if meet the following conditions are true:
+
+* The request re-use a keep-alive connection.
+* The request takes longer than write-timeout like long-polling processing by AsyncServlet.
+* Transfer-Encoding: chunked is applied to the response by calling flush() in the servlet.
+
+Even if the write-timeout is reached, it is expected to write the last chunk to the socket before closing a connection.",2023/02/10 1:28 PM
+UNDERTOW-2234,"A few days ago {{HttpClientSNITestCase}} started to fail in all the CI runs.
+{noformat}
+[INFO] Running io.undertow.client.http.HttpClientSNITestCase
+[ERROR] Tests run: 4, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.791 s <<< FAILURE! - in io.undertow.client.http.HttpClientSNITestCase
+[ERROR] testNoSNIWhenIP(io.undertow.client.http.HttpClientSNITestCase)  Time elapsed: 0.097 s  <<< FAILURE!
+org.junit.ComparisonFailure: expected:<[]> but was:<[localhost]>
+	at org.junit.Assert.assertEquals(Assert.java:117)
+	at org.junit.Assert.assertEquals(Assert.java:146)
+	at io.undertow.client.http.HttpClientSNITestCase.testNoSNIWhenIP(HttpClientSNITestCase.java:198)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at io.undertow.testutils.DefaultServer.runChild(DefaultServer.java:707)
+	at io.undertow.testutils.DefaultServer.runChild(DefaultServer.java:145)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.internal.runners.statements.RunBefores.evaluate(RunBefores.java:26)
+	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at io.undertow.testutils.RunDefaultServer.evaluate(RunDefaultServer.java:74)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at io.undertow.testutils.DefaultServer.run(DefaultServer.java:377)
+	at org.junit.runners.Suite.runChild(Suite.java:128)
+	at org.junit.runners.Suite.runChild(Suite.java:27)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at org.apache.maven.surefire.junitcore.JUnitCore.run(JUnitCore.java:55)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.createRequestAndRun(JUnitCoreWrapper.java:137)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.executeEager(JUnitCoreWrapper.java:107)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.execute(JUnitCoreWrapper.java:83)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.execute(JUnitCoreWrapper.java:75)
+	at org.apache.maven.surefire.junitcore.JUnitCoreProvider.invoke(JUnitCoreProvider.java:158)
+	at org.apache.maven.surefire.booter.ForkedBooter.invokeProviderInSameClassLoader(ForkedBooter.java:383)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:344)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:125)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:417)
+
+[ERROR] testSNIWhenHostname(io.undertow.client.http.HttpClientSNITestCase)  Time elapsed: 0.057 s  <<< FAILURE!
+org.junit.ComparisonFailure: expected:<[localhost]> but was:<[server]>
+	at org.junit.Assert.assertEquals(Assert.java:117)
+	at org.junit.Assert.assertEquals(Assert.java:146)
+	at io.undertow.client.http.HttpClientSNITestCase.testSNIWhenHostname(HttpClientSNITestCase.java:167)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at io.undertow.testutils.DefaultServer.runChild(DefaultServer.java:707)
+	at io.undertow.testutils.DefaultServer.runChild(DefaultServer.java:145)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.internal.runners.statements.RunBefores.evaluate(RunBefores.java:26)
+	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at io.undertow.testutils.RunDefaultServer.evaluate(RunDefaultServer.java:74)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at io.undertow.testutils.DefaultServer.run(DefaultServer.java:377)
+	at org.junit.runners.Suite.runChild(Suite.java:128)
+	at org.junit.runners.Suite.runChild(Suite.java:27)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at org.apache.maven.surefire.junitcore.JUnitCore.run(JUnitCore.java:55)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.createRequestAndRun(JUnitCoreWrapper.java:137)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.executeEager(JUnitCoreWrapper.java:107)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.execute(JUnitCoreWrapper.java:83)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.execute(JUnitCoreWrapper.java:75)
+	at org.apache.maven.surefire.junitcore.JUnitCoreProvider.invoke(JUnitCoreProvider.java:158)
+	at org.apache.maven.surefire.booter.ForkedBooter.invokeProviderInSameClassLoader(ForkedBooter.java:383)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:344)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:125)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:417)
+{noformat}
+ 
+After some investigation the reason is the upgrade of the JDK in github to 11.0.18 and 17.0.6.",2023/01/26 10:09 AM
+UNDERTOW-2221,"Undertow can add an unwanted semicolon to a path parameter when client HTTP request packets are separated in the middle of the path parameter.
+
+It appears this issue can happen in JBoss EAP 7.2.8+, 7.3.1+, and 7.4.0+ because of [this code|https://github.com/undertow-io/undertow/blob/2.2.20.Final/core/src/main/java/io/undertow/server/protocol/http/HttpRequestParser.java#L589] which is incorporated as fix for UNDERTOW-1464.
+
+",2023/01/06 9:47 AM
+UNDERTOW-2216,"This ticket is created from the following discussion on the mailing list:
+
+[https://groups.google.com/g/undertow-dev/c/gEsLkOciOIU/m/Xxty07gYAQAJ]
+
+------------------------
+So I wanted to test and see if I could use a predicate rule to specify a resource handler, basically like an alias (virtual directory).  FWIW, I normally use a custom ResourceManager to implement web aliases, but I wanted to try this out.
+ 
+path-prefix(/foo)-> resource(location='C:/sandbox/mySite/bar/',allow-listing=true)
+ 
+This sort of works, but the issue is when I hit 
+[http://localhost/foo/test.txt]
+it will not serve the file 
+C:/sandbox/mySite/bar/test.txt
+but instead tries to serve
+C:/sandbox/mySite/bar/foo/test.txt
+
+because ""foo"" is still part of the path.  
+ 
+Ok, no problem.  So attempt number 2 where I swap out the request URI to be the ""remaining"" text.  More boilerplate, but works more like a virtual directory:
+ 
+path-prefix(/foo)-> \{ set(attribute=%U,value=${remaining}); resource(location='C:/sandbox/mySite/bar/',allow-listing=true) }
+ 
+This allows the URL above to serve the expected file, BUT when I hit
+[http://localhost/foo/]
+to get a directory listing of the folder, the links in the web page are broken as they point to `/test.txt` which is an absolute URI which doesn't not exist.  
+ 
+It seems that a simple workaround for this would be to use a relative path in the HTML of the directory listing page.  Therefore, if I'm viewing the contents of */foo/* in my browser and I click on ""{*}test.txt{*}"", then the browser would navigate to */foo/test/txt* without caring what the server side request URI looks like.  This would just require removing the path and the leading slash prior to the file name in the directory listing's HTML output.
+ ",2022/12/27 7:58 PM
+UNDERTOW-2211,"This is causing TCK to fail. If a method is declared in http-method-omission, it is uncovered by the security-constraint. If no other security constraint covers the method, it must be treated as uncovered.
+
+Also, add a test for deny uncovered methods. It should include the scenarios fixed by UNDERTOW-2188 and UNDERTOW-2209",2022/12/14 7:19 AM
+UNDERTOW-2209,"The Undertow upgrade to 2.3.1.Final in WildFly broke the DenyUncoveredHttpMethodsTestCase. The reason is that, because default security config is blank, the match algorithm assumes that deny-uncovered-methods makes any method uncovered from that perspective, even when there are security configs for that particular method.
+Because security matches is merged, if the algorithm finds an allow and a deny, when merging the results the outcome is allow and hence the test fails.",2022/12/13 6:32 AM
+UNDERTOW-2207,"Consider the following:
+{code:java}
+exchange.getResponseHeaders().put(Headers.CONTENT_LENGTH, ""1"");
+OutputStream out = exchange.getOutputStream();
+out.write(65);
+out.flush(); // Always throws IOException(Stream is closed)
+out.close();
+{code}
+
+UndertowOutputStream is aware of the Content-Length header, and within 'updateWritten' will helpfully write data to the response once the last byte is written to the stream. However, this is done by UndertowOutputStream closing itself, which isn't obvious to developers using the OutputStream implementation.  In the case above, flush should be a no-op because the stream has internally already flushed data (which is entirely reasonable), however it should not throw because the stream itself hasn't been closed, despite the state change internally.
+
+I think there are two potential ways we could resolve this:
+1. UndertowOutputStream can track another piece of data: 'close-has-been-invoked' in addition to 'closed'. Flush could throw if an external caller has invoked close, but not in the case the underlying resource has been closed because it's finished. This path would be very precise, but also more complex than perhaps necessary.
+2. UndertowOutputStream.flush can no-op in the case that the stream is already closed, and no remaining data is buffered. This is simpler to implement, and matches the behavior of ServletOutputStreamImpl.
+
+I'll plan to create a PR implementing the second option as I think internal consistency between the two blocking streams is valuable, but I'm happy do implement either based on feedback.
+This issue is somewhat similar to UNDERTOW-2189, which reminded me to file an issue :-)",2022/11/17 8:51 PM
+UNDERTOW-2206,"Upgrading our project from `2.2.0.Final` to `2.2.21.Final` led one of our smoke test to fail with the following:
+
+{noformat}
+java.lang.IllegalArgumentException: URLDecoder: Illegal hex characters in escape (%) pattern - Error at index 0 in: ""&(""
+	at java.base/java.net.URLDecoder.decode(URLDecoder.java:232) ~[na:na]
+	at java.base/java.net.URLDecoder.decode(URLDecoder.java:142) ~[na:na]
+	at io.undertow.servlet.spec.HttpServletRequestImpl.decodeURL(HttpServletRequestImpl.java:297) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.spec.HttpServletRequestImpl.getServletPath(HttpServletRequestImpl.java:432) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.DefaultServlet.getPath(DefaultServlet.java:394) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.DefaultServlet.doGet(DefaultServlet.java:150) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:497) ~[jakarta.servlet-api-4.0.4.jar:4.0.4]
+	at javax.servlet.http.HttpServlet.service(HttpServlet.java:584) ~[jakarta.servlet-api-4.0.4.jar:4.0.4]
+	at io.undertow.servlet.handlers.ServletHandler.handleRequest(ServletHandler.java:74) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.FilterHandler$FilterChainImpl.doFilter(FilterHandler.java:129) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-5.3.24-SNAPSHOT.jar:5.3.24-SNAPSHOT]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:117) ~[spring-web-5.3.24-SNAPSHOT.jar:5.3.24-SNAPSHOT]
+	at io.undertow.servlet.core.ManagedFilter.doFilter(ManagedFilter.java:67) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.FilterHandler$FilterChainImpl.doFilter(FilterHandler.java:131) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.FilterHandler.handleRequest(FilterHandler.java:84) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.security.ServletSecurityRoleHandler.handleRequest(ServletSecurityRoleHandler.java:62) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.ServletChain$1.handleRequest(ServletChain.java:68) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.ServletDispatchingHandler.handleRequest(ServletDispatchingHandler.java:36) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.RedirectDirHandler.handleRequest(RedirectDirHandler.java:68) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.security.SSLInformationAssociationHandler.handleRequest(SSLInformationAssociationHandler.java:117) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.security.ServletAuthenticationCallHandler.handleRequest(ServletAuthenticationCallHandler.java:57) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43) ~[undertow-core-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.security.handlers.AbstractConfidentialityHandler.handleRequest(AbstractConfidentialityHandler.java:46) ~[undertow-core-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.security.ServletConfidentialityConstraintHandler.handleRequest(ServletConfidentialityConstraintHandler.java:64) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.security.handlers.AuthenticationMechanismsHandler.handleRequest(AuthenticationMechanismsHandler.java:60) ~[undertow-core-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.security.CachedAuthenticatedSessionHandler.handleRequest(CachedAuthenticatedSessionHandler.java:77) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.security.handlers.AbstractSecurityContextAssociationHandler.handleRequest(AbstractSecurityContextAssociationHandler.java:43) ~[undertow-core-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43) ~[undertow-core-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.SendErrorPageHandler.handleRequest(SendErrorPageHandler.java:52) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43) ~[undertow-core-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.ServletInitialHandler.handleFirstRequest(ServletInitialHandler.java:275) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.ServletInitialHandler.access$100(ServletInitialHandler.java:79) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:134) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:131) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:48) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.ServletInitialHandler.dispatchRequest(ServletInitialHandler.java:255) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.ServletInitialHandler.access$000(ServletInitialHandler.java:79) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.servlet.handlers.ServletInitialHandler$1.handleRequest(ServletInitialHandler.java:100) ~[undertow-servlet-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.server.Connectors.executeRootHandler(Connectors.java:391) ~[undertow-core-2.2.21.Final.jar:2.2.21.Final]
+	at io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:852) ~[undertow-core-2.2.21.Final.jar:2.2.21.Final]
+	at org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35) ~[jboss-threads-3.1.0.Final.jar:3.1.0.Final]
+	at org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:2019) ~[jboss-threads-3.1.0.Final.jar:3.1.0.Final]
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1558) ~[jboss-threads-3.1.0.Final.jar:3.1.0.Final]
+	at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1423) ~[jboss-threads-3.1.0.Final.jar:3.1.0.Final]
+	at org.xnio.XnioWorker$WorkerThreadFactory$1$1.run(XnioWorker.java:1282) ~[xnio-api-3.8.7.Final.jar:3.8.7.Final]
+	at java.base/java.lang.Thread.run(Thread.java:829) ~[na:na]
+
+{noformat}
+
+
+The test is doing a GET on {{/nested-reserved-%21%23%24%25%26%28%29%2A%2B%2C%3A%3D%3F%40%5B%5D-meta-inf-resource.txt}}.
+
+
+I believe the change in [this commit|https://github.com/undertow-io/undertow/commit/0552d58cf38598e31500cc100168296c50693b80] makes it so that {{URLDecoder.decode}} is invoked on the decoded path as returned by {{HttpServletRequestImpl#getServletPath}}, that is {{/nested-reserved-!#$%&()*+,:=?@[]-meta-inf-resource.txt}}.
+
+",2022/11/15 1:49 PM
+UNDERTOW-2202,"I run a SpringBoot Application in docker for MultipartFile upload. But I found that the disk used was grouped slowly。The reason is a lot of temp file in the path ""/tmp"" was {*}deleted{*},but the handle of these file wasn't release. I must restart my docker container while the disk used 90%.
+
+  !image-2022-11-14-19-24-42-124.png!",2022/11/14 11:25 AM
+UNDERTOW-2200,"UPDATE: path& query parameters are not decoded properly due to flag/meaning switch of flag:
+https://github.com/undertow-io/undertow/blob/master/core/src/main/java/io/undertow/util/URLUtils.java#L95 --> decodeSlash
+vs
+https://github.com/undertow-io/undertow/blob/master/core/src/main/java/io/undertow/server/protocol/http/HttpRequestParser.java#L587 --> allowEncodedSlash
+
+https://github.com/undertow-io/undertow/blob/master/core/src/main/java/io/undertow/util/URLUtils.java#L95 --> decodeSlash
+vs
+https://github.com/undertow-io/undertow/blob/master/core/src/main/java/io/undertow/server/protocol/http/HttpRequestParser.java#L587 --> allowEncodedSlash
+
+This means that not only parts of code had wrong value hardcoded, but UndertowOptions#ALLOW_ENCODED_SLASH had opposite meaning.
+
+{quote}
+Using a predicate *path-prefix('/foo') -> rewrite('/bar${remaining}')* for a request path that already has some url-encoded segments will result in rewritten path being different than intended. 
+
+For example, a request to */foo/hello%2Fworld* will end up being */bar/hello{color:#de350b}%25{color}2Fworld* instead of the expected */bar/hello%2Fworld*
+
+I noticed this problem on WildFly in a JAX-RS method that must handle such urlencoded values in a {{@PathParam}} 
+{quote}",2022/11/09 9:58 PM
+UNDERTOW-2190,"Looking at the code, this probably affects the `ResourceHandler` class, but I'm not using it at the moment to test.
+
+If you have a deployment which has disabled directory listing, you can still get Undertow to serve up the CSS and JS blobs if you hit a real folder with *?css* or *?js* in the query string.  This is because both the `DefaultServlet` and `ResourceHandler` serve up the CSS and JS blobs before every checking if directory listing is enabled.  
+
+ 
+
+While the contents of the CSS/JS files aren't sensitive, this can be used as an information disclosure to detect whether a server is running Undertow by guessing a well-known directory name.  
+
+Here are real examples from one of my production servers which is ""locked down"" and has directory listing disabled.  I would not expect these to return the CSS and JS content.
+
+[https://www.ortussolutions.com/config/?css]
+
+[https://www.ortussolutions.com/config/?js]
+
+ ",2022/10/25 11:29 PM
+UNDERTOW-2189,"Hello,
+
+When running performance test towards Undertow (using ""h2load"" as a client) I have noticed that all exchanges ends with an exception:
+
+!image-2022-10-25-15-10-39-303.png!
+
+ 
+
+If I understand correctly the problem is caused by the method  HttpServerExchange.DefaultBlockingHttpExchange.getInputStream() which tries to create a new UndertowInputStream even for an exchange which has already completed:
+
+ 
+
+!image-2022-10-25-15-14-51-333.png!
+
+ 
+
+I can workaround the problem by adding null checks in the HttpServerExchange.DefaultBlockingHttpExchange.close() method:
+
+ 
+
+!image-2022-10-25-15-17-43-544.png!
+
+Maybe there is a better way to do this? :)
+
+Thanks, Gunnar
+
+ ",2022/10/25 1:19 PM
+UNDERTOW-2188,"13.8.4 ""Uncovered HTTP Protocol Methods"":
+
+When HTTP methods are not enumerated within a security-constraint, the protections defined by the constraint apply to the complete set of HTTP (extension) methods. In that case, there are no uncovered HTTP methods at all request URLs for which a url-pattern of the security-constraint is a best match.",2022/10/19 9:58 AM
+UNDERTOW-2186,Top level WEB-INF and META-INF directories should not be exposed.  But other application sub directories may be named this and should in theory be allowed.  These were allowed prior to UNDERTOW-1981.,2022/10/18 9:43 PM
+UNDERTOW-2176,"The test {{ActiveRequestTrackerTest.testRequestTracking}} sometimes fails. Better if we add a latch or similar that ensures the statistics are returned before ending the request.
+
+For example: [https://github.com/undertow-io/undertow/actions/runs/3228383475/jobs/5285663859]
+
+Exception:
+{code:java}
+Error:  testRequestTracking[proxy](io.undertow.server.handlers.ActiveRequestTrackerTest)  Time elapsed: 2.546 s  <<< FAILURE!
+java.lang.AssertionError: Expecting 1 tracked request expected:<1> but was:<0>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:647)
+	at io.undertow.server.handlers.ActiveRequestTrackerTest.testRequestTracking(ActiveRequestTrackerTest.java:61)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:566)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at io.undertow.testutils.DefaultServer.runChild(DefaultServer.java:707)
+	at io.undertow.testutils.DefaultServer.runChild(DefaultServer.java:145)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at io.undertow.testutils.RunDefaultServer.evaluate(RunDefaultServer.java:74)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at io.undertow.testutils.DefaultServer.run(DefaultServer.java:377)
+	at org.junit.runners.Suite.runChild(Suite.java:128)
+	at org.junit.runners.Suite.runChild(Suite.java:27)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at org.apache.maven.surefire.junitcore.JUnitCore.run(JUnitCore.java:55)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.createRequestAndRun(JUnitCoreWrapper.java:137)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.executeEager(JUnitCoreWrapper.java:107)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.execute(JUnitCoreWrapper.java:83)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.execute(JUnitCoreWrapper.java:75)
+	at org.apache.maven.surefire.junitcore.JUnitCoreProvider.invoke(JUnitCoreProvider.java:158)
+	at org.apache.maven.surefire.booter.ForkedBooter.invokeProviderInSameClassLoader(ForkedBooter.java:383)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:344)
+	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:125)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:417)
+{code}",2022/10/12 7:20 AM
+UNDERTOW-2168,NoData,2022/10/11 7:11 AM
+UNDERTOW-2166,"The fix for UNDERTOW-2048 uses IDLE_TIMEOUT over READ_TIMEOUT whenever IDLE_TIMEOUT is configured, but the final read timeout used by UndertowInputStream should instead be the minimum of both values, per the Javadoc spec of IDLE_TIMEOUT itself (it states that the minimum should be used)",2022/10/10 3:19 PM
+UNDERTOW-2163,"The following predicate handler, 
+{code:java}
+set( attribute=%{i,X-Tomcat-DocRoot}, value='' ) {code}
+produces a nasty parsing exception 
+{code:java}
+java.lang.StringIndexOutOfBoundsException: index -1,length 0
+        at java.base/java.lang.String.checkIndex(Unknown Source)
+        at java.base/java.lang.AbstractStringBuilder.charAt(Unknown Source)
+        at java.base/java.lang.StringBuilder.charAt(Unknown Source)
+        at io.undertow.server.handlers.builder.PredicatedHandlersParser.tokenize(PredicatedHandlersParser.java:617)
+        at io.undertow.server.handlers.builder.PredicatedHandlersParser.parse(PredicatedHandlersParser.java:84)
+{code}
+It doesn't seem that the parser was designed to handle the simple scenario of empty quotes!  
+
+Leaving off the `value` parameter from the handler parses OK,
+{code:java}
+set( attribute=%{i,X-Tomcat-DocRoot} ) {code}
+but throws an NPE when the handler actually runs:
+{code:java}
+java.lang.NullPointerException: null
+        at io.undertow.server.handlers.SetAttributeHandler.handleRequest(SetAttributeHandler.java:117)
+        at io.undertow.predicate.PredicatesHandler.handleRequest(PredicatesHandler.java:113){code}
+The expected behavior for both of these examples would be to initialize the attribute (an HTTP request header in this case) to an empty value.
+
+ ",2022/09/27 3:35 PM
+UNDERTOW-2162,"As part of UNDERTOW-1886, the whole path is canonicalized. If the dispatch url has special characters inside query parameters, for example, url in query parameters (/aaa?url=http://bb.com), it will be incorrectly formatted in ServletContextImpl.getRequestDispatcher to /aaa?url=http:/bb.com, where the double slash is stripped.",2022/09/20 6:48 PM
+UNDERTOW-2160,"While investigating JDK17 failure (UNDERTOW-2109), [~carterkozak] noticed that the test could go through some improvements, such as making it more resilient and moving the temporary large file to target.",2022/09/17 7:51 AM
+UNDERTOW-2159,"https://github.com/undertow-io/undertow/blob/master/core/src/main/java/io/undertow/server/session/InMemorySessionManager.java#L235 check serverExchange != null, but at https://github.com/undertow-io/undertow/blob/master/core/src/main/java/io/undertow/server/session/InMemorySessionManager.java#L233 its being used as argument. Interface does not specify if null is allowed and in fact in impl, ie https://github.com/undertow-io/undertow/blob/master/core/src/main/java/io/undertow/server/session/SessionCookieConfig.java#L83",2022/09/07 8:04 AM
+UNDERTOW-2147,"A race condition across multiple requests invoking session invalidate and changeSessionId can result in an invalid session being left in the session map.  That session is then leaked and won't ever expire and subsequent requests from the client fail with an error like below until they clear their cookie:
+{code}
+17:35:56,213 ERROR [io.undertow.request] (default task-1) UT005023: Exception handling request to /sessiontest/hi.jsp: java.lang.IllegalStateException: UT000010: Session is invalid yXOeMfuedx29nxgqG59iU9g6OSjWA0Vvevw9xb3W
+	at io.undertow.core@2.2.18.SP2-redhat-00001//io.undertow.server.session.InMemorySessionManager$SessionImpl.getAttribute(InMemorySessionManager.java:548)
+	at io.undertow.servlet@2.2.18.SP2-redhat-00001//io.undertow.servlet.util.SavedRequest.tryRestoreRequest(SavedRequest.java:155)
+	at io.undertow.servlet@2.2.18.SP2-redhat-00001//io.undertow.servlet.handlers.security.CachedAuthenticatedSessionHandler.handleRequest(CachedAuthenticatedSessionHandler.java:74)
+	at io.undertow.core@2.2.18.SP2-redhat-00001//io.undertow.security.handlers.NotificationReceiverHandler.handleRequest(NotificationReceiverHandler.java:50)
+	at io.undertow.core@2.2.18.SP2-redhat-00001//io.undertow.security.handlers.AbstractSecurityContextAssociationHandler.handleRequest(AbstractSecurityContextAssociationHandler.java:43)
+	at io.undertow.core@2.2.18.SP2-redhat-00001//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at org.wildfly.extension.undertow@7.4.6.GA-redhat-00002//org.wildfly.extension.undertow.security.jacc.JACCContextIdHandler.handleRequest(JACCContextIdHandler.java:61)
+	at io.undertow.core@2.2.18.SP2-redhat-00001//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at org.wildfly.extension.undertow@7.4.6.GA-redhat-00002//org.wildfly.extension.undertow.deployment.GlobalRequestControllerHandler.handleRequest(GlobalRequestControllerHandler.java:68)
+	at io.undertow.servlet@2.2.18.SP2-redhat-00001//io.undertow.servlet.handlers.SendErrorPageHandler.handleRequest(SendErrorPageHandler.java:52)
+	at io.undertow.core@2.2.18.SP2-redhat-00001//io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+	at io.undertow.servlet@2.2.18.SP2-redhat-00001//io.undertow.servlet.handlers.ServletInitialHandler.handleFirstRequest(ServletInitialHandler.java:275)
+	at io.undertow.servlet@2.2.18.SP2-redhat-00001//io.undertow.servlet.handlers.ServletInitialHandler.access$100(ServletInitialHandler.java:79)
+	at io.undertow.servlet@2.2.18.SP2-redhat-00001//io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:134)
+	at io.undertow.servlet@2.2.18.SP2-redhat-00001//io.undertow.servlet.handlers.ServletInitialHandler$2.call(ServletInitialHandler.java:131)
+	at io.undertow.servlet@2.2.18.SP2-redhat-00001//io.undertow.servlet.core.ServletRequestContextThreadSetupAction$1.call(ServletRequestContextThreadSetupAction.java:48)
+	at io.undertow.servlet@2.2.18.SP2-redhat-00001//io.undertow.servlet.core.ContextClassLoaderSetupAction$1.call(ContextClassLoaderSetupAction.java:43)
+{code}
+Timing can play out like so to lead to this:
+1. Request A is received and starts session invalidate
+2. Request B is received and starts changeSessionId
+3. Request A progresses in its invalidate call and removes session from the sessions map
+4. Request B reaches createAndSaveNewID and sets the session back in the map
+5. Request A sets the session to invalid and returns a reponse clearing the cookie on the client
+6. Request B returns, setting the cookie back on the client
+7. Request C is sent with the now invalid cookie and hits an error",2022/08/30 9:40 PM
+UNDERTOW-2142,"This may manifest in an infinite hot loop as the caller and callee disagree about whether or not data remains in the source buffers.
+
+ 
+
+In this loop, 'length' of the buffers should be written, however length is used as a limit rather than length:
+[https://github.com/undertow-io/undertow/blob/e11eba5695c4bf09ed50f298765b876f01f9745c/core/src/main/java/io/undertow/conduits/ChunkedStreamSinkConduit.java#L216-L222]
+
+ 
+
+ 
+{code:java}
+        for (int i = offset; i < length; ++i) {
+            if (srcs[i].hasRemaining()) {
+                return write(srcs[i]);
+            }
+        } {code}
+should be
+
+ 
+
+ 
+{code:java}
+        for (int i = offset; i < offset + length; ++i) {
+            if (srcs[i].hasRemaining()) {
+                return write(srcs[i]);
+            }
+        } {code}
+ 
+
+ ",2022/08/18 6:32 PM
+UNDERTOW-2141,"In a servlet container with multiple deployments where at least one deployment did not deploy successfully Undertow responds with HTTP 500 after session expired.
+
+I've created a test case and a fix. PR will come soon.",2022/08/17 8:53 PM
+UNDERTOW-2140,"I noticed on a request where my cipher suite was
+{code:java}
+TLS_AES_128_GCM_SHA256 {code}
+the key size was being reported as 0.  The default method implementation for `calculateKeySize(String cipherSuite)` in the SSLSessionInfo doesn't appear to account for all possible cipher suites, thus the default value is simply 0. 
+
+Furthermore, this link from the java doc comment is now a dead link:
+{code:java}
+     * <p>
+     * http://www.thesprawl.org/research/tls-and-ssl-cipher-suites/
+     * </p> {code}
+Here is a list of all possible ciphers
+
+[https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4]
+
+ 
+
+The big issue seems to be that not all cipher suites have the word ""WITH_"" in them.  For example, if Undertow was checking for just ""{_}AES_128{_}"" and not ""WITH_AES_128_"", it would have matched my cipher suite.
+
+ 
+
+ 
+
+ ",2022/08/03 9:16 PM
+UNDERTOW-2135,"For more information, view this discussion: https://github.com/undertow-io/undertow/commit/55445de19844484f02e169dbbc6d9b0754d926c8",2022/07/26 3:21 AM
+UNDERTOW-2133,"When a POST request comes through AJP and the request exceeds the max-post-size limit (maxEntitySize), Undertow's AjpServerRequestConduit implementation closes a connection without sending any response to the client/proxy. This behavior results in that a front-end proxy marking the backend worker (application server) as an error state and not forward requests to the worker for a while.",2022/07/25 2:27 PM
+UNDERTOW-2130,"Classes ForceDrainServlet, EarlyCloseServlet and EarlyCloseClientServlet have annotation {{{}@RunWith{}}}. This annotation cause surefire engine take those classes as TestCase and expecting some test method. After the [PR#1344|https://github.com/undertow-io/undertow/pull/1344] where is changed default value of {{failIfNoTests}} to true and this cause fail of the build because that classes don't have a test method.
+
+The problem only happens when those classes are directly invoked like in the reproducing steps. Doing {{mvn clean test}} or {{mvn clean install}} no issue is reported because the {{surefire}} plugin only includes classes with Test , Tests or TestCase patterns . QA team is running the tests using {{-Dtest=!WebSocketClient13TestCase}} and therefore those Servlets are tried as tests.
+
+That annotation seems to be an oversight on those Servlets so better get rid of them.",2022/07/22 12:43 PM
+UNDERTOW-2125,"... and the timeout exception message shows current time in milliseconds as if that were the amount of ms the channel has been waiting for a successful read.
+
+ 
+
+For more information and details, refer to this thread: [https://wildfly.zulipchat.com/#narrow/stream/174183-undertow/topic/Read.20Timeout.20Triggered.20Incorrectly]
+
+ ",2022/07/19 5:41 AM
+UNDERTOW-2124,"In the `websockets-jsr` sub-project there spurious failures in tests `ProgramaticLazyEndpointTest`and `BinaryEndpointTest` when using JDK-17. The errors are something like the following:
+
+{noformat}
+[INFO] Running io.undertow.websockets.jsr.test.ProgramaticLazyEndpointTest
+Error:  Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 11.032 s <<< FAILURE! - in io.undertow.websockets.jsr.test.ProgramaticLazyEndpointTest
+Error:  testStringOnMessage(io.undertow.websockets.jsr.test.ProgramaticLazyEndpointTest)  Time elapsed: 10.024 s  <<< ERROR!
+java.io.IOException: UT003035: Connection timed out
+	at io.undertow.websockets.jsr.ServerWebSocketContainer.connectToServer(ServerWebSocketContainer.java:332)
+	at io.undertow.websockets.jsr.ServerWebSocketContainer.connectToServer(ServerWebSocketContainer.java:309)
+	at io.undertow.websockets.jsr.test.ProgramaticLazyEndpointTest.testStringOnMessage(ProgramaticLazyEndpointTest.java:108)
+	...
+{noformat}
+
+Note the time taken is 10s which is the timeout used in the test.",2022/07/13 3:24 PM
+UNDERTOW-2123,"The dispatch method uses relativePath and, as pointed in javadoc itself, the relative path could be empty because it points to the unresolved part of the path.",2022/07/12 5:15 AM
+UNDERTOW-2122,"There are imports in {{master}} to {{javax}} instead of {{jakarta}}. They trigger error in compilation for the test packages:
+
+{code}
+[INFO] --- maven-compiler-plugin:3.8.0-jboss-2:testCompile (default-testCompile) @ undertow-servlet ---
+[INFO] Changes detected - recompiling the module!
+[INFO] Compiling 251 source files to /home/rmartinc/undertow/servlet/target/test-classes
+[ERROR] /home/rmartinc/undertow/servlet/src/test/java/io/undertow/servlet/test/redirect/RelativeRedirectServlet.java:[22,20] error: package javax.servlet does not exist
+[ERROR] /home/rmartinc/undertow/servlet/src/test/java/io/undertow/servlet/test/redirect/RelativeRedirectServlet.java:[23,25] error: package javax.servlet.http does not exist
+[ERROR] /home/rmartinc/undertow/servlet/src/test/java/io/undertow/servlet/test/redirect/RelativeRedirectServlet.java:[24,25] error: package javax.servlet.http does not exist
+[ERROR] /home/rmartinc/undertow/servlet/src/test/java/io/undertow/servlet/test/redirect/RelativeRedirectServlet.java:[25,25] error: package javax.servlet.http does not exist
+[ERROR] /home/rmartinc/undertow/servlet/src/test/java/io/undertow/servlet/test/redirect/RelativeRedirectServlet.java:[34,45] error: cannot find symbol
+  symbol: class HttpServlet
+[ERROR] /home/rmartinc/undertow/servlet/src/test/java/io/undertow/servlet/test/redirect/RelativeRedirectServlet.java:[36,25] error: cannot find symbol
+  symbol:   class HttpServletRequest
+  location: class RelativeRedirectServlet
+[ERROR] /home/rmartinc/undertow/servlet/src/test/java/io/undertow/servlet/test/redirect/RelativeRedirectServlet.java:[36,49] error: cannot find symbol
+  symbol:   class HttpServletResponse
+  location: class RelativeRedirectServlet
+[ERROR] /home/rmartinc/undertow/servlet/src/test/java/io/undertow/servlet/test/redirect/RelativeRedirectServlet.java:[36,82] error: cannot find symbol
+  symbol:   class ServletException
+  location: class RelativeRedirectServlet
+[ERROR] /home/rmartinc/undertow/servlet/src/test/java/io/undertow/servlet/test/redirect/RelativeRedirectServletTestCase.java:[22,20] error: package javax.servlet does not exist
+[ERROR] /home/rmartinc/undertow/servlet/src/test/java/io/undertow/servlet/test/redirect/RelativeRedirectServletTestCase.java:[50,38] error: cannot find symbol
+  symbol:   class ServletException
+  location: class RelativeRedirectServletTestCase
+{code}
+
+This was triggered by this [commit|https://github.com/undertow-io/undertow/commit/96a39ff0bfc0d942d8d6a8832d81a8c25d6b9134].",2022/07/11 8:14 AM
+UNDERTOW-2113,"The test case is expecting a different exception message than what is produced on Windows with JDK17.
+
+Message that is produced with JDK 17:
+{quote}An established connection was aborted by the software in your host machine{quote}
+The assert expects following text in exception message:
+{quote}""Broken pipe"" or ""connection abort""{quote}",2022/06/23 11:42 AM
+UNDERTOW-2111,"When using the rewrite() predicate language handler, if you have something like this:
+{code:java}
+path( ""foo"" ) -> rewrite( ""bar"" ){code}
+it will throw this exception:
+{code:java}
+java.lang.IllegalArgumentException: UT000068: Servlet path match failed {code}
+I'm also seeing this error as well in my tests, though I think it's likely unrelated:
+{code:java}
+java.lang.RuntimeException: null
+        at io.undertow.server.HttpServerExchange.setStatusCode(HttpServerExchange.java:1484)
+        at io.undertow.server.Connectors.executeRootHandler(Connectors.java:420)
+        at io.undertow.server.protocol.http.HttpReadListener.handleEventWithNoRunningRequest(HttpReadListener.java:256)
+        at io.undertow.server.protocol.http.HttpReadListener.handleEvent(HttpReadListener.java:136)
+        at io.undertow.server.protocol.http.HttpReadListener.handleEvent(HttpReadListener.java:59)
+        at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+        at org.xnio.conduits.ReadReadyHandler$ChannelListenerHandler.readReady(ReadReadyHandler.java:66)
+        at org.xnio.nio.NioSocketConduit.handleReady(NioSocketConduit.java:89)
+        at org.xnio.nio.WorkerThread.run(WorkerThread.java:591) {code}
+Unless I'm mistaken, I'm thinking ""foo"" is an invalid relative URL since it needs to begin with a leading slash.  i.e. 
+{code:java}
+rewrite( ""/bar"" ) {code}
+which works.   If it truly is invalid to set a relative URI with no leading slash and given the fact that predicates such as path() make the leading slash optional, I would recommend that the rewrite handler automatically add in any missing leading slashes to make it a bit more user friendly and prevent predicate rules from setting back URIs. 
+
+ ",2022/06/21 5:59 PM
+UNDERTOW-2102,"In WFLY-16461 was detected that two tests failed using OpenJDK 19 EA. Finally it seems that the issue is in undertow. The tests do something like the following:
+
+{code:java}
+final PrintWriter writer = response.getWriter();
+try {
+    ...
+} catch (Exception e) {
+    e.printStackTrace(writer);
+}
+{code}
+
+In JDK-19 this [commit|https://github.com/openjdk/jdk/commit/9583e3657e43cc1c6f2101a64534564db2a9bd84] changed how the {{PrintWriter}} synchronizes the operation. Now the internal lock inside the {{PrintWriter}} is managed. The [ServletPrintWriterDelegate|https://github.com/undertow-io/undertow/blob/2.2.17.Final/servlet/src/main/java/io/undertow/servlet/spec/ServletPrintWriterDelegate.java#L44-L66] uses the unsafe to create the instance and therefore the lock is not initialized. The final exception is the following:
+
+{noformat}
+ERROR [io.undertow.request] (default task-2) UT005023: Exception handling request to /entry-servlet-form/EntryServlet: java.lang.NullPointerException: Cannot enter synchronized block because ""lock"" is null
+        at java.base/java.lang.Throwable.printStackTrace(Throwable.java:672)
+        at java.base/java.lang.Throwable.printStackTrace(Throwable.java:749)
+        at deployment.entry-servlet-form.war//org.wildfly.test.manual.elytron.seccontext.EntryServlet.doGet(EntryServlet.java:82)
+        at javax.servlet.api@2.0.0.Final//javax.servlet.http.HttpServlet.service(HttpServlet.java:503)
+        at javax.servlet.api@2.0.0.Final//javax.servlet.http.HttpServlet.service(HttpServlet.java:590)
+        at io.undertow.servlet@2.2.17.Final//io.undertow.servlet.handlers.ServletHandler.handleRequest(ServletHandler.java:74)
+        ...
+{noformat}
+
+That class should to initialize the lock in order to be used, for example in the {{printStackTrace}} method of a {{Exception}}.",2022/06/08 7:25 AM
+UNDERTOW-2098,"Let's update version of {{wildfly-openssl}} library used for tests that utilizes OpenSSL security provider to latest version. It makes no sense to keep it with the current version which is quite old now.
+
+Note: after this is merged, the number of failing tests with this will drop from cca 330 to cca 13. These should be investigated and fixed and we may consider running these tests in GitHub CI too.",2022/06/02 1:50 PM
+UNDERTOW-2097,"In UNDERTOW-2093 there was a DMI_RANDOM_USED_ONLY_ONCE error reported by spotbugs added into the spotbugs-exclude.xml file to ignore it. Based on latest [discussion there|https://issues.redhat.com/browse/UNDERTOW-2093?focusedCommentId=20363560&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-20363560], we may want to mitigate the error after all by following the advice [described here|https://spotbugs.readthedocs.io/en/stable/bugDescriptions.html#dmi-random-object-created-and-used-only-once-dmi-random-used-only-once] - in general reuse instance of SecureRandom instead of throwing it away after each use.",2022/06/01 9:58 PM
+UNDERTOW-2095,"The dependency undertow-examples is defined twice in pom.xml.
+{code:xml}
+<dependency>
+    <groupId>io.undertow</groupId>
+    <artifactId>undertow-examples</artifactId>
+    <version>${project.version}</version>
+</dependency>
+{code}",2022/05/28 2:01 AM
+UNDERTOW-2093,"There is a set of errors detected by `spotbugs-maven-plugin` both with JDK11 and JDK17:
+
+{code:title=core}
+[INFO] --- spotbugs-maven-plugin:4.6.0.0:check (find-bugs) @ undertow-core ---
+[INFO] BugInstance size is 22
+[INFO] Error size is 0
+[INFO] Total bugs: 22
+[ERROR] Medium: Nullcheck of arrayPooled at line 488 of value previously dereferenced in io.undertow.conduits.DeflatingStreamSinkConduit.deflateData(boolean) [io.undertow.conduits.DeflatingStreamSinkConduit, io.undertow.conduits.DeflatingStreamSinkConduit] At DeflatingStreamSinkConduit.java:[line 488]Redundant null check at DeflatingStreamSinkConduit.java:[line 519] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Nullcheck of pooled at line 225 of value previously dereferenced in io.undertow.io.BlockingReceiverImpl.receiveFullBytes(Receiver$FullBytesCallback, Receiver$ErrorCallback) [io.undertow.io.BlockingReceiverImpl, io.undertow.io.BlockingReceiverImpl] At BlockingReceiverImpl.java:[line 225]Redundant null check at BlockingReceiverImpl.java:[line 229] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Nullcheck of pooled at line 124 of value previously dereferenced in io.undertow.io.BlockingReceiverImpl.receiveFullString(Receiver$FullStringCallback, Receiver$ErrorCallback, Charset) [io.undertow.io.BlockingReceiverImpl, io.undertow.io.BlockingReceiverImpl] At BlockingReceiverImpl.java:[line 124]Redundant null check at BlockingReceiverImpl.java:[line 128] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Nullcheck of pooled at line 272 of value previously dereferenced in io.undertow.io.BlockingReceiverImpl.receivePartialBytes(Receiver$PartialBytesCallback, Receiver$ErrorCallback) [io.undertow.io.BlockingReceiverImpl, io.undertow.io.BlockingReceiverImpl] At BlockingReceiverImpl.java:[line 272]Redundant null check at BlockingReceiverImpl.java:[line 278] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Nullcheck of pooled at line 172 of value previously dereferenced in io.undertow.io.BlockingReceiverImpl.receivePartialString(Receiver$PartialStringCallback, Receiver$ErrorCallback, Charset) [io.undertow.io.BlockingReceiverImpl, io.undertow.io.BlockingReceiverImpl] At BlockingReceiverImpl.java:[line 172]Redundant null check at BlockingReceiverImpl.java:[line 179] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Nullcheck of pooled at line 199 of value previously dereferenced in io.undertow.io.BlockingSenderImpl.performTransfer(FileChannel, IoCallback) [io.undertow.io.BlockingSenderImpl, io.undertow.io.BlockingSenderImpl] At BlockingSenderImpl.java:[line 199]Redundant null check at BlockingSenderImpl.java:[line 216] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Nullcheck of pooled at line 263 of value previously dereferenced in io.undertow.io.BlockingSenderImpl.writeBuffer(ByteBuffer[], IoCallback) [io.undertow.io.BlockingSenderImpl, io.undertow.io.BlockingSenderImpl] At BlockingSenderImpl.java:[line 263]Redundant null check at BlockingSenderImpl.java:[line 272] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Static field ""io.undertow.protocols.alpn.OpenSSLAlpnProvider.getOpenSSLAlpnMethods()"" is modified by an instance level io.undertow.protocols.alpn.OpenSSLAlpnProvider.getOpenSSLAlpnMethods(). [io.undertow.protocols.alpn.OpenSSLAlpnProvider] At OpenSSLAlpnProvider.java:[line 105] SSD_DO_NOT_USE_INSTANCE_LOCK_ON_SHARED_STATIC_DATA
+[ERROR] Medium: Static field ""io.undertow.protocols.alpn.OpenSSLAlpnProvider.getOpenSSLAlpnMethods()"" is modified by an instance level io.undertow.protocols.alpn.OpenSSLAlpnProvider.getOpenSSLAlpnMethods(). [io.undertow.protocols.alpn.OpenSSLAlpnProvider] At OpenSSLAlpnProvider.java:[line 90] SSD_DO_NOT_USE_INSTANCE_LOCK_ON_SHARED_STATIC_DATA
+[ERROR] Medium: Static field ""io.undertow.protocols.ssl.SslConduit.doWrap(ByteBuffer[], int, int)"" is modified by an instance level io.undertow.protocols.ssl.SslConduit.doWrap(ByteBuffer[], int, int). [io.undertow.protocols.ssl.SslConduit] At SslConduit.java:[line 934] SSD_DO_NOT_USE_INSTANCE_LOCK_ON_SHARED_STATIC_DATA
+[ERROR] Medium: Increment of volatile field io.undertow.protocols.ssl.SslConduit.outstandingTasks in io.undertow.protocols.ssl.SslConduit$5.run() [io.undertow.protocols.ssl.SslConduit$5] At SslConduit.java:[line 1144] VO_VOLATILE_INCREMENT
+[ERROR] Medium: Increment of volatile field io.undertow.protocols.ssl.SslConduit.outstandingTasks in io.undertow.protocols.ssl.SslConduit$5$1.run() [io.undertow.protocols.ssl.SslConduit$5$1] At SslConduit.java:[line 1127] VO_VOLATILE_INCREMENT
+[ERROR] High: Random object created and used only once in new io.undertow.security.impl.SimpleNonceManager(String) [io.undertow.security.impl.SimpleNonceManager] At SimpleNonceManager.java:[line 133] DMI_RANDOM_USED_ONLY_ONCE
+[ERROR] Medium: Load of known null value in io.undertow.security.impl.SingleSignOnAuthenticationMechanism.authenticate(HttpServerExchange, SecurityContext) [io.undertow.security.impl.SingleSignOnAuthenticationMechanism] At SingleSignOnAuthenticationMechanism.java:[line 124] NP_LOAD_OF_KNOWN_NULL_VALUE
+[ERROR] Medium: Redundant nullcheck of sso which is known to be null in io.undertow.security.impl.SingleSignOnAuthenticationMechanism.authenticate(HttpServerExchange, SecurityContext) [io.undertow.security.impl.SingleSignOnAuthenticationMechanism] Redundant null check at SingleSignOnAuthenticationMechanism.java:[line 124] RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE
+[ERROR] Medium: Nullcheck of sso at line 172 of value previously dereferenced in io.undertow.security.impl.SingleSignOnAuthenticationMechanism$ResponseListener.wrap(ConduitFactory, HttpServerExchange) [io.undertow.security.impl.SingleSignOnAuthenticationMechanism$ResponseListener, io.undertow.security.impl.SingleSignOnAuthenticationMechanism$ResponseListener] At SingleSignOnAuthenticationMechanism.java:[line 172]Redundant null check at SingleSignOnAuthenticationMechanism.java:[line 174] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Nullcheck of pooled at line 223 of value previously dereferenced in io.undertow.server.handlers.form.MultiPartParserDefinition$MultiPartUploadHandler.parseBlocking() [io.undertow.server.handlers.form.MultiPartParserDefinition$MultiPartUploadHandler, io.undertow.server.handlers.form.MultiPartParserDefinition$MultiPartUploadHandler] At MultiPartParserDefinition.java:[line 223]Redundant null check at MultiPartParserDefinition.java:[line 239] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Nullcheck of stream at line 96 of value previously dereferenced in io.undertow.server.handlers.resource.PathResource.list() [io.undertow.server.handlers.resource.PathResource, io.undertow.server.handlers.resource.PathResource] At PathResource.java:[line 96]Redundant null check at PathResource.java:[line 99] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Nullcheck of stream at line 153 of value previously dereferenced in io.undertow.server.handlers.resource.URLResource.list() [io.undertow.server.handlers.resource.URLResource, io.undertow.server.handlers.resource.URLResource] At URLResource.java:[line 153]Redundant null check at URLResource.java:[line 156] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Static field ""io.undertow.server.protocol.framed.ShutdownFallbackExecutor.execute(Runnable)"" is modified by an instance level io.undertow.server.protocol.framed.ShutdownFallbackExecutor.execute(Runnable). [io.undertow.server.protocol.framed.ShutdownFallbackExecutor] At ShutdownFallbackExecutor.java:[line 42] SSD_DO_NOT_USE_INSTANCE_LOCK_ON_SHARED_STATIC_DATA
+[ERROR] High: Increment of volatile field io.undertow.server.session.InMemorySessionManager.expiredSessionCount in io.undertow.server.session.InMemorySessionManager$SessionImpl.invalidate(HttpServerExchange, SessionListener$SessionDestroyedReason) [io.undertow.server.session.InMemorySessionManager$SessionImpl] At InMemorySessionManager.java:[line 624] VO_VOLATILE_INCREMENT
+[ERROR] High: Random object created and used only once in io.undertow.websockets.client.WebSocket13ClientHandshake.createSecKey() [io.undertow.websockets.client.WebSocket13ClientHandshake] At WebSocket13ClientHandshake.java:[line 148] DMI_RANDOM_USED_ONLY_ONCE
+{code}
+
+{code:title=servlet}
+[INFO] --- spotbugs-maven-plugin:4.6.0.0:check (find-bugs) @ undertow-servlet ---
+[INFO] BugInstance size is 2
+[INFO] Error size is 0
+[INFO] Total bugs: 2
+[ERROR] Medium: Public static io.undertow.servlet.Servlets.defaultContainer() may expose internal representation by returning Servlets.container [io.undertow.servlet.Servlets, io.undertow.servlet.Servlets] At Servlets.java:[line 56]Another occurrence at Servlets.java:[line 60] MS_EXPOSE_REP
+[ERROR] Medium: Public static io.undertow.servlet.core.ServletExtensionHolder.getServletExtensions() may expose internal representation by returning ServletExtensionHolder.extensions [io.undertow.servlet.core.ServletExtensionHolder] At ServletExtensionHolder.java:[line 36] MS_EXPOSE_REP
+{code}
+
+{code:title=websockets-jsr}
+[INFO] --- spotbugs-maven-plugin:4.6.0.0:check (find-bugs) @ undertow-websockets-jsr ---
+[INFO] BugInstance size is 2
+[INFO] Error size is 0
+[INFO] Total bugs: 2
+[ERROR] Medium: Public method io.undertow.websockets.jsr.DefaultContainerConfigurator.getEndpointInstance(Class) uses reflection to create a class it gets in its parameter which could increase the accessibility of any class [io.undertow.websockets.jsr.DefaultContainerConfigurator] At DefaultContainerConfigurator.java:[line 92] REFLC_REFLECTION_MAY_INCREASE_ACCESSIBILITY_OF_CLASS
+[ERROR] Medium: Static field ""io.undertow.websockets.jsr.UndertowContainerProvider.getDefaultContainer()"" is modified by an instance level io.undertow.websockets.jsr.UndertowContainerProvider.getDefaultContainer(). [io.undertow.websockets.jsr.UndertowContainerProvider] At UndertowContainerProvider.java:[line 94] SSD_DO_NOT_USE_INSTANCE_LOCK_ON_SHARED_STATIC_DATA
+{code}
+
+{code:title=benchmarks}
+[INFO] --- spotbugs-maven-plugin:4.6.0.0:check (find-bugs) @ undertow-benchmarks ---
+[INFO] BugInstance size is 4
+[INFO] Error size is 0
+[INFO] Total bugs: 4
+[ERROR] Medium: Nullcheck of response at line 56 of value previously dereferenced in io.undertow.benchmarks.SimpleBenchmarks.benchmarkBlockingEmptyGet(SimpleBenchmarkState) [io.undertow.benchmarks.SimpleBenchmarks, io.undertow.benchmarks.SimpleBenchmarks] At SimpleBenchmarks.java:[line 56]Redundant null check at SimpleBenchmarks.java:[line 57] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Nullcheck of response at line 72 of value previously dereferenced in io.undertow.benchmarks.SimpleBenchmarks.benchmarkBlockingEmptyPost(SimpleBenchmarkState) [io.undertow.benchmarks.SimpleBenchmarks, io.undertow.benchmarks.SimpleBenchmarks] At SimpleBenchmarks.java:[line 72]Redundant null check at SimpleBenchmarks.java:[line 76] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Nullcheck of response at line 64 of value previously dereferenced in io.undertow.benchmarks.SimpleBenchmarks.benchmarkBlockingLargeGet(SimpleBenchmarkState) [io.undertow.benchmarks.SimpleBenchmarks, io.undertow.benchmarks.SimpleBenchmarks] At SimpleBenchmarks.java:[line 64]Redundant null check at SimpleBenchmarks.java:[line 65] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+[ERROR] Medium: Nullcheck of response at line 84 of value previously dereferenced in io.undertow.benchmarks.SimpleBenchmarks.benchmarkBlockingLargePost(SimpleBenchmarkState) [io.undertow.benchmarks.SimpleBenchmarks, io.undertow.benchmarks.SimpleBenchmarks] At SimpleBenchmarks.java:[line 84]Redundant null check at SimpleBenchmarks.java:[line 88] RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE
+{code}
+
+We should investigate these reported errors and either fix or exclude them via {{spotbugs-exclude.xml}}.
+
+----
+
+Note for the broader historic context: at the moment the build with spotbugs check enabled passes just fine even with these errors detected because we have following lines in the `spotbugs-maven-plugin` profile configuration defined:
+
+{code}
+                        <configuration>
+                            <failOnError>false</failOnError>
+                        </configuration>
+{code}
+
+These were added for JDK11 only in the past ([see this PR|https://github.com/undertow-io/undertow/pull/679/]) because of [this issue|https://github.com/spotbugs/spotbugs/issues/756]. By that time there was also JDK8 run, so any real spotbugs issues have been detected there at least. Since Undertow moved to JDK11+ recently ([this commit|https://github.com/undertow-io/undertow/pull/1310/commits/4521635d2f1d2eece5d6681d1e00be32bac95d0c]) we shall try to remove this workaround so we don't miss any new possible real issue.
+
+
+We configured the spotbugs maven plugin to ",2022/05/17 10:56 PM
+UNDERTOW-2092,"After [this commit|https://github.com/undertow-io/undertow/pull/1310/commits/4521635d2f1d2eece5d6681d1e00be32bac95d0c] has been merged into `master` branch (via [this PR|https://github.com/undertow-io/undertow/pull/1310]) we shall also update the configuration for the GitHub CI. At the moment there is configured CI run with JDK8, which fails with following error:
+
+{code}
+Warning:  Rule 1: org.apache.maven.plugins.enforcer.RequireJavaVersion failed with message:
+To build this project JDK 11 (or greater) is required. Please install it.
+{code}",2022/05/17 10:30 PM
+UNDERTOW-2091,"At the moment there is `spotbugs-maven-plugin` in version 3.1.7 used in Undertow. When we try to build Undertow with JDK17, we can see following failure:
+
+{code}
+[ERROR] Failed to execute goal com.github.spotbugs:spotbugs-maven-plugin:3.1.7:spotbugs (spotbugs) on project undertow-parent: Execution spotbugs of goal com.github.spotbugs:spotbugs-maven-plugin:3.1.7:spotbugs failed: Unable to load the mojo 'spotbugs' in the plugin 'com.github.spotbugs:spotbugs-maven-plugin:3.1.7'. A required class is missing: Could not initialize class org.codehaus.groovy.vmplugin.v7.Java7
+[ERROR] -----------------------------------------------------
+[ERROR] realm =    plugin>com.github.spotbugs:spotbugs-maven-plugin:3.1.7
+[ERROR] strategy = org.codehaus.plexus.classworlds.strategy.SelfFirstStrategy
+[ERROR] urls[0] = file:/home/jstourac/.m2/repository/com/github/spotbugs/spotbugs-maven-plugin/3.1.7/spotbugs-maven-plugin-3.1.7.jar
+[ERROR] urls[1] = file:/home/jstourac/.m2/repository/com/github/spotbugs/spotbugs/3.1.7/spotbugs-3.1.7.jar
+[ERROR] urls[2] = file:/home/jstourac/.m2/repository/org/ow2/asm/asm/6.2/asm-6.2.jar
+[ERROR] urls[3] = file:/home/jstourac/.m2/repository/org/ow2/asm/asm-analysis/6.2/asm-analysis-6.2.jar
+[ERROR] urls[4] = file:/home/jstourac/.m2/repository/org/ow2/asm/asm-commons/6.2/asm-commons-6.2.jar
+[ERROR] urls[5] = file:/home/jstourac/.m2/repository/org/ow2/asm/asm-tree/6.2/asm-tree-6.2.jar
+[ERROR] urls[6] = file:/home/jstourac/.m2/repository/org/ow2/asm/asm-util/6.2/asm-util-6.2.jar
+[ERROR] urls[7] = file:/home/jstourac/.m2/repository/org/ow2/asm/asm-xml/6.2/asm-xml-6.2.jar
+[ERROR] urls[8] = file:/home/jstourac/.m2/repository/org/apache/bcel/bcel/6.2/bcel-6.2.jar
+[ERROR] urls[9] = file:/home/jstourac/.m2/repository/net/jcip/jcip-annotations/1.0/jcip-annotations-1.0.jar
+[ERROR] urls[10] = file:/home/jstourac/.m2/repository/org/dom4j/dom4j/2.1.0/dom4j-2.1.0.jar
+[ERROR] urls[11] = file:/home/jstourac/.m2/repository/jaxen/jaxen/1.1.6/jaxen-1.1.6.jar
+[ERROR] urls[12] = file:/home/jstourac/.m2/repository/commons-lang/commons-lang/2.6/commons-lang-2.6.jar
+[ERROR] urls[13] = file:/home/jstourac/.m2/repository/com/github/spotbugs/spotbugs-annotations/3.1.7/spotbugs-annotations-3.1.7.jar
+[ERROR] urls[14] = file:/home/jstourac/.m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar
+[ERROR] urls[15] = file:/home/jstourac/.m2/repository/org/apache/ant/ant/1.10.5/ant-1.10.5.jar
+[ERROR] urls[16] = file:/home/jstourac/.m2/repository/org/apache/ant/ant-launcher/1.10.5/ant-launcher-1.10.5.jar
+[ERROR] urls[17] = file:/home/jstourac/.m2/repository/org/codehaus/groovy/groovy-dateutil/2.5.3/groovy-dateutil-2.5.3-indy.jar
+[ERROR] urls[18] = file:/home/jstourac/.m2/repository/org/codehaus/groovy/groovy/2.5.3/groovy-2.5.3.jar
+[ERROR] urls[19] = file:/home/jstourac/.m2/repository/org/codehaus/groovy/groovy-ant/2.5.3/groovy-ant-2.5.3.jar
+[ERROR] urls[20] = file:/home/jstourac/.m2/repository/org/codehaus/groovy/groovy-groovydoc/2.5.3/groovy-groovydoc-2.5.3.jar
+[ERROR] urls[21] = file:/home/jstourac/.m2/repository/org/codehaus/groovy/groovy-xml/2.5.3/groovy-xml-2.5.3.jar
+[ERROR] urls[22] = file:/home/jstourac/.m2/repository/org/apache/maven/reporting/maven-reporting-impl/3.0.0/maven-reporting-impl-3.0.0.jar
+[ERROR] urls[23] = file:/home/jstourac/.m2/repository/org/apache/maven/shared/maven-shared-utils/3.2.0/maven-shared-utils-3.2.0.jar
+[ERROR] urls[24] = file:/home/jstourac/.m2/repository/org/apache/maven/reporting/maven-reporting-api/3.0/maven-reporting-api-3.0.jar
+[ERROR] urls[25] = file:/home/jstourac/.m2/repository/javax/enterprise/cdi-api/1.0/cdi-api-1.0.jar
+[ERROR] urls[26] = file:/home/jstourac/.m2/repository/javax/annotation/jsr250-api/1.0/jsr250-api-1.0.jar
+[ERROR] urls[27] = file:/home/jstourac/.m2/repository/org/eclipse/sisu/org.eclipse.sisu.inject/0.3.3/org.eclipse.sisu.inject-0.3.3.jar
+[ERROR] urls[28] = file:/home/jstourac/.m2/repository/org/apache/maven/maven-builder-support/3.5.0/maven-builder-support-3.5.0.jar
+[ERROR] urls[29] = file:/home/jstourac/.m2/repository/com/google/guava/guava/20.0/guava-20.0.jar
+[ERROR] urls[30] = file:/home/jstourac/.m2/repository/org/apache/maven/resolver/maven-resolver-util/1.0.3/maven-resolver-util-1.0.3.jar
+[ERROR] urls[31] = file:/home/jstourac/.m2/repository/org/codehaus/plexus/plexus-interpolation/1.24/plexus-interpolation-1.24.jar
+[ERROR] urls[32] = file:/home/jstourac/.m2/repository/org/codehaus/plexus/plexus-component-annotations/1.7.1/plexus-component-annotations-1.7.1.jar
+[ERROR] urls[33] = file:/home/jstourac/.m2/repository/org/eclipse/aether/aether-util/0.9.0.M2/aether-util-0.9.0.M2.jar
+[ERROR] urls[34] = file:/home/jstourac/.m2/repository/org/sonatype/plexus/plexus-sec-dispatcher/1.3/plexus-sec-dispatcher-1.3.jar
+[ERROR] urls[35] = file:/home/jstourac/.m2/repository/org/sonatype/plexus/plexus-cipher/1.4/plexus-cipher-1.4.jar
+[ERROR] urls[36] = file:/home/jstourac/.m2/repository/org/apache/maven/doxia/doxia-core/1.8/doxia-core-1.8.jar
+[ERROR] urls[37] = file:/home/jstourac/.m2/repository/org/apache/maven/doxia/doxia-logging-api/1.8/doxia-logging-api-1.8.jar
+[ERROR] urls[38] = file:/home/jstourac/.m2/repository/org/apache/httpcomponents/httpclient/4.0.2/httpclient-4.0.2.jar
+[ERROR] urls[39] = file:/home/jstourac/.m2/repository/org/apache/httpcomponents/httpcore/4.0.1/httpcore-4.0.1.jar
+[ERROR] urls[40] = file:/home/jstourac/.m2/repository/org/apache/maven/doxia/doxia-sink-api/1.8/doxia-sink-api-1.8.jar
+[ERROR] urls[41] = file:/home/jstourac/.m2/repository/org/apache/maven/doxia/doxia-decoration-model/1.8.1/doxia-decoration-model-1.8.1.jar
+[ERROR] urls[42] = file:/home/jstourac/.m2/repository/org/apache/maven/doxia/doxia-site-renderer/1.8.1/doxia-site-renderer-1.8.1.jar
+[ERROR] urls[43] = file:/home/jstourac/.m2/repository/org/apache/maven/doxia/doxia-skin-model/1.8.1/doxia-skin-model-1.8.1.jar
+[ERROR] urls[44] = file:/home/jstourac/.m2/repository/org/apache/maven/doxia/doxia-module-xhtml/1.8/doxia-module-xhtml-1.8.jar
+[ERROR] urls[45] = file:/home/jstourac/.m2/repository/org/codehaus/plexus/plexus-i18n/1.0-beta-7/plexus-i18n-1.0-beta-7.jar
+[ERROR] urls[46] = file:/home/jstourac/.m2/repository/org/codehaus/plexus/plexus-velocity/1.2/plexus-velocity-1.2.jar
+[ERROR] urls[47] = file:/home/jstourac/.m2/repository/org/apache/velocity/velocity/1.7/velocity-1.7.jar
+[ERROR] urls[48] = file:/home/jstourac/.m2/repository/org/apache/velocity/velocity-tools/2.0/velocity-tools-2.0.jar
+[ERROR] urls[49] = file:/home/jstourac/.m2/repository/oro/oro/2.0.8/oro-2.0.8.jar
+[ERROR] urls[50] = file:/home/jstourac/.m2/repository/sslext/sslext/1.2-0/sslext-1.2-0.jar
+[ERROR] urls[51] = file:/home/jstourac/.m2/repository/org/apache/maven/doxia/doxia-integration-tools/1.8.1/doxia-integration-tools-1.8.1.jar
+[ERROR] urls[52] = file:/home/jstourac/.m2/repository/commons-beanutils/commons-beanutils/1.9.3/commons-beanutils-1.9.3.jar
+[ERROR] urls[53] = file:/home/jstourac/.m2/repository/commons-logging/commons-logging/1.2/commons-logging-1.2.jar
+[ERROR] urls[54] = file:/home/jstourac/.m2/repository/commons-chain/commons-chain/1.2/commons-chain-1.2.jar
+[ERROR] urls[55] = file:/home/jstourac/.m2/repository/commons-codec/commons-codec/1.11/commons-codec-1.11.jar
+[ERROR] urls[56] = file:/home/jstourac/.m2/repository/commons-collections/commons-collections/3.2.2/commons-collections-3.2.2.jar
+[ERROR] urls[57] = file:/home/jstourac/.m2/repository/commons-digester/commons-digester/1.8.1/commons-digester-1.8.1.jar
+[ERROR] urls[58] = file:/home/jstourac/.m2/repository/commons-io/commons-io/2.6/commons-io-2.6.jar
+[ERROR] urls[59] = file:/home/jstourac/.m2/repository/org/apache/commons/commons-lang3/3.8.1/commons-lang3-3.8.1.jar
+[ERROR] urls[60] = file:/home/jstourac/.m2/repository/commons-validator/commons-validator/1.6/commons-validator-1.6.jar
+[ERROR] urls[61] = file:/home/jstourac/.m2/repository/org/apache/xbean/xbean-reflect/3.7/xbean-reflect-3.7.jar
+[ERROR] urls[62] = file:/home/jstourac/.m2/repository/org/codehaus/plexus/plexus-resources/1.1.0/plexus-resources-1.1.0.jar
+[ERROR] urls[63] = file:/home/jstourac/.m2/repository/org/codehaus/plexus/plexus-utils/3.1.0/plexus-utils-3.1.0.jar
+[ERROR] Number of foreign imports: 1
+[ERROR] import: Entry[import  from realm ClassRealm[maven.api, parent: null]]
+[ERROR] 
+[ERROR] -----------------------------------------------------
+{code}
+
+In order to make compilation pass with spotbugs check enabled on JDK17, we need to update that plugin to version at least [4.3.0|https://github.com/spotbugs/spotbugs-maven-plugin/releases/tag/spotbugs-maven-plugin-4.3.0] or higher.
+",2022/05/17 10:08 PM
+UNDERTOW-2083,"ReadTimeoutStreamSourceConduit.checkExpired uses a bad time parameter in its readTimedOut exception:
+{code}
+    private void checkExpired() throws ReadTimeoutException {
+        synchronized (this) {
+            if (expired) {
+                throw UndertowMessages.MESSAGES.readTimedOut(System.currentTimeMillis());
+            }
+        }
+    }
+{code}
+This results in a debug message that doesn't make sense with an incorrect timeout duration:
+{code}
+DEBUG [io.undertow.request.io] (default I/O-14) UT005013: An IOException occurred: org.xnio.channels.ReadTimeoutException: UT000199: Read timed out after 1638571000771 milliseconds.
+{code}",2022/05/09 8:32 PM
+UNDERTOW-2082,"[https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2.5] states
+{code:java}
+To allow for better compression efficiency, the Cookie header field
+   MAY be split into separate header fields, each with one or more
+   cookie-pairs.  If there are multiple Cookie header fields after
+   decompression, these MUST be concatenated into a single octet string
+   using the two-octet delimiter of 0x3B, 0x20 (the ASCII string ""; "")
+   before being passed into a non-HTTP/2 context, such as an HTTP/1.1
+   connection, or a generic HTTP server application.
+ {code}
+When an HTTP/2 request which multiple cookie headers is send to Undertow, the following happens:
+ * The HTTPServertExchange has all cookies
+ * The HTTPServletRequest has all cookies
+ * The multiple cookie headers are NOT combined into a single cookie header again per the spec
+
+This breaks applications who do their own parsing of the cookie header and only grab the first (or last) cookie header as they will only ""see"" one cookie.  It is forbidden to have more than one cookie header in HTTP/1.
+
+Undertow needs to correctly reassemble multiple cookie headers from HTTP/2 requests into a single header so app can properly parse the header manually.",2022/05/04 1:45 PM
+UNDERTOW-2081,NoData,2022/05/03 12:04 PM
+UNDERTOW-2080,UNDERTOW-2036 introduced the use of {{nanoTime}} to measure times. But it seems that it is introducing failures in some tests. Just using {{currentTimeMillis}} instead of the {{nanoTime}} now.,2022/04/28 10:37 AM
+UNDERTOW-2079,There is an int overflow in {{AbstractFramedStreamSinkChannel}} that can trigger a CPU spinning in the \{{awaitWritable}} method.,2022/04/27 3:44 PM
+UNDERTOW-2077,"This could cause freeInternal to run more than once, making the referenceCount and closed status in underlying to become inconsistent with the actual number of views.",2022/04/25 7:11 AM
+UNDERTOW-2075,"There must be a check for current thread being IO or not before creating a new task and assigning it to IO thread, unless the new task should really be executed separately from running task.",2022/04/24 8:16 PM
+UNDERTOW-2073,"For more information, see XNIO-404 and https://bugs.openjdk.java.net/browse/JDK-8285445",2022/04/22 5:46 PM
+UNDERTOW-2070,"Undertow sends an empty reply if a redirect is done after setting content length. It should still respond with the redirect, making this backwards compatible with JBoss Web server.",2022/04/20 2:35 PM
+UNDERTOW-2068,"The read listener sometimes stop from being re-invoked after read listener runs, even if there is data to be processed.",2022/04/13 6:23 AM
+UNDERTOW-2066,This could cause the buffers to be never resumed,2022/04/13 5:58 AM
+UNDERTOW-2048,"This can cause the following stack trace in certain cenarios:
+{code}
+""default task-6"" #167 prio=5 os_prio=0 cpu=129039.92ms elapsed=7555.11s tid=0x000000000af4b000 nid=0x4a9d runnable  [0x00007fe91f2b2000]
+   java.lang.Thread.State: RUNNABLE
+        at sun.nio.ch.EPoll.wait(java.base@11.0.1/Native Method)
+        at sun.nio.ch.EPollSelectorImpl.doSelect(java.base@11.0.1/EPollSelectorImpl.java:120)
+        at sun.nio.ch.SelectorImpl.lockAndDoSelect(java.base@11.0.1/SelectorImpl.java:124)
+        - locked <0x00000000d1e9e3b0> (a sun.nio.ch.Util$2)
+        - locked <0x00000000d1e9e150> (a sun.nio.ch.EPollSelectorImpl)
+        at sun.nio.ch.SelectorImpl.select(java.base@11.0.1/SelectorImpl.java:141)
+        at org.xnio.nio.SelectorUtils.await(SelectorUtils.java:51)
+        at org.xnio.nio.NioSocketConduit.awaitReadable(NioSocketConduit.java:358)
+        at org.xnio.conduits.AbstractSourceConduit.awaitReadable(AbstractSourceConduit.java:66)
+        at io.undertow.conduits.ReadDataStreamSourceConduit.awaitReadable(ReadDataStreamSourceConduit.java:101)
+        at org.xnio.conduits.AbstractSourceConduit.awaitReadable(AbstractSourceConduit.java:66)
+        at org.xnio.conduits.ConduitStreamSourceChannel.awaitReadable(ConduitStreamSourceChannel.java:151)
+        at io.undertow.channels.DetachableStreamSourceChannel.awaitReadable(DetachableStreamSourceChannel.java:77)
+        at io.undertow.server.HttpServerExchange$ReadDispatchChannel.awaitReadable(HttpServerExchange.java:2218)
+        at org.xnio.channels.Channels.readBlocking(Channels.java:295)
+        at io.undertow.io.UndertowInputStream.readIntoBuffer(UndertowInputStream.java:109)
+        at io.undertow.io.UndertowInputStream.close(UndertowInputStream.java:160)
+        at org.wildfly.httpclient.ejb.HttpInvocationHandler$1.getRequestContent(HttpInvocationHandler.java:231)
+        at org.jboss.as.ejb3.remote.AssociationImpl.receiveInvocationRequest(AssociationImpl.java:139)
+        at org.wildfly.httpclient.ejb.HttpInvocationHandler.lambda$handleInternal$0(HttpInvocationHandler.java:152)
+        at org.wildfly.httpclient.ejb.HttpInvocationHandler$$Lambda$973/0x0000000100ed0c40.run(Unknown Source)
+        at org.jboss.threads.ContextClassLoaderSavingRunnable.run(ContextClassLoaderSavingRunnable.java:35)
+        at org.jboss.threads.EnhancedQueueExecutor.safeRun(EnhancedQueueExecutor.java:1982)
+        at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.doRunTask(EnhancedQueueExecutor.java:1486)
+        at org.jboss.threads.EnhancedQueueExecutor$ThreadBody.run(EnhancedQueueExecutor.java:1377)
+        at org.xnio.XnioWorker$WorkerThreadFactory$1$1.run(XnioWorker.java:1280)
+        at java.lang.Thread.run(java.base@11.0.1/Thread.java:834)
+ {code}",2022/03/25 6:24 AM
+UNDERTOW-2041,"When undertow receives an X-Forwarded-For header that contains an ipv6 address, this ip v6 address is parsed by the 
+
+io.undertow.util.NetworkUtils.parseIpv6AddressToBytes() method.
+
+This method rejects ipv6 addresses that contains leading zeroes.
+
+For example, this address is considered valid:
+
+{{2001:DB8:0:CD30:123:4567:89AB:CDEF}}
+
+while this one is considered as invalid:
+
+{{2001:0DB8:0:CD30:0123:4567:89AB:CDEF}}
+
+ 
+
+This behaviour is implemented here:
+
+[https://github.com/undertow-io/undertow/blob/7133a92424efc328ab9300e5df6df967a9dd9d69/core/src/main/java/io/undertow/util/NetworkUtils.java#L121]
+
+Yet, by looking at the RFC 4291, we can read that 
+
+""it is not necessary to write the leading zeros"" (see section 2.2 here: [https://datatracker.ietf.org/doc/html/rfc4291])
+
+So, to my understanding, ipv6 with leading zeroes should not be rejected by the ipv6 parser of undertow.
+
+ ",2022/02/25 2:57 PM
+UNDERTOW-2036,"Currently, the awaitWritable methods are not looping on wait to protect against spurious wakes:
+
+[https://github.com/undertow-io/undertow/blob/2.2.16.Final/core/src/main/java/io/undertow/server/protocol/framed/AbstractFramedStreamSinkChannel.java#L288]",2022/02/22 3:18 AM
+UNDERTOW-2035,"The class fails to follow the basic contract. If a awaitWritable method is overidden with added logic, all overloaded awaitWritable methods should be overridden as well so that the same added logic applies to all of them consistently.
+
+For future references XNIO SuspendableWriteChannel defines two awaitWritable methods:
+
+[https://github.com/xnio/xnio/blob/3.8.6.Final/api/src/main/java/org/xnio/channels/SuspendableWriteChannel.java#L80]
+
+and
+
+[https://github.com/xnio/xnio/blob/3.8.6.Final/api/src/main/java/org/xnio/channels/SuspendableWriteChannel.java#L93]
+
+While Http2StreamSinkChannel overrides just one of them:
+
+[https://github.com/undertow-io/undertow/blob/2.2.16.Final/core/src/main/java/io/undertow/protocols/http2/Http2StreamSinkChannel.java#L181]",2022/02/22 3:13 AM
+UNDERTOW-2034,"After Http2StreamSinkChannel.awaitWritable invokes super.awaitWritable():
+
+[https://github.com/undertow-io/undertow/blob/2.2.16.Final/core/src/main/java/io/undertow/protocols/http2/Http2StreamSinkChannel.java#L186]
+
+It just checks for condition, without verifying if we should wait for the next flow control window update as long as we stay inside the await writable timeout before while waiting:
+
+[https://github.com/undertow-io/undertow/blob/2.2.16.Final/core/src/main/java/io/undertow/protocols/http2/Http2StreamSinkChannel.java#L188]
+
+As a result, we could have an IOException complaining of a flow control that has not been updated sooner than the client can actually send a flow control update.
+
+Notice that the super class awaitWritable just verifies if the channel is ready for flushed and not closed while waiting:
+
+[https://github.com/undertow-io/undertow/blob/2.2.16.Final/core/src/main/java/io/undertow/server/protocol/framed/AbstractFramedStreamSinkChannel.java#L288]
+
+Naturally, this method is not aware of the flow control mechanism in HTTP2 and cannot verify for that condition. That's why it is important that the subclass method waits on the remaining time inside the timeout period before throwing an exception.",2022/02/22 3:06 AM
+UNDERTOW-2031,"Curl complains of PROTOCOL_ERROR when in HTTP2, sending a Expect: 100-continue, and using the HttpContinueAcceptingHandler.",2022/02/18 8:55 AM
+UNDERTOW-2026,"After some discussion, it is decided that we should not be creating sessions at that point in the code.",2022/02/08 8:18 PM
+UNDERTOW-2019,"If you use the BlockingHandler and then try to set a custom content length for the response to a HEAD request, the value is overwritten and a Content-Length of 0 is returned to the client instead of the explicitly set content length.
+
+ ",2022/01/15 1:03 AM
+UNDERTOW-2018,"Found in the logs while debugging UNDERTOW-2017
+{code:java}
+10:57:21,513 ERROR (Client I/O-2) [org.xnio.listener] <ChannelListeners.java:94> XNIO001007: A channel event listener threw an exception: java.lang.NullPointerException
+    at io.undertow.conduits.FixedLengthStreamSourceConduit.read(FixedLengthStreamSourceConduit.java:260)
+    at org.xnio.conduits.ConduitStreamSourceChannel.read(ConduitStreamSourceChannel.java:127)
+    at io.undertow.channels.DetachableStreamSourceChannel.read(DetachableStreamSourceChannel.java:209)
+    at io.undertow.util.StringReadChannelListener.handleEvent(StringReadChannelListener.java:86)
+    at io.undertow.util.StringReadChannelListener.handleEvent(StringReadChannelListener.java:40)
+    at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+    at io.undertow.channels.DetachableStreamSourceChannel$SetterDelegatingListener.handleEvent(DetachableStreamSourceChannel.java:231)
+    at io.undertow.channels.DetachableStreamSourceChannel$SetterDelegatingListener.handleEvent(DetachableStreamSourceChannel.java:218)
+    at org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+    at io.undertow.conduits.ReadTimeoutStreamSourceConduit$1.run(ReadTimeoutStreamSourceConduit.java:81)
+    at org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:612)
+    at org.xnio.nio.WorkerThread.run(WorkerThread.java:479){code}",2022/01/14 4:03 PM
+UNDERTOW-2017,"We have an application using the Wildfly HTTP client, and from time to time we are seeing the following null pointer:
+{code:java}
+java.lang.NullPointerException
+	at io.undertow.client.http.HttpRequestConduit.processWrite(HttpRequestConduit.java:394){code}
+
+Similarly to what was done in UNDERTOW-1931 3 lines above, the code should be modified as follow:
+{code:java}
+} else if (nameIterator != null && nameIterator.hasNext()) {{code}",2022/01/10 4:56 PM
+UNDERTOW-2015,"When a client sends a request with some query parameters which is empty key/value unexpectedly like the following:
+
+{code}
+http://localhost/example/test.jsp?&foo1=bar1&foo2=bar2
+{code}
+
+For the above request, [ServletRequest#getParameterNames()|https://docs.oracle.com/javaee/7/api/javax/servlet/ServletRequest.html#getParameterNames--] should return foo1 and foo2. 
+
+However, when the request comes through the AJP protocol, URLUtils'  QueryStringParser#parse(), which is called from AjpRequestParser, adds an empty key/value param to HttpServerExchange in addition to foo1 and foo2. So, [ServletRequest#getParameterNames()|https://docs.oracle.com/javaee/7/api/javax/servlet/ServletRequest.html#getParameterNames--] returns the different result.
+
+It appears that HttpRequestParser ignores such empty key/value query parameter, so it looks like AJP listener specific issue.
+
+",2022/01/06 11:01 AM
+UNDERTOW-2012,NoData,2021/12/30 6:46 AM
+UNDERTOW-2002,"After UNDERTOW-1824, a StackOverflowError now occurs upon an AJP read timeout:
+{code}
+ERROR [org.xnio.listener] (default I/O-17) XNIO001007: A channel event listener threw an exception: java.lang.StackOverflowError
+	at org.jboss.logmanager.formatters.Formatters$7.renderRaw(Formatters.java:450)
+	at org.jboss.logmanager.formatters.Formatters$JustifyingFormatStep.render(Formatters.java:215)
+	at org.jboss.logmanager.formatters.MultistepFormatter.format(MultistepFormatter.java:89)
+	at org.jboss.logmanager.ExtFormatter.format(ExtFormatter.java:32)
+	at org.jboss.logmanager.handlers.WriterHandler.doPublish(WriterHandler.java:46)
+	at org.jboss.logmanager.ExtHandler.publish(ExtHandler.java:77)
+	at org.jboss.logmanager.LoggerNode.publish(LoggerNode.java:333)
+	at org.jboss.logmanager.LoggerNode.publish(LoggerNode.java:341)
+	at org.jboss.logmanager.LoggerNode.publish(LoggerNode.java:341)
+	at org.jboss.logmanager.LoggerNode.publish(LoggerNode.java:341)
+	at org.jboss.logmanager.Logger.logRaw(Logger.java:852)
+	at org.jboss.logmanager.Logger.log(Logger.java:804)
+	at org.jboss.logging.JBossLogManagerLogger.doLogf(JBossLogManagerLogger.java:53)
+	at org.jboss.logging.Logger.logf(Logger.java:2445)
+	at io.undertow.UndertowLogger_$logger.exceptionProcessingRequest(UndertowLogger_$logger.java:57)
+	at io.undertow.server.protocol.ajp.AjpReadListener.handleEvent(AjpReadListener.java:252)
+	at io.undertow.core@2.2.9.SP1-redhat-00001//io.undertow.server.protocol.ajp.AjpReadListener.sendMessages(AjpReadListener.java:316)
+	at io.undertow.core@2.2.9.SP1-redhat-00001//io.undertow.server.protocol.ajp.AjpReadListener.handleInternalServerError(AjpReadListener.java:261)
+	at io.undertow.core@2.2.9.SP1-redhat-00001//io.undertow.server.protocol.ajp.AjpReadListener.handleEvent(AjpReadListener.java:249)
+...
+	at io.undertow.core@2.2.9.SP1-redhat-00001//io.undertow.server.protocol.ajp.AjpReadListener.sendMessages(AjpReadListener.java:316)
+	at io.undertow.core@2.2.9.SP1-redhat-00001//io.undertow.server.protocol.ajp.AjpReadListener.handleInternalServerError(AjpReadListener.java:261)
+	at io.undertow.core@2.2.9.SP1-redhat-00001//io.undertow.server.protocol.ajp.AjpReadListener.handleEvent(AjpReadListener.java:249)
+	at io.undertow.core@2.2.9.SP1-redhat-00001//io.undertow.server.protocol.ajp.AjpReadListener.handleEvent(AjpReadListener.java:56)
+	at org.jboss.xnio@3.8.4.Final-redhat-00001//org.xnio.ChannelListeners.invokeChannelListener(ChannelListeners.java:92)
+	at org.jboss.xnio@3.8.4.Final-redhat-00001//org.xnio.conduits.ReadReadyHandler$ChannelListenerHandler.readReady(ReadReadyHandler.java:66)
+	at io.undertow.core@2.2.9.SP1-redhat-00001//io.undertow.conduits.ReadTimeoutStreamSourceConduit$2.readReady(ReadTimeoutStreamSourceConduit.java:99)
+	at org.jboss.xnio.nio@3.8.4.Final-redhat-00001//org.xnio.nio.NioSocketConduit.handleReady(NioSocketConduit.java:89)
+	at org.jboss.xnio.nio@3.8.4.Final-redhat-00001//org.xnio.nio.NioHandle$1.run(NioHandle.java:50)
+	at org.jboss.xnio.nio@3.8.4.Final-redhat-00001//org.xnio.nio.WorkerThread.safeRun(WorkerThread.java:612)
+	at org.jboss.xnio.nio@3.8.4.Final-redhat-00001//org.xnio.nio.WorkerThread.run(WorkerThread.java:479)
+{code}
+The following IOException is repeated rapidly until that overflow:
+{code}
+DEBUG [io.undertow.request.io] (default I/O-14) UT005013: An IOException occurred: org.xnio.channels.ReadTimeoutException: UT000199: Read timed out after 1638571000771 milliseconds.
+	at io.undertow.conduits.ReadTimeoutStreamSourceConduit.checkExpired(ReadTimeoutStreamSourceConduit.java:238)
+	at io.undertow.conduits.ReadTimeoutStreamSourceConduit.read(ReadTimeoutStreamSourceConduit.java:169)
+	at org.xnio.conduits.ConduitStreamSourceChannel.read(ConduitStreamSourceChannel.java:127)
+	at io.undertow.server.protocol.ajp.AjpReadListener.handleEvent(AjpReadListener.java:125)
+	at io.undertow.server.protocol.ajp.AjpReadListener.sendMessages(AjpReadListener.java:316)
+	at io.undertow.server.protocol.ajp.AjpReadListener.handleInternalServerError(AjpReadListener.java:261)
+{code}
+And the connection fills with the repeated SEND_HEADERS_INTERNAL_SERVER_ERROR_MSG bytes.",2021/12/03 10:53 PM
+UNDERTOW-1997,"The SecurityPathMatches.getSecurityInfo(String, String) method fails to return the security info for path '/' when no other security info matches a given URL.
+
+As stated in the [JavaEE Tutorial|https://javaee.github.io/tutorial/security-advanced004.html#BABGEJJJ]:
+{quote}If, for your web application, you do not want any resource to be accessible unless you explicitly define a constraint that permits access to it, you can define an auth-constraint that names no roles and associate it with the URL pattern /. The URL pattern / is the weakest matching pattern. Do not list any HTTP methods in this constraint:
+{noformat}
+<!-- SECURITY CONSTRAINT #7 -->
+<security-constraint>
+    <display-name>
+        Switch from Constraint to Permission model
+        (where everything is denied by default)
+    </display-name>
+    <web-resource-collection>
+        <url-pattern>/</url-pattern>
+    </web-resource-collection>
+    <auth-constraint/>
+</security-constraint>
+{noformat}
+{quote}
+
+Update: here is the link for the same Java EE tutorial, Jakarta EE9 version: https://eclipse-ee4j.github.io/jakartaee-tutorial/#securing-http-resources",2021/11/22 7:45 PM
+UNDERTOW-1989,"Since UNDERTOW-781 the setup actions are not executed when an async servlet executes the {{start}} method. For example consider a servlet like the following:
+{code:java}
+@WebServlet(urlPatterns = ""/async-module"", asyncSupported = true)
+public class AnAsyncServlet extends HttpServlet {
+
+    @Override
+    public final void doGet(final HttpServletRequest request, HttpServletResponse response)
+            throws ServerException, IOException {
+        final AsyncContext asyncContext = request.startAsync();
+        asyncContext.start(new Processing(""java:module/ApplicationConfig!org.jboss.ConfigInterface"",
+                (HttpServletResponse) asyncContext.getResponse()));
+    }
+}
+{code}
+The {{Processing}} runnable is executed in a new thread that has not executed the setup actions and therefore some jakarta ee features are not available for it (for example looking up some jndi namespaces).",2021/11/16 7:51 AM
+UNDERTOW-1981,NoData,2021/10/18 5:16 PM
+UNDERTOW-1979,NoData,2021/10/11 5:53 PM
+UNDERTOW-1972,"This is a regression introduced by UNDERTOW-1869.
+The place holder session may be returned by mistake or considered for destruction on a stop if another operation is happening on a different thread during the process of session creation.",2021/09/28 12:55 PM
+UNDERTOW-1969,io.undertow.server.handlers.SSLHeaderHandler fails to create certificate from header and instead throws `java.lang.ClassNotFoundException: com/sun/security/cert/internal/x509/X509V1CertImpl` exception on Java 17.,2021/09/24 8:24 AM
+UNDERTOW-1964,"IPAddressAccessControlHandler stops working when ProxyPeerAddressHandler is enabled and the X-Forwarded-For request header contains multiple IP addresses.
+
+This issue happens because ProxyPeerAddressHandler creates an unresolved InetSocketAddress and sets it to HttpServerExchange#setSourceAddress() when the X-Forwarded-For request header contains multiple IP addresses. As [InetSocketAddress#getAddress()|https://docs.oracle.com/javase/8/docs/api/java/net/InetSocketAddress.html#getAddress--] returns null if it is unresolved, exchange.getSourceAddress().getAddress() returns null, so it causes IPAddressAccessControlHandler stop working.
+
+—
+
+This issue is similar to UNDERTOW-1296, but this happens only when the X-Forwarded-For request header contains multiple IP addresses. It looks like a bug in [the fixed code|https://github.com/undertow-io/undertow/commit/1cc2a29e51eefe76e8b079ae8313f1c3c1b4803e#diff-3507756f37779f1226a8ffb3af188ba7bee20b52f8cd2921251687d7c55d6900] for UNDERTOW-1296.
+
+As [the syntax of X-Forwarded-For|https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For] is
+{code:java}
+X-Forwarded-For: <client>, <proxy1>, <proxy2>
+{code}
+ProxyPeerAddressHandler basically should check the first entry of the X-Forwarded-For request header.
+",2021/09/15 6:52 AM
+UNDERTOW-1950,"A NullPointerException can occur when using a PreCompressedResourceSupplier and trying to access a file where only the compressed version exists:
+{code}java.lang.NullPointerException: Cannot invoke ""io.undertow.server.handlers.resource.Resource.getContentType(io.undertow.util.MimeMappings)"" because ""this.val$originalResource"" is null
+	at io.undertow.server.handlers.resource.PreCompressedResourceSupplier$1.getContentType(PreCompressedResourceSupplier.java:121)
+	at io.undertow.server.handlers.resource.ResourceHandler$1.handleRequest(ResourceHandler.java:299)
+	at io.undertow.server.Connectors.executeRootHandler(Connectors.java:370)
+	at io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:830)
+{code}",2021/08/09 6:31 AM
+UNDERTOW-1934,"We found an example of registering a close listener in addition to a ""receive"" listener: [https://github.com/7erry/hazelcast-websocket-demo/blob/master/hazelcast-undertow/src/main/java/demo/hazelcast/undertow/ConnectionCallback.java#L46-L53]
+
+This ""close"" listener is called at the right time, but we didn't expect to need a separate listener than our onClose/onError, given that a ""clean"" closure is received normally by listener.onClose.
+
+We found two wrappers in the wild that don't register a close listener and are subject to the same issue:
+ # [https://github.com/jooby-project/jooby/blob/f32a916e98d2155acf4a8395c688e91105f455c6/modules/jooby-utow/src/main/java/io/jooby/internal/utow/UtowWebSocket.java#L165-L166]
+ # [https://github.com/luminus-framework/ring-undertow-adapter/blob/master/src/ring/adapter/undertow/websocket.clj#L73]
+
+Please let us know if we're missing something, or if there's anything we can provide to help diagnose.",2021/07/27 9:02 PM
+UNDERTOW-1933,"There are some OR checks with '|' instead of '||'. Both sides of the check are boolean values.
+This refers to [RSPEC-2178|https://rules.sonarsource.com/java/RSPEC-2178]
+
+*[FastConcurrentDirectDeque#L514|https://github.com/undertow-io/undertow/blob/2.2.9.Final/core/src/main/java/io/undertow/util/FastConcurrentDirectDeque.java#L514]
+* [PortableConcurrentDirectDeque#L481|https://github.com/undertow-io/undertow/blob/2.2.9.Final/core/src/main/java/io/undertow/util/PortableConcurrentDirectDeque.java#L481]",2021/07/26 8:39 AM
+UNDERTOW-1932,"regenerateHashes - throws RuntimeException
+replaceServerByteOutput - logs debug level, returns null, value is not checked in method, but it might cause NPE
+replaceClientByteOutput - logs debug level, returns null which will cause NPE.
+",2021/07/26 8:07 AM
+UNDERTOW-1931,"There are some codepoints per component having potential NullpointerException problems. This refers to [RSPEC-2259|https://rules.sonarsource.com/java/RSPEC-2259]
+
+Fix: Individual check necessary.",2021/07/25 5:21 PM

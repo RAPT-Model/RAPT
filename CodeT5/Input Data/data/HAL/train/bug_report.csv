@@ -1,0 +1,214 @@
+bug_report_id,bug_report_desc,bug_report_time
+HAL-1602,"Attempting to add an access log, HTTP invoke or Single Sign On resource when the host is not selected host under {{subsystem=undertow/server=default-server/}} via the web console fails with:
+{code}
+Failed to add singleton resource Access Log, cause: ""WFLYCTL0175: Resource [ (\""subsystem\"" => \""undertow\""), (\""server\"" => \""default-server\""), (\""host\"" => \""_blank\"") ] does not exist; a resource at address [ (\""subsystem\"" => \""undertow\""), (\""server\"" => \""default-server\""), (\""host\"" => \""_blank\""), (\""setting\"" => \""access-log\"") ] cannot be created until all ancestor resources have been added""
+{code}
+
+Once selected, then deselected the ""Add"" button is no longer an option so the resource an't be attempted to be added on a non-selected host.",2019/05/31 11:47 AM
+HAL-1584,"Using HAL in domain mode to get jms queue detail, the error
+""WFLYCTL0030: NO resource definition is registered for address""
+
+1- When trying to obtain all reqiurces of a queue through CLI, it works fine:
+
+/host=mohameds-mbp.t-mobile.com/server=server-one/subsystem=messaging-activemq/server=default/jms-queue=DLQ:read-resource(include-runtime=true, recursive=true)
+{
+    ""outcome"" => ""success"",
+    ""result"" => {
+        ""consumer-count"" => 0,
+        ""dead-letter-address"" => ""jms.queue.DLQ"",
+        ""delivering-count"" => 0,
+        ""durable"" => true,
+        ""entries"" => [""java:/jms/queue/DLQ""],
+        ""expiry-address"" => ""jms.queue.ExpiryQueue"",
+        ""legacy-entries"" => undefined,
+        ""message-count"" => 0L,
+        ""messages-added"" => 0L,
+        ""paused"" => false,
+        ""queue-address"" => ""jms.queue.DLQ"",
+        ""scheduled-count"" => 0L,
+        ""selector"" => undefined,
+        ""temporary"" => false
+    }
+}
+
+2- When doing the same in standalone mode, no error is shown in HAL",2019/04/29 11:45 AM
+HAL-1583,"Management Console says to close the tab to logout, but closing the browser is needed so the pop up needs to say to close the browser.",2019/04/16 5:10 AM
+HAL-1582,Console for domain mode has server-group missing some operations.  It looks like Remove is missing as well as Copy.,2019/04/15 2:06 PM
+HAL-1581,"Management console throws below error when accessing JMS queues in domain mode.
+
+ Runtime -> Host-> JMS-Server -> Messaging -> default -> DLQ
+
+{code:java}
+""WFLYCTL0030: No resource definition is registered for address [
+    (\""subsystem\"" => \""messaging-activemq\""),
+    (\""server\"" => \""default\""),
+    (\""jms-queue\"" => \""DLQ\"")
+]""
+{code}
+
+Attached screen-shot.
+
+Note:- This issue does not occur if you access the queues deployed on the domain controller. It only occurs for the remote host.
+
+
+",2019/04/15 10:39 AM
+HAL-1579,The bootstrap switch control is broken in add and modify resource dialogs. Seems that this was introduced when switching from Yarn to NPM.,2019/04/12 3:46 AM
+HAL-1570,The datasource-class attribute is set when the wizard finishes regardless if the user explicitly set the attribute. The datasource-class limits driver functionality and should only be explicitly set by the user.,2019/02/27 8:06 AM
+HAL-1564,"With HAL-1557 in place, the management operations in domain mode have been moved to the ""Browse By"" column. However there's still a second ""Management Operations"" item in the ""Monitor"" column of a running server. This item must be removed in domain mode. ",2019/02/04 6:07 PM
+HAL-1552,"""Omit read operations"" does not work.
+""Open in editor"" does not work.
+Macro recording causes internal errors",2018/11/26 9:21 AM
+HAL-1551,"Set the ""SmallRye"" subtitle for microprofile-health-smallrye subsystem on configuration and runtime column.",2018/11/19 2:40 PM
+HAL-1546,"In the runtime view of elytron key-store, in the ""Aliases"" sub-view, there is a ""obtain"" button that uses an already created alias, but this is wrong. The ""obtain"" command should ask for a new alias, so the retrieved certificated obtained from LetsEncrypt should be placed in a new alias.
+
+The change is to move the ""Obtain"" button from the ""Aliases"" sub-view to the Key Store table (parent view) and make the ""alias"" attribute writable.",2018/11/07 7:34 AM
+HAL-1539,"There is a bug in VerticalNavigation when {{navigation.insertPrimary}} is used to insert a panel before a specific id, there is a NPE. If the beforeId is not specified it works.
+
+{code}
+navigation.insertPrimary(primId, ""msg-remote-external-queue-item"", Names.POOLED_CONNECTION_FACTORY, pfIcon(""replicator""), htmlSection);
+{code}",2018/10/19 12:38 PM
+HAL-1526,"When attempting to roll back a patch in the console, the ""Reset Configuration"" field gives an error that it is required (though it is by default set to OFF). You can work around this by flipping it to ON and then OFF again. 
+
+But this might make some users think that they need to set it to ON. We have a warning in the patching and upgrading guide telling users to use caution when setting this option.
+
+If we want users to explicitly say ON or OFF for this field, as opposed to just taking a default of OFF, then maybe we should consider a different way of presenting this option in the wizard.",2018/09/27 1:57 PM
+HAL-1520,"If a form contains read-only attributes and ModelBrowser is used for navigation, the attribute value is not displayed in the form of the child panel.
+
+The community forum that reported the problem
+https://developer.jboss.org/message/985106",2018/09/12 7:01 PM
+HAL-1519,"There is an effort to unify wording of HAL deployment operations wording with CLI _deployment_ command wording. Actually, the HAL _Remove_ deployment operation is not unified with CLI _deploument undeploy_ command.
+Feel free to move this issue if you think this is CLI problem.",2018/09/12 8:45 AM
+HAL-1515,"In JCA configuration, in distributed work manager ""add"" dialog, the ""name"" field is read-only, it should be writable, otherwise a new resource cannot be added.",2018/08/31 9:59 AM
+HAL-1514,"There were [several changes to Messaging subsystem|https://github.com/wildfly/wildfly/pull/11604], the user now is required to add path=* subsresources in addition to the server in a composite operation. If there is no server, the path=* subresources are optional. Previously the user was able to add additional servers with no path=* subresources, although the additional server would not work, because they would conflict with the default path=* used by the existing server.",2018/08/30 2:10 PM
+HAL-1513,"In EAP 7.1, in standalone mode, deployments were enabled by default (the enabled checkbox is checked). In EAP 7.2, deployments are not enabled by default (the enabled field is set to OFF).
+
+Should this default to enabled so that the behavior is consistent between 7.1 and 7.2?",2018/08/29 10:37 PM
+HAL-1509,"Creation of Distributed Cache on Infinispan subsystem fails with:
+""WFLYCTL0369: Required capabilities are not available:
+    org.wildfly.clustering.infinispan.transport.channel.test-container; Possible registration points for this capability: 
+		/subsystem=infinispan/cache-container=*/transport=jgroups""
+
+Note that it also fails for Invalidation Cache and Replicated Cache. It works for Local Cache",2018/08/17 7:43 AM
+HAL-1506,"There are some cases where the attributes listed in the alternatives metadata doesn't exist (see WFCORE-4042). 
+In HAL when an user changes a form and save, there is a check and operation to undefine the attribute listed in the ""alternatives"" metadata, if the attribute doesn't exist then there is an exception. We should skip the undefine operation if the attribute doesn't exist.
+",2018/08/16 12:50 PM
+HAL-1505,"When using the web console in Firefox, requests for *http://<console-host>:<console-port>/console/js/polyfill.js* are being responded with the 404 error code. This problem causes UI problems and the whole web console is unusable. Requests for *polyfill.min.js* are getting the correct status code.",2018/08/16 5:23 AM
+HAL-1504,"The modcluster update of WFLY-10440 adds two new resources:
+load-provider=dynamic
+load-provider=simple
+
+The dynamic-load-provider=configuration is an alias to load-provider=dynamic.
+
+We should update HAL to use the new resource names and not use dynamic-load-provider=configuration
+",2018/08/15 10:09 AM
+HAL-1492,This is regression compared to HAL 2.9,2018/07/25 10:48 AM
+HAL-1482,The CSS styles of the steps in the wizard header are broken. Seems that this is related to an PatternFly upgrade.,2018/06/26 2:33 PM
+HAL-1479,"Clicking 'Cancel' in the forms for 'Servlet Container / Mime Mapping' and 'Servlet Container / Welcome File' results in an internal error:
+
+{code}
+Model must not be undefined in form(undertow-servlet-container-mime-mapping-form).cancel()
+{code}",2018/06/21 9:54 AM
+HAL-1472,"The wizard for xa datasource, on the screen to add the xa properties, there are some characters not allowed in the textfield as: @ ; = ?
+
+Some of these characters are needed for connection url for oracle, microsoft sql, sybase.",2018/06/07 9:45 AM
+HAL-1470,"In domain mode only, host -> server -> security -> security realms -> filesystem realm, add an identitty with attributes, the operation doesn't return success or error.
+
+After investigation it turns out there is a bug WFCORE-3876 on filesystem-realm add-identity and add-identity-attribute, it blocks the operation and other operations. Instead to run the write operations as composite, use the Flow Task api.",2018/05/23 9:46 AM
+HAL-1460,"In standalone mode, the deployment ""view"" action shows two tabs ""Content"" and ""Management Model"", for unmanaged deployments the content navigation is not supported in the management api, but the runtime model navigation is supported. We must disable the ""Content"" navigation tab for unmanaged deployments.",2018/05/03 10:30 AM
+HAL-1456,"The line ""Product Name"" is added twice to the about dialog.",2018/04/27 4:24 AM
+HAL-1454,"The user is unable to edit Process ID Socket Max Ports in the Web Console. Additionally, the UI does not provide a meaningful message. 
+Setting the ""process-id-socket-max-ports"" works fine using the CLI
+This is a regression against the old web console.",2018/04/24 11:32 AM
+HAL-1451,"To test if a value is an expression of the form {{""${my.expression}""}} AbstractItem uses {{value.startsWith(""${"") && value.endsWith(""}"")}} but wildfly accepts the {{${}}}  pattern anywhere in the string, for example {{some/${my.expression}/directory}}, but as HAL only validates the start and end of string, then it is incorrect. HAL should accept the latter as a pattern to test if a value is an expression. One example is the ""path"" attribute of {{/subsystem=undertow/configuration=handler/file=welcome-content}} resource.
+
+HAL should fix this in form components and the Expression Resolver dialog (tools menu).",2018/04/23 3:11 PM
+HAL-1449,"When editing attributes of Undertow's file handler, the ""path"" value is getting discarded, which leads to the inability of editing the file handler. The user must specify the value manually",2018/04/23 7:50 AM
+HAL-1448,"When creating new Response Header for undertow filter, the ""name"" field is not present in the form, the rest of the required fields is available. When the response header is added, the table does not contain the ""name"" field as well. 
+This field is available when adding response header using CLI.
+This behaviour is a regression against the old Web Console",2018/04/23 7:37 AM
+HAL-1447,Attributes in subsystems like JPA or EJB are rendered as read-only although the metadata says read-write.,2018/04/20 12:07 PM
+HAL-1443,"I suggest removing empty thread pool tabs in JGroups stack transport. They empty since internal, oob and timer thread pool executors are deprecated now. See e.g. https://wildscribe.github.io/WildFly/12.0/subsystem/jgroups/stack/transport/index.html ",2018/04/16 11:17 AM
+HAL-1441,"Using 0.9.4-SNAPSHOT new console it's not possible to create the credential store since Add credential store is missing Location input.
+
+Trying to create credential store without location attr specified leads to 
+{code}
+""WFLYELY00921: Location parameter is not specified for filebased keystore type 'JCEKS'""
+{code}
+
+This is a regression compared to old console ver. 2.9.16.Final.",2018/04/13 11:06 AM
+HAL-1440,"After Tests connection button in Add datasource wizard there is 
+* no way how to get to Review page, 
+* no info that Test connection button click already created the datasource what is not intuitive. This is especially important due to the fact that the created datasource doesn't appear in the Datasource column after clicking the only available button Close despite it was actually created and
+* not possible to get rid of temporarily created datasource by clicking Cancel button.
+
+Tested with the current build of Wildfly 13 patched with the current build of HAL console.",2018/04/12 9:26 AM
+HAL-1439,"Try to edit a scoped role, there is an error message:
+{code}""WFLYCTL0155: 'steps' may not be null""{code}
+",2018/04/11 2:42 PM
+HAL-1438,The add dialog for host and server-group scoped roles doesn't set the include-all attribute when user sets it to true.,2018/04/11 2:28 PM
+HAL-1404,"Changes to Infinispan subsystem in WF12:
+
+* cache-container=* jndi-name attribute deprecated
+* local/invalidation/replicated/distributed-cache=* jndi-name deprecated
+* invalidation/replicated/distributed-cache=* mode deprecated
+** Caches are always SYNC
+* component=eviction renamed to memory=object
+** max-entries attribute renamed to size
+** strategy attribute deprecated
+*** LRU = size > 0
+*** NONE = size <= 0
+* New resources:
+** memory=binary
+*** Cache entries stores as byte[] instead of object references
+** memory=off-heap
+*** Cache entries stored off-heap in native memory
+* store=string-keyed-jdbc-store renamed to store=jdbc
+* store=binary-keyed-jdbc-store and store=mixed-keyed-jdbc-store remain deprecated but implementations dropped - implemented as store=jdbc
+* component=backup-for deprecated
+** Backup cache names should match cache name
+* store=jdbc/table=string batch-size attribute replaced by store=* max-batch-size attribute
+
+This leads to the error 
+{code}
+Missing metadata: [resource description] @ {selected.profile}/subsystem=infinispan/cache-container=/distributed-cache=/component=eviction
+{code}",2018/03/29 3:30 AM
+HAL-1401,"Throws an error:
+
+{code}
+(TypeError) : Cannot read property 'replace' of undefined
+{code}",2018/03/29 3:27 AM
+HAL-1398,The bootstrap error screen contains an empty error message when connecting to a WildFly instance without users.,2018/03/29 3:22 AM
+HAL-1396,When selecting a singleton resource in the tree on the left. There's an error about missing metadata. ,2018/03/29 3:04 AM
+HAL-1280,"For example:
+{{/subsystems=infinispan/cache-container=\*/local-cache=\*/store=binary-jdbc}}
+
+The binary store has a {{data-source}} attribute that is both nillable and required - which is allowed as long as it has alternatives. However the alternative is {{datasource}} which is deprecated.
+
+Either the {{data-source}} item should be marked as required or the {{datasource}} should be displayed.",2017/02/01 8:49 AM
+HAL-1155,"When creating an Oracle XA Datasource using the wizard in the Administration Console, and specifying a JDBC driver which was uploaded as a new deployment, the wizard does not add the element <xa-datasource-class> in the datasource configuration, which causes Test Connection to fail with: ""WFLYJCA0040: failed to invoke operation: WFLYJCA0047: Connection is not valid"", and the stack trace below.
+
+The wizard ought to either ask to provide the class name, or inspect the .jar to find it by itself (I'd assume most JDBC drivers come with at most 1 implementation of javax.sql.XADataSource).
+
+11:24:01,853 ERROR [org.jboss.jca.core.tx.jbossts.XAResourceRecoveryImpl] (Periodic Recovery) IJ000906: Error during crash recovery: java:/XAOracleDS (IJ0310
+84: Unable to create connection): javax.resource.ResourceException: IJ031084: Unable to create connection
+        at org.jboss.jca.adapters.jdbc.xa.XAManagedConnectionFactory.getXAManagedConnection(XAManagedConnectionFactory.java:509)
+        at org.jboss.jca.adapters.jdbc.xa.XAManagedConnectionFactory$1$1.run(XAManagedConnectionFactory.java:395)
+        at org.jboss.jca.adapters.jdbc.xa.XAManagedConnectionFactory$1$1.run(XAManagedConnectionFactory.java:392)
+        at java.security.AccessController.doPrivileged(Native Method)
+        at javax.security.auth.Subject.doAs(Subject.java:422)
+        at org.jboss.jca.adapters.jdbc.xa.XAManagedConnectionFactory$1.run(XAManagedConnectionFactory.java:391)
+        at org.jboss.jca.adapters.jdbc.xa.XAManagedConnectionFactory$1.run(XAManagedConnectionFactory.java:388)
+        at java.security.AccessController.doPrivileged(Native Method)
+        at org.jboss.jca.adapters.jdbc.xa.XAManagedConnectionFactory.createManagedConnection(XAManagedConnectionFactory.java:387)
+        at org.jboss.jca.core.tx.jbossts.XAResourceRecoveryImpl.open(XAResourceRecoveryImpl.java:355)
+        at org.jboss.jca.core.tx.jbossts.XAResourceRecoveryImpl.getXAResources(XAResourceRecoveryImpl.java:193)
+        at com.arjuna.ats.internal.jbossatx.jta.XAResourceRecoveryHelperWrapper.getXAResources(XAResourceRecoveryHelperWrapper.java:51)
+        at com.arjuna.ats.internal.jta.recovery.arjunacore.XARecoveryModule.resourceInitiatedRecoveryForRecoveryHelpers(XARecoveryModule.java:519)
+        at com.arjuna.ats.internal.jta.recovery.arjunacore.XARecoveryModule.periodicWorkFirstPass(XARecoveryModule.java:185)
+        at com.arjuna.ats.internal.arjuna.recovery.PeriodicRecovery.doWorkInternal(PeriodicRecovery.java:747)
+        at com.arjuna.ats.internal.arjuna.recovery.PeriodicRecovery.run(PeriodicRecovery.java:375)
+Caused by: javax.resource.ResourceException: IJ031101: XADataSourceClass is undefined
+        at org.jboss.jca.adapters.jdbc.xa.XAManagedConnectionFactory.getXADataSource(XAManagedConnectionFactory.java:621)
+        at org.jboss.jca.adapters.jdbc.xa.XAManagedConnectionFactory.getXAManagedConnection(XAManagedConnectionFactory.java:492)
+        ... 15 more
+",2016/07/07 7:15 AM

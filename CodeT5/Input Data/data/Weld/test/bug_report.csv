@@ -1,0 +1,309 @@
+bug_report_id,bug_report_desc,bug_report_time
+WELD-1751,"When a Weld proxy is generated, its class initializer is seeded with bytecode which uses Class#getDeclaredMethod() calls to get information about proxied methods.  Unfortunately the target class of these calls may include classes which belong to a different class loader (such as Object.class).  This causes the fast security check in SecurityManager to fail and fall back to checking for RuntimePermission(""accessDeclaredMembers""), which fails because the proxy is in a protection domain which generally does not contain this permission.
+
+Some possible ideas for a fix:
+
+# Generate a synthetic protection domain for weld proxies which duplicates the target protection domain but also includes this permission (beware creating large numbers of them though; some kind of mapping cache is in order)
+# Disable access checking while initializing classes via the special WildFlySecurityManager.doUnchecked mechanism (this would require a new dependency on wildfly-security-manager though, and only works when that library is the active security manager)
+# Modify the proxy generation scheme so that only the current class is the target of getDeclaredMethods(), somehow.
+",2014/09/26 4:27 PM
+WELD-1712,"All versions of weld-osgi-bundle I looked at export their own packages with version 1.0.0, regardless of the Weld release.
+
+This would only make sense if the Weld public API were unchanged since Weld 1.x. Looking at the class lists, it is easy to see some differences, so the API did change.
+
+The easiest fix would be to set the package version to the Weld release version. 
+
+Semantic versioning would also be an option if it's possible to decide whether or not an API change was backward compatible. ",2014/08/03 8:25 AM
+WELD-1812,A user gets {{IllegalStateException}} if the method {{HttpSession.invalidate()}} is invoked inside an intercepted method (see the forum reference). This is likely caused by the fact that {{RequestScopedCache.endRequest()}} is also called during {{HttpContextLifecycle.sessionDestroyed(HttpSession)}} and so the current stack is removed before the invocation finishes.,2014/12/11 9:00 AM
+WELD-1534,"I believe this is a regression in the latest Weld release, as this was working in Weld 2.0.3.Final. Steps to reproduce included in issue.",2013/10/23 6:03 PM
+WELD-1584,"Caused by ""additionalBeanDeploymentArchive"" in the AS7 integration code that makes every two deployed beans transitively visible.",2014/01/10 3:38 AM
+WELD-1677,"When a bean class A extends the raw type of a parameterized class B, canonical types of B are added into types of A (in org.jboss.weld.util.reflection.HierarchyDiscovery#discoverTypes()). That causes problems in specialization validation as the getTypes() method of the specializing bean A returns even types it does not have.
+
+Example:
+{code}
+class B<T> implements Collection<T> { ... }
+{code}
+{code}
+class A extends B { ... }
+{code}
+Collection<T> should not be a type of bean A.",2014/05/15 8:39 AM
+WELD-1723,"Injection of parameterized types does not work correctly in 2.0.0.Alpha3 and up, if the parameterized type ""extends"" another type.  It used to work in 1.x and up to 2.0.0.Alpha2.
+
+Example code:
+
+{code}
+public interface Foo<T extends Serializable> { } // will fail
+public class FooBean implements Foo { }
+public interface Bar<T> { } // will work
+public class BarBean implements Bar { }
+@Singleton
+@Startup
+public class TestSingleton {
+    @Inject
+    private Instance<Foo> foo;
+    @Inject
+    private Instance<Bar> bar;
+    @PostConstruct
+    public void init() {
+        System.out.println(""##### foo is unsatisfied = "" + foo.isUnsatisfied());
+        for (Foo f : foo)
+            System.out.println(""foo is: "" + f.getClass().getCanonicalName());
+        System.out.println(""##### bar is unsatisfied = "" + bar.isUnsatisfied());
+        for (Bar b : bar)
+            System.out.println(""bar is: "" + b.getClass().getCanonicalName());
+    }
+}
+{code}
+
+{code}
+==================================
+WORKS in Weld 1.x and 2.0.0.Alpha2: (this is the expected output)
+==================================
+
+16 [org.example.weldtest.App.main()] INFO org.jboss.weld.Version - WELD-000900 2.0.0 (Alpha2)
+50 [org.example.weldtest.App.main()] INFO org.jboss.weld.Bootstrap - WELD-000101 Transactional services not available. Injection of @Inject UserTransaction not available. Transactional observers will be invoked synchronously.
+236 [org.example.weldtest.App.main()] WARN org.jboss.weld.interceptor.util.InterceptionTypeRegistry - Class 'javax.ejb.PostActivate' not found, interception based on it is not enabled
+236 [org.example.weldtest.App.main()] WARN org.jboss.weld.interceptor.util.InterceptionTypeRegistry - Class 'javax.ejb.PrePassivate' not found, interception based on it is not enabled
+##### foo is unsatisfied = false
+foo is: org.example.weldtest.FooBean
+##### bar is unsatisfied = false
+bar is: org.example.weldtest.BarBean
+
+==============================
+BROKEN ON: 2.0.0.Alpha3 and up:
+===============================
+
+14 [org.example.weldtest.App.main()] INFO org.jboss.weld.Version - WELD-000900 2.0.0 (Alpha3)
+46 [org.example.weldtest.App.main()] INFO org.jboss.weld.Bootstrap - WELD-000101 Transactional services not available. Injection of @Inject UserTransaction not available. Transactional observers will be invoked synchronously.
+276 [org.example.weldtest.App.main()] WARN org.jboss.weld.interceptor.util.InterceptionTypeRegistry - Class 'javax.ejb.PostActivate' not found, interception based on it is not enabled
+276 [org.example.weldtest.App.main()] WARN org.jboss.weld.interceptor.util.InterceptionTypeRegistry - Class 'javax.ejb.PrePassivate' not found, interception based on it is not enabled
+##### foo is unsatisfied = true
+##### bar is unsatisfied = false
+bar is: org.example.weldtest.BarBean
+
+----
+
+Aug 26, 2014 12:06:15 PM org.jboss.weld.bootstrap.WeldStartup <clinit>
+INFO: WELD-000900: 2.2.4 (Final)
+Aug 26, 2014 12:06:15 PM org.jboss.weld.bootstrap.WeldStartup startContainer
+INFO: WELD-000101: Transactional services not available. Injection of @Inject UserTransaction not available. Transactional observers will be invoked synchronously.
+Aug 26, 2014 12:06:15 PM org.jboss.weld.interceptor.util.InterceptionTypeRegistry <clinit>
+WARN: WELD-001700: Interceptor annotation class javax.ejb.PostActivate not found, interception based on it is not enabled
+Aug 26, 2014 12:06:15 PM org.jboss.weld.interceptor.util.InterceptionTypeRegistry <clinit>
+WARN: WELD-001700: Interceptor annotation class javax.ejb.PrePassivate not found, interception based on it is not enabled
+##### foo is unsatisfied = true
+##### bar is unsatisfied = false
+bar is: org.example.weldtest.BarBean
+{code}
+
+I have created a minimal working example, which is available at https://github.com/lngr/weldtest and also attached to this issue.
+
+This was previously reported in WFLY-3632
+",2014/08/26 6:20 AM
+WELD-1707,NoData,2014/07/16 4:48 AM
+WELD-1736,The subclass may not declare annotations from the component class and therefore the interception model my be invalid.,2014/09/04 3:21 AM
+WELD-1711,"In the weld-osgi-bundle manifest, all imports of Guava packages ({{com.google.common.*}}) are marked as optional.
+
+This seems to be a left-over of Weld 1.x. 
+
+As far as I can see, the dependency is mandatory in Weld's core logic, so the optional directive should be deleted from the manifest.
+
+The impact is more than cosmetic:
+
+Weld 2.2 imports {{javax.annotation}} 1.2 whereas Guava does not specify a version for {{javax.annotation}}.
+
+Running on Vanilla Equinox 3.9.1 where {{javax.annotation}} is exported by the system bundle, you may get a {{ClassNotFoundException}}, since Guava gets wired to {{javax.annotation}} 0.0 from the system bundle and Weld does not get wired to the optional Guava dependency at all due to a package uses conflict for {{javax.annotation}}.
+
+Making the Guava dependency mandatory would either lead to a consistent wiring for Guava, or at least to a resolution error instead of a runtime exception. The user must then fix the resolution problem by manually removing {{javax.annotation}} from the list of system packages.",2014/08/03 8:10 AM
+WELD-1683,NoData,2014/05/21 2:53 AM
+WELD-1669,"If a class which is used as type argument is missing from the deployment, an exception is thrown and the deployment fails. 
+
+The behaviour should be consistent with other similar cases (WELD-1215, WELD-1515), and the broken class should just be ignored and not cause a deployment failure.
+
+Example, {{Bar.class}} is missing:
+{code}
+public class FooBarProducer {
+    
+    public Foo<Bar> produceFooBar() {
+        return new Foo<Bar>();
+    }
+}
+{code}
+
+Result:
+{noformat}
+19:15:49,504 ERROR [org.jboss.msc.service.fail] (MSC service thread 1-8) MSC000001: Failed to start service jboss.deployment.unit.""0d036027-2297-41de-95ae-9d2d1dd562ca.jar"".WeldStartService: org.jboss.msc.service.StartException in service jboss.deployment.unit.""0d036027-2297-41de-95ae-9d2d1dd562ca.jar"".WeldStartService: Failed to start service
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.run(ServiceControllerImpl.java:1936) [jboss-msc-1.1.5.Final-redhat-1.jar:1.1.5.Final-redhat-1]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145) [rt.jar:1.7.0_17]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615) [rt.jar:1.7.0_17]
+	at java.lang.Thread.run(Thread.java:722) [rt.jar:1.7.0_17]
+Caused by: org.jboss.weld.exceptions.WeldException: WELD-000830 Unable to load the cache value for the key class reproducer.FooBarProducer
+	at org.jboss.weld.util.cache.LoadingCacheUtils.getCacheValue(LoadingCacheUtils.java:73)
+	at org.jboss.weld.util.cache.LoadingCacheUtils.getCastCacheValue(LoadingCacheUtils.java:112)
+	at org.jboss.weld.util.cache.LoadingCacheUtils.getCastCacheValue(LoadingCacheUtils.java:93)
+	at org.jboss.weld.resources.ClassTransformer.loadClass(ClassTransformer.java:164)
+	at org.jboss.weld.bootstrap.BeanDeployer.loadWeldClass(BeanDeployer.java:116)
+	at org.jboss.weld.bootstrap.BeanDeployer.addClass(BeanDeployer.java:79)
+	at org.jboss.weld.bootstrap.BeanDeployer.addClasses(BeanDeployer.java:135)
+	at org.jboss.weld.bootstrap.BeanDeployment.createBeans(BeanDeployment.java:184)
+	at org.jboss.weld.bootstrap.WeldBootstrap.deployBeans(WeldBootstrap.java:349)
+	at org.jboss.as.weld.WeldStartService.start(WeldStartService.java:63)
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.startService(ServiceControllerImpl.java:1980) [jboss-msc-1.1.5.Final-redhat-1.jar:1.1.5.Final-redhat-1]
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.run(ServiceControllerImpl.java:1913) [jboss-msc-1.1.5.Final-redhat-1.jar:1.1.5.Final-redhat-1]
+	... 3 more
+Caused by: com.google.common.util.concurrent.UncheckedExecutionException: java.lang.TypeNotPresentException: Type reproducer.Bar not present
+	at com.google.common.cache.LocalCache$Segment.get(LocalCache.java:2258)
+	at com.google.common.cache.LocalCache.get(LocalCache.java:3990)
+	at com.google.common.cache.LocalCache.getOrLoad(LocalCache.java:3994)
+	at com.google.common.cache.LocalCache$LocalLoadingCache.get(LocalCache.java:4878)
+	at org.jboss.weld.util.cache.LoadingCacheUtils.getCacheValue(LoadingCacheUtils.java:71)
+	... 14 more
+Caused by: java.lang.TypeNotPresentException: Type reproducer.Bar not present
+	at sun.reflect.generics.factory.CoreReflectionFactory.makeNamedType(CoreReflectionFactory.java:117) [rt.jar:1.7.0_17]
+	at sun.reflect.generics.visitor.Reifier.visitClassTypeSignature(Reifier.java:125) [rt.jar:1.7.0_17]
+	at sun.reflect.generics.tree.ClassTypeSignature.accept(ClassTypeSignature.java:49) [rt.jar:1.7.0_17]
+	at sun.reflect.generics.visitor.Reifier.reifyTypeArguments(Reifier.java:68) [rt.jar:1.7.0_17]
+	at sun.reflect.generics.visitor.Reifier.visitClassTypeSignature(Reifier.java:138) [rt.jar:1.7.0_17]
+	at sun.reflect.generics.tree.ClassTypeSignature.accept(ClassTypeSignature.java:49) [rt.jar:1.7.0_17]
+	at sun.reflect.generics.repository.MethodRepository.getReturnType(MethodRepository.java:68) [rt.jar:1.7.0_17]
+	at java.lang.reflect.Method.getGenericReturnType(Method.java:244) [rt.jar:1.7.0_17]
+	at org.jboss.weld.introspector.jlr.WeldMethodImpl.of(WeldMethodImpl.java:70)
+	at org.jboss.weld.introspector.jlr.WeldClassImpl.<init>(WeldClassImpl.java:241)
+	at org.jboss.weld.introspector.jlr.WeldClassImpl.of(WeldClassImpl.java:126)
+	at org.jboss.weld.resources.ClassTransformer$TransformTypeToWeldClass.load(ClassTransformer.java:60)
+	at org.jboss.weld.resources.ClassTransformer$TransformTypeToWeldClass.load(ClassTransformer.java:51)
+	at com.google.common.cache.LocalCache$LoadingValueReference.loadFuture(LocalCache.java:3589)
+	at com.google.common.cache.LocalCache$Segment.loadSync(LocalCache.java:2374)
+	at com.google.common.cache.LocalCache$Segment.lockedGetOrLoad(LocalCache.java:2337)
+	at com.google.common.cache.LocalCache$Segment.get(LocalCache.java:2252)
+	... 18 more
+Caused by: java.lang.ClassNotFoundException: reproducer.Bar from [Module ""deployment.0d036027-2297-41de-95ae-9d2d1dd562ca.jar:main"" from Service Module Loader]
+	at org.jboss.modules.ModuleClassLoader.findClass(ModuleClassLoader.java:213) [jboss-modules.jar:1.3.3.Final-redhat-1]
+	at org.jboss.modules.ConcurrentClassLoader.performLoadClassUnchecked(ConcurrentClassLoader.java:459) [jboss-modules.jar:1.3.3.Final-redhat-1]
+	at org.jboss.modules.ConcurrentClassLoader.performLoadClassChecked(ConcurrentClassLoader.java:408) [jboss-modules.jar:1.3.3.Final-redhat-1]
+	at org.jboss.modules.ConcurrentClassLoader.performLoadClass(ConcurrentClassLoader.java:389) [jboss-modules.jar:1.3.3.Final-redhat-1]
+	at org.jboss.modules.ConcurrentClassLoader.loadClass(ConcurrentClassLoader.java:134) [jboss-modules.jar:1.3.3.Final-redhat-1]
+	at java.lang.Class.forName0(Native Method) [rt.jar:1.7.0_17]
+	at java.lang.Class.forName(Class.java:266) [rt.jar:1.7.0_17]
+	at sun.reflect.generics.factory.CoreReflectionFactory.makeNamedType(CoreReflectionFactory.java:114) [rt.jar:1.7.0_17]
+	... 34 more
+{noformat}",2014/05/06 1:21 PM
+WELD-1618,"{{Weld1368Test}} fails in JRE 1.8. 
+The archive fails to deploy with a definition exception with message SPECIALIZING_BEAN_MISSING_SPECIALIZED_TYPE.
+
+This problem does not occur in the 2.0 branch or in other JREs than 1.8.
+
+Another problem is, that the message itself is missing, the actual exception message is:
+{noformat}
+Exception message for key SPECIALIZING_BEAN_MISSING_SPECIALIZED_TYPE not found due to Can't find resource for bundle ch.qos.cal10n.util.CAL10NResourceBundle, key SPECIALIZING_BEAN_MISSING_SPECIALIZED_TYPE
+{noformat}",2014/03/11 11:23 AM
+WELD-1617,"The test {{DecorateGenericObserverTest}} fails in JRE 1.8:
+{noformat}
+java.lang.AssertionError: expected:<1> but was:<2>
+	at org.junit.Assert.fail(Assert.java:91)
+	...
+	at org.jboss.weld.tests.decorators.genericobserver.DecorateGenericObserverTest.shouldInvokeDecoratorsWhenObservingGenericEvents(DecorateGenericObserverTest.java:62)
+	...
+{noformat}
+
+Both, the decorated and the decorator methods get called twice in a single event firing.
+
+This problem does not occur in 2.0 branch, the test passes there.",2014/03/11 10:18 AM
+WELD-1600,"When a noncontextual object with injected values is serialized and later deserialized in a new container (ie. after restarting the container), the following NPE occurs:
+{code}
+java.lang.NullPointerException
+  at org.jboss.weld.annotated.slim.backed.BackedAnnotatedField$SerializationProxy.getCandidates(BackedAnnotatedField.java:114)
+  at org.jboss.weld.annotated.slim.backed.BackedAnnotatedMember$BackedAnnotatedMemberSerializationProxy.resolve(BackedAnnotatedMember.java:57)
+  at org.jboss.weld.annotated.slim.backed.BackedAnnotatedField$SerializationProxy.readResolve(BackedAnnotatedField.java:109)
+  at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+  at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+  at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+  at java.lang.reflect.Method.invoke(Method.java:606)
+  at java.io.ObjectStreamClass.invokeReadResolve(ObjectStreamClass.java:1104)
+  at java.io.ObjectInputStream.readOrdinaryObject(ObjectInputStream.java:1807)
+....
+{code}
+
+The reason is that BackedAnnotatedMemberSerializationProxy.type is null, because the type is not yet known to the container. Serializing the object and then deserializing works as expected.",2014/02/07 4:18 AM
+WELD-1526,"The container returns a wrong context path URL, resulting in: {{java.lang.NumberFormatException: For input string: ""8080home.jsf""}}",2013/10/03 7:34 AM
+WELD-1515,"The following CDI extension *fails to deploy* if Foo is not on classpath:
+
+{code}
+public class BrokenExtension implements Extension {
+    private Foo foo;
+}
+{code}
+
+However, if the missing dependency is not a field but a parent class as in the following, the extension is disregarded by the container, but the archive *deploys successfully*:
+{code}
+public class BrokenExtension extends Foo implements Extension {
+}
+{code}
+
+It would be more consistent if the behaviour from the second case applied in both cases.",2013/09/12 11:23 AM
+WELD-1500,"As soon as a conversation is marked long-running, it is assigned a cid. If the html response of the request that began the conversation contains links to resources (e.g. images) that include the cid in their urls, the browser may request these resources before the first request has finished. 
+
+Weld stores conversations in the cid-to-conversation map only at the end of a request. All requests that are received by the server before the first request has finished, will therefore receive a NonexistentConversationException.
+
+Weld should be able to look up a conversation by id as soon as the conversation is assigned an id.",2013/09/04 5:12 PM
+WELD-1906,"Caught by WildFly testsuite:
+
+org.jboss.as.test.clustering.cluster.cdi.CdiFailoverTestCase(SYNC-tcp).testGracefulUndeployFailover: <no details avaliable>
+
+org.jboss.as.test.clustering.cluster.cdi.CdiFailoverTestCase(SYNC-tcp).testGracefulSimpleFailover: <no details avaliable>
+
+
+{noformat}
+2015-03-26 16:45:15,570 ERROR [io.undertow.request] (default task-1) UT005023: Exception handling request to /cdi-failover/cdi: java.lang.NullPointerException
+        at java.util.ArrayDeque.addFirst(ArrayDeque.java:228)
+        at org.jboss.weld.injection.ThreadLocalStack$Stack.push(ThreadLocalStack.java:94)
+        at org.jboss.weld.injection.ThreadLocalStack.push(ThreadLocalStack.java:131)
+        at org.jboss.weld.bean.proxy.InjectionPointPropagatingEnterpriseTargetBeanInstance.invoke(InjectionPointPropagatingEnterpriseTargetBeanInstance.java:61)
+        at org.jboss.weld.bean.proxy.ProxyMethodHandler.invoke(ProxyMethodHandler.java:100)
+        at org.jboss.as.test.clustering.cluster.cdi.Incrementor$64999020$Proxy$_$$_Weld$EnterpriseProxy$.increment(Unknown Source)
+        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.lang.reflect.Method.invoke(Method.java:483)
+        at org.jboss.weld.bean.proxy.AbstractBeanInstance.invoke(AbstractBeanInstance.java:38)
+        at org.jboss.weld.bean.proxy.ProxyMethodHandler.invoke(ProxyMethodHandler.java:100)
+        at org.jboss.weld.proxies.Incrementor$64999020$Proxy$_$$_WeldClientProxy.increment(Unknown Source)
+        at org.jboss.as.test.clustering.cluster.cdi.CdiServlet.doGet(CdiServlet.java:56)
+        at javax.servlet.http.HttpServlet.service(HttpServlet.java:687)
+        at javax.servlet.http.HttpServlet.service(HttpServlet.java:790)
+        at io.undertow.servlet.handlers.ServletHandler.handleRequest(ServletHandler.java:86)
+        at io.undertow.servlet.handlers.security.ServletSecurityRoleHandler.handleRequest(ServletSecurityRoleHandler.java:62)
+        at io.undertow.servlet.handlers.ServletDispatchingHandler.handleRequest(ServletDispatchingHandler.java:36)
+        at org.wildfly.extension.undertow.security.SecurityContextAssociationHandler.handleRequest(SecurityContextAssociationHandler.java:78)
+        at io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+        at io.undertow.servlet.handlers.security.SSLInformationAssociationHandler.handleRequest(SSLInformationAssociationHandler.java:131)
+        at io.undertow.servlet.handlers.security.ServletAuthenticationCallHandler.handleRequest(ServletAuthenticationCallHandler.java:57)
+        at io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+        at io.undertow.security.handlers.AbstractConfidentialityHandler.handleRequest(AbstractConfidentialityHandler.java:46)
+        at io.undertow.servlet.handlers.security.ServletConfidentialityConstraintHandler.handleRequest(ServletConfidentialityConstraintHandler.java:64)
+        at io.undertow.security.handlers.AuthenticationMechanismsHandler.handleRequest(AuthenticationMechanismsHandler.java:58)
+        at io.undertow.servlet.handlers.security.CachedAuthenticatedSessionHandler.handleRequest(CachedAuthenticatedSessionHandler.java:70)
+        at io.undertow.security.handlers.NotificationReceiverHandler.handleRequest(NotificationReceiverHandler.java:50)
+        at io.undertow.security.handlers.SecurityInitialHandler.handleRequest(SecurityInitialHandler.java:76)
+        at io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+        at org.wildfly.extension.undertow.security.jacc.JACCContextIdHandler.handleRequest(JACCContextIdHandler.java:61)
+        at io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+        at io.undertow.server.handlers.PredicateHandler.handleRequest(PredicateHandler.java:43)
+        at io.undertow.servlet.handlers.ServletInitialHandler.handleFirstRequest(ServletInitialHandler.java:278)
+        at io.undertow.servlet.handlers.ServletInitialHandler.dispatchRequest(ServletInitialHandler.java:255)
+        at io.undertow.servlet.handlers.ServletInitialHandler.access$000(ServletInitialHandler.java:80)
+        at io.undertow.servlet.handlers.ServletInitialHandler$1.handleRequest(ServletInitialHandler.java:174)
+        at io.undertow.server.Connectors.executeRootHandler(Connectors.java:199)
+        at io.undertow.server.HttpServerExchange$1.run(HttpServerExchange.java:774)
+        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+        at java.lang.Thread.run(Thread.java:745)
+{noformat}",2015/03/26 11:54 AM
+WELD-1917,This is due to {{org.jboss.weld.AbstractCDI}} does not cache {{Instance}} instance.,2015/04/09 6:26 AM
+WELD-1846,"I have created a Vaadin application with Vaadin-CDI and observer method in a @ViewScoped bean not executed when an event fired when this observer declared as @Observes(notifyObserver=Reception.IF_EXISTS) and the bean exists in that scope.
+@ViewScoped is a Vaadin specific pseudo-scope created with DeltaSpike.
+I have created a [Vaadin ticket|http://dev.vaadin.com/ticket/14891], but that resolved to [DeltaSpike issue|https://issues.apache.org/jira/browse/DELTASPIKE-818] and that resolved to WELD issue.
+
+I have tried to upgrade weld-core in JBoss to 1.1.28.Final but observer still not executed.
+
+I have tested it with WELD 2.1.2 on WildFly and there the observer is executed as excepted.",2015/01/23 4:32 AM
