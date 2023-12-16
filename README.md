@@ -1,6 +1,6 @@
 # RAPT-replication-package
 
-This repository contains source code that we used to perform experiment in paper titled "RAPT".
+This repository contains source code that we used to perform experiment in paper titled "A Refactoring-Aware Pre-Trained Model for Bug Localization".
 
 The structure of this folder is as follows：
 
@@ -202,9 +202,9 @@ Then you can run the example like:
 java -jar TraceabilityModel-1.0-SNAPSHOT-jar-with-dependencies.jar -a /wildfly -s /wildfly.sqlite3
 ```
 
-## TraceScore
+### TraceScore
 
-### Dataset
+#### Dataset
 
 The following projects are all open source and can be obtained from github as code repositories. In our work, we use `xxx1.sqlite3` to represent the output of the RAT model and `xxx2.sqlite3` to represent the issue and other relevant information obtained from Jira.
 
@@ -224,7 +224,7 @@ The following projects are all open source and can be obtained from github as co
 | JGroups                 | JG   | 2011-03-20~2023-06-29 |
 | RESTEasy                | RE   | 2012-05-11~2023-06-08 |
 
-### Experiment
+#### Experiment
 
 ```sh
 python ./tracescore/stopword.py #remove the stopword in the issue table of xxx2.sqlite3
