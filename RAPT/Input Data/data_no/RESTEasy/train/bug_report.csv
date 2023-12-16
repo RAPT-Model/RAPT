@@ -1,0 +1,429 @@
+bug_report_id,bug_report_desc,bug_report_time
+RESTEASY-1711,"ResponseStreamPrematurelyClosedTest started to fail with the latest ibm jdk version:
+Java(TM) SE Runtime Environment (build pxa6480sr4fp10-20170727_01(SR4 FP10))
+
+
+{code:java}
+testStream(org.jboss.resteasy.test.response.ResponseStreamPrematurelyClosedTest)  Time elapsed: 1.182 sec  <<< ERROR!
+java.lang.ClassCastException: com.ibm.lang.management.GarbageCollectorMXBeanImpl incompatible with javax.management.NotificationEmitter
+	at org.jboss.resteasy.test.response.ResponseStreamPrematurelyClosedTest.testStream(ResponseStreamPrematurelyClosedTest.java:111)
+
+{code}
+",2017/08/30 5:26 AM
+RESTEASY-1706,"If a superclass with generic type parameters of a root resource contains resource methods with generic type parameters and JAX-RS Annotations, the JAX-RS annotations are not used.
+This case should be within the scope of the JAX-RS Annotation inheritance specification.
+
+The issue lies within the discovery process of overridden methods in superclasses / interfaces which does not resolve generic type arguments to actual types at runtime.
+The current discovery process for overridden methods iterates over all superclasses and interfaces and looks for methods with the same function signature. But because of type erasure the overridden method presents the generic parameters as Object which does not match the specific type of the implemented method at runtime.
+
+As a solution generic type parameters in method signatures have to be resolved in the course of the annotation inheritance discovery process.
+
+[https://github.com/resteasy/Resteasy/blob/3.0/resteasy-jaxrs/src/main/java/org/jboss/resteasy/core/ResourceMethodRegistry.java#L342]
+[https://github.com/resteasy/Resteasy/blob/3.0/resteasy-jaxrs/src/main/java/org/jboss/resteasy/spi/metadata/ResourceBuilder.java#L794]
+",2017/08/25 12:18 PM
+RESTEASY-1365,"Per HTTP spec, responses to HEAD requests should include Content-Length header indicating the entity size even though the entity itself is not included in response. Generic javax.servlet.http.HttpServlet.doHead() supports this as well.
+
+However, RESTEasy skips the entity serialization for HEAD requests and thus returns the wrong Content-Length: 0. In org.jboss.resteasy.core.ServerResponseWriter.writeNomapResponse():
+
+{code}
+      if (jaxrsResponse.getEntity() == null || request.getHttpMethod().equalsIgnoreCase(""HEAD""))
+      {
+         response.setStatus(jaxrsResponse.getStatus());
+         commitHeaders(jaxrsResponse, response);
+         return;
+      }
+{code}
+
+Note this happens after the resource method already built the response, so all we're saving here is serialization -- the heavy lifting of building the response already occurred.",2016/05/17 4:24 PM
+RESTEASY-1331,According to [javadoc|https://jsr311.java.net/nonav/javadoc/javax/ws/rs/core/UriInfo.html#getQueryParameters()] UriInfo.getQueryParameters() should return an unmodifiable map of query parameter names and values.,2016/03/29 5:35 AM
+RESTEASY-1322,"When both LastModifiedDate and ETag are passed to [evaluatePreconditions(java.util.Date lastModified, EntityTag eTag)|http://docs.oracle.com/javaee/6/api/javax/ws/rs/core/Request.html#evaluatePreconditions(java.util.Date, javax.ws.rs.core.EntityTag)] method, RestEasy will return NotModifies status code if any of them match with request headers.
+
+However ETag should have higher priority.
+
+Extract from [RFC 7232|https://tools.ietf.org/html/rfc7232]:
+
+bq. A recipient must ignore If-Modified-Since if the request contains an If-None-Match header field; the condition in If-None-Match is considered to be a more accurate replacement for the condition in If-Modified-Since, and the two are only combined for the sake of interoperating with older intermediaries that might not implement If-None-Match.
+
+bq. A recipient MUST ignore If-Unmodified-Since if the request contains an If-Match header field; the condition in If-Match is considered to be a more accurate replacement for the condition in If-Unmodified-Since, and the two are only combined for the sake of interoperating with older intermediaries that might not implement If-Match.",2016/03/10 3:54 PM
+RESTEASY-1314,The {{resteasy-multipart-provider}} declares an old style JavaMail dependency on {{mail}} instead of a new style JavaMail dependency on {{javax.mail}}.  The {{pom.xml}} files can be cleaned up to be consistent with the latest convention.,2016/03/06 2:38 PM
+RESTEASY-1306,"The javadoc [1] for javax.ws.rs.core Configurable interface says that:
+
+""An existing property can be removed by assigning a null value to the property. ""
+
+ClientWebTarget.property(some_property, null) throws a null pointer exception instead of clearing the property value.
+
+ ResteasyProviderFactory.property() method can remove the property if the value of the property is null (this was fixed in 3.0.12-Final via https://issues.jboss.org/browse/RESTEASY-1184), but ClientWebTarget remains unchanged and does not take advantage of this ability.
+
+[1] http://docs.jboss.org/resteasy/docs/3.0.9.Final/javadocs/index.html
+",2016/02/23 6:24 PM
+RESTEASY-1261,"When creating a {{UriBuilder}} from a String and building it the fragment is URL encoded using {{Encode.encodeFragment(fragment)}}. This will encode characters which are not valid in the fragment, but also the '=' and '/' characters which are valid in the fragment according to [RFC3986|http://ietf.org/rfc/rfc3986.txt] 3.5. 
+
+So for example:
+{{UriBuilder.fromUri(""https://www.youtube.com/watch?v=6exFuFJhfcA#t=6h07m01s"").build().toString()}}
+results in
+{{https://www.youtube.com/watch?v=6exFuFJhfcA#t%3D6h07m01s}}
+while {{https://www.youtube.com/watch?v=6exFuFJhfcA#t=6h07m01s}} is expected.",2015/11/11 9:58 AM
+RESTEASY-1193,"Correctly handle requests with an absolute URI in the request line, like:
+
+GET http://www.example.com/testContent HTTP/1.1
+Host: www.example.com
+
+Prior to this patch, the Netty connector would interpret the above as:
+
+http://www.example.comhttp://www.example.com/testContent
+
+That is clearly wrong!",2015/07/06 3:01 AM
+RESTEASY-1185,"This is documented as user should get warning in the javax.ws.rs.core Configurable interface.
+The 2nd registration of the *instance* provider gives the warning.
+The 2nd registration of the *class* provider doesn't give the warning.",2015/06/16 11:24 AM
+RESTEASY-1184,"The javadoc [1] for javax.ws.rs.core Configurable interface says that:
+
+""An existing property can be removed by assigning a null value to the property. ""
+
+By client.property(some_property, null) this is not possible.
+ResteasyProviderFactory.property() method only adds the properties, but has no way to remove it if the value of the property is null.
+
+[1] http://docs.jboss.org/resteasy/docs/3.0.9.Final/javadocs/index.html
+",2015/06/16 8:45 AM
+RESTEASY-1172,"Properties from javax.ws.rs.core.Application.getProperties are not registered by ResteasyProviderFactory.
+ResteasyDeployment.processApplication() seems to only care about Application.getClasses() and Application.getSingletons() not Application.getProperties()",2015/04/28 4:30 PM
+RESTEASY-1156,"Doc link:
+
+http://docs.jboss.org/resteasy/docs/3.0.9.Final/userguide/html/Installation_Configuration.html#upgrading-eap61
+
+RESTEasy 3 is not supported outside of community, so telling EAP users to replace supported bits with unsupported ones is not a good idea.  At the very least, a note about loss of supportability should be added.",2015/02/17 12:51 PM
+RESTEASY-1099,"This is a follow-up to RESTEASY-1050 but at a higher level (i.e. not ""what you should have done"", but what actually breaks with the current implementation).
+
+{{setRequestUri}} (either flavor) will compute a new {{getBaseUri}} by stripping the path of the new {{getRequestURI}}. This leads do:
+
+* broken links when you construct them with {{uriInfo.getBaseUriBuilder().path(SomeRootResource.class).build())}} and your application base URI is supposed to have a non-empty path
+* broken resource matching when using the 2-args flavor. E.g. if you have a resource at {{/bar}} and use {{setRequestUri(""/foo/"", ""/foo/bar"")}} (pseudo-code), you'd expect the ""application-specific request URI part"" to be resolved as {{/bar}} (relative to a base URI of {{/foo}}) and match your resource, but it's actually resolved as {{/foo/bar}} (relative to a base URI of {{/}}) and fails to match your resource.
+
+The way the base URI is computed, it also keeps the query parameters from request URI, which makes it dependent upon the request URI and unusable as-is as an invariant between requests. While the spec is not explicit about this, I'd expect the base URI to never contain query or fragment parts.
+
+FYI, my use-case is implementing a filter that reads a {{X-Forwarded-Proto}} set by a reverse-proxy and conditionally calling {{setRequestUri}} with the base and request URIs rewritten with an {{https}} scheme:
+
+{code}
+if (""https"".equalsIgnoreCase(requestContext.getHeaderString(""X-Forwarded-Proto""))) {
+  requestContext.setRequestUri(
+      requestContext.getUriInfo().getBaseUriBuilder().scheme(""https"").build(),
+      requestContext.getUriInfo().getRequestUriBuilder().scheme(""https"").build());
+{code}
+
+My ""initial"" base URI doesn't have a path part so I'm not affected by the first issues listed above, but I want to use the base URI as an ""iss"" in a JWT used for OpenID Connect, and it currently contains the query params which later breaks code that validates the ""iss"" (e.g. the OpenID Connect ""end_session_endpoint"" validating the id_token_hint). Fortunately, the workaround is easy: use {{getBaseUriBuilder().replaceQuery(null).build()}} instead of {{getBaseUri()}}.",2014/08/19 10:53 AM
+RESTEASY-1098,"Changes to the request URI made by {{setRequestUri}} in a pre-matching filter aren't reflected in the {{UriInfo}} object injected into resources.
+
+Technically, the {{UriInfo}} instance in the *context-data map* is not replaced, and {{setRequestUri}} doesn't update the object in place (see RESTEASY-1097) but creates a new object.",2014/08/19 9:58 AM
+RESTEASY-1097,"{{setRequestUri}} is supposed to update the object returned by {{getUriInfo}}, not to make {{getUriInfo}} return a new object.
+
+The javadoc for {{getUriInfo}} says:
+
+{quote}
+The returned object contains ""live"" view of the request URI information in
+a sense that any changes made to the request URI using one of the
+{{setRequestUri(...)}} methods will be reflected in the previously
+returned UriInfo instance.
+{quote}
+
+— Source: https://jax-rs-spec.java.net/nonav/2.0/apidocs/javax/ws/rs/container/ContainerRequestContext.html#getUriInfo%28%29",2014/08/19 9:51 AM
+RESTEASY-1093,"When a request is made to a resteasy-netty4 endpoint with the ""Connection:close"" header, the response does not contain a ""Connection:close header"". This is causing the request that follows it to try and re-use the closed connection as the client has not closed the connection on its side. The 2nd request in this case fails.
+
+To reproduce:
+* Create a jmeter http request sampler with keep alive off
+* Send 10 requests from one user (thread)
+* Notice that every 2nd request fails
+
+Using wireshark it can be seen that a RST tcp packet is being sent from the server to the client on every second request.
+
+Pull request for a fix is attached.",2014/08/18 9:55 AM
+RESTEASY-1090,"When making Http requests the response is hanging when the same thread that processed the last one is used. It seems that the wrong type of Netty response object is being returned. A non streaming request currently returns a DefaultHttpResponse object when we actually require a DefaultFullHttpResponse.
+
+Pull request to follow shortly. (Now linked to ticket)
+
+To replicate:
+
+* Make two requests to the same endpoint on any resteasy powered application.
+* The response must have a 0 length entity body. (A 204 no content or an empty 200 OK will suffice.)
+
+or
+
+* Run the unit tests in the resteasy project
+",2014/08/13 9:48 AM
+RESTEASY-1080,"The DataSourceProvider ({{org.jboss.resteasy.plugins.providers.DataSourceProvider.readDataSource(InputStream, MediaType)}}) creates a temporary file named ""resteasy-provider-datasource ... .tmp"" when reading more then 4096 bytes. However, it does not delete the created temporary file itself nor does it provide a facility to do so. This results in a resource leak!
+",2014/06/24 4:06 AM
+RESTEASY-1047,"Example:
+{code:title=Hello.java}
+public interface Hello<T> {
+
+	   @POST
+	   @Path(""/hello"")
+	   @Produces(""text/plain"")
+	   @Consumes(""text/plain"")
+	   String sayHi(T in);
+}
+{code}
+{code:title=HelloString.java}
+@Path(value = ""/say"")
+public interface HelloString extends Hello<String> {
+
+}
+{code}
+
+The following code
+{code}
+ResteasyClient client = new ResteasyClientBuilder().build();
+		   ResteasyWebTarget target = client.target(""http://localhost:9095"");
+		   HelloString proxy = target.proxy(HelloString.class);
+		   String hello = proxy.sayHi(""hello"");
+{code}
+
+results in
+{code}
+java.lang.IllegalArgumentException: The type is incompatible with the class of the entity.
+	at javax.ws.rs.core.GenericEntity.checkTypeCompatibility(GenericEntity.java:173)
+	at javax.ws.rs.core.GenericEntity.<init>(GenericEntity.java:152)
+	at org.jboss.resteasy.client.jaxrs.internal.proxy.processors.invocation.MessageBodyParameterProcessor.process(MessageBodyParameterProcessor.java:35)
+	at org.jboss.resteasy.client.jaxrs.internal.proxy.ClientInvoker.createRequest(ClientInvoker.java:135)
+	at org.jboss.resteasy.client.jaxrs.internal.proxy.ClientInvoker.invoke(ClientInvoker.java:101)
+	at org.jboss.resteasy.client.jaxrs.internal.proxy.ClientProxy.invoke(ClientProxy.java:62)
+{code}",2014/04/05 5:44 AM
+RESTEASY-1020,"{{MockHttpRequest}} {{cookie()}} tries to add a cookie to {{httpHeaders.getCookies()}}, but this map is read-only.
+
+IMO, the best outcome for this would be to either:
+
+* add a {{getMutableCookies()}} to {{ResteasyHttpHeaders}}, similar to the {{getMutableHeaders()}}, and use that instead of {{getCookies()}} to implement the cookie() method
+* remove (deprecate?) the {{cookie()}} method and add a {{setCookies()} that just calls {{httpHeaders.setCookies()}}.
+
+There's also the possibility of automatically parsing the cookies out of the cookie headers if they've not been set explicitly (even to an empty map), but because it would be a change in {{ResteasyHttpHeaders}} it would have much more chances to break something else in Resteasy.
+
+Workaround: fortunately, {{MockHttpRequest}} is not {{final}}, and it's relatively easy to _deep copy_ a {{MockHttpRequest}} constructed from the static factory methods.",2014/02/20 7:49 AM
+RESTEASY-999,"Parameter converters are not found, during resource factory initialization, if bindings are not strictly ordered. 
+
+Example:
+- Resource {{R}} uses type {{T}} as QueryParam or PathParam 
+- Type {{T}} does not have a constructor with String parameters or valueOf(String) method
+- ParamConverter {{C}} is can convert from String to {{T}} and vice versa and is defined via a ParamConverterProvider {{P}}
+
+If the binding order is
+# {{bind(P.class)}}
+# {{bind(R.class)}}
+
+everything works just fine, but, if the resource class is bound before the converter provider, the standard exception regarding missing conversion information is shown
+
+{noformat}
+java.lang.RuntimeException: Unable to find a constructor that takes a String param or a valueOf() or fromString() method for javax.ws.rs.QueryParam(""<paramName>"") on public <className>.<methodName>(<methodParams>) for basetype: <typeName>
+	at org.jboss.resteasy.core.StringParameterInjector.initialize(StringParameterInjector.java:217)
+	at org.jboss.resteasy.core.StringParameterInjector.<init>(StringParameterInjector.java:61)
+	at org.jboss.resteasy.core.QueryParamInjector.<init>(QueryParamInjector.java:28)
+	at org.jboss.resteasy.core.InjectorFactoryImpl.createParameterExtractor(InjectorFactoryImpl.java:85)
+	at org.jboss.resteasy.core.MethodInjectorImpl.<init>(MethodInjectorImpl.java:41)
+	at org.jboss.resteasy.core.InjectorFactoryImpl.createMethodInjector(InjectorFactoryImpl.java:76)
+	at org.jboss.resteasy.core.ResourceMethodInvoker.<init>(ResourceMethodInvoker.java:97)
+	at org.jboss.resteasy.core.ResourceMethodRegistry.processMethod(ResourceMethodRegistry.java:280)
+	at org.jboss.resteasy.core.ResourceMethodRegistry.register(ResourceMethodRegistry.java:251)
+	at org.jboss.resteasy.core.ResourceMethodRegistry.addResourceFactory(ResourceMethodRegistry.java:221)
+	at org.jboss.resteasy.core.ResourceMethodRegistry.addResourceFactory(ResourceMethodRegistry.java:193)
+	at org.jboss.resteasy.core.ResourceMethodRegistry.addResourceFactory(ResourceMethodRegistry.java:179)
+	at org.jboss.resteasy.core.ResourceMethodRegistry.addResourceFactory(ResourceMethodRegistry.java:156)
+	at org.jboss.resteasy.plugins.guice.ModuleProcessor.processInjector(ModuleProcessor.java:41)
+	at org.jboss.resteasy.plugins.guice.GuiceContextTest.testArbitraryInjection(GuiceContextTest.java:93)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at org.junit.internal.runners.TestMethodRunner.executeMethodBody(TestMethodRunner.java:99)
+	at org.junit.internal.runners.TestMethodRunner.runUnprotected(TestMethodRunner.java:81)
+	at org.junit.internal.runners.BeforeAndAfterRunner.runProtected(BeforeAndAfterRunner.java:34)
+	at org.junit.internal.runners.TestMethodRunner.runMethod(TestMethodRunner.java:75)
+	at org.junit.internal.runners.TestMethodRunner.run(TestMethodRunner.java:45)
+	at org.junit.internal.runners.TestClassMethodsRunner.invokeTestMethod(TestClassMethodsRunner.java:71)
+	at org.junit.internal.runners.TestClassMethodsRunner.run(TestClassMethodsRunner.java:35)
+	at org.junit.internal.runners.TestClassRunner$1.runUnprotected(TestClassRunner.java:42)
+	at org.junit.internal.runners.BeforeAndAfterRunner.runProtected(BeforeAndAfterRunner.java:34)
+	at org.junit.internal.runners.TestClassRunner.run(TestClassRunner.java:52)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:121)
+	at com.intellij.junit4.JUnit4IdeaTestRunner.startRunnerWithArgs(JUnit4IdeaTestRunner.java:74)
+	at com.intellij.rt.execution.junit.JUnitStarter.prepareStreamsAndStart(JUnitStarter.java:202)
+	at com.intellij.rt.execution.junit.JUnitStarter.main(JUnitStarter.java:65)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+	at com.intellij.rt.execution.application.AppMain.main(AppMain.java:120)
+{noformat}",2013/12/05 10:18 AM
+RESTEASY-982,"This relates to the {{jaxrs/security/resteasy-crypto}} module...
+
+When you do a full build (including unit tests) you will see that there are 3 files that have been modified:
+* python_encrypted_signed.txt
+* smime_signed.txt
+* smime_signed_bad.txt
+
+These files are created (or modified) every time the unit tests are run.  Artifacts such as these should be under the {{target}} folder so that a {{mvn clean}} properly disposes and resets the build environment.",2013/10/26 9:19 PM
+RESTEASY-980,"The {{pom.xml}} specifies the following:
+{code:xml}
+<scm>
+  <connection>scm:svn:https://resteasy.svn.sourceforge.net/svnroot/resteasy/trunk/jaxrs</connection>
+  <developerConnection>scm:svn:https://resteasy.svn.sourceforge.net/svnroot/resteasy/trunk/jaxrs</developerConnection>
+  <url>http://resteasy.svn.sourceforge.net/viewvc/resteasy/trunk/jaxrs</url>
+</scm>
+{code}
+
+But this should reference Git instead:
+{code:xml}
+<scm>
+  <connection>scm:git:git://github.com/resteasy/Resteasy.git</connection>
+  <developerConnection>scm:git:git@github.com:resteasy/Resteasy.git</developerConnection>
+  <url>http://github.com/resteasy/Resteasy/tree/master/</url>
+</scm>
+{code}
+
+",2013/10/24 2:27 AM
+RESTEASY-820,"For the example QueryParam into ""incoming:""
+@QueryParam(""foo"") String incoming;
+
+This ought be a valid query string:
+/endpoint?foo=weird=but=valid&bar=randal
+
+The bug is that instead of ""incoming"" being ""weird=but=valid"", ""incoming""'s value is truncated down to ""weird"".
+
+As for ""why,"" this somewhat weird url usage is required to implement a server side version of the ""AfterQuery"" selection engine: https://github.com/apenwarr/afterquery/blob/master/help.md",2013/01/23 5:12 PM
+RESTEASY-774,"http://docs.jboss.org/resteasy/docs/2.3.4.Final/userguide/html_single/index.html#Multipart
+
+e.g. in 22.12. @Consumes(MediaType.MULTIPART_RELATED) but valid is MultipartConstants.MULTIPART_RELATED , the same bug seems to exist in EAP user guide",2012/09/27 8:02 AM
+RESTEASY-701,"On line 40 of DecoratorMatcher, it doesn't check whether {code}targetClass.isAssignableFrom(annotation.annotationType().getAnnotation(Decorator.class).target()){code}.
+
+This could result (and does) in a ClassCastException in the DecoratorProcessor which is called. ",2012/05/11 11:12 AM
+RESTEASY-2996,"The shared byte array [here|https://github.com/resteasy/Resteasy/blob/4.7.1.Final/server-adapters/resteasy-reactor-netty/src/main/java/org/jboss/resteasy/plugins/server/reactor/netty/ChunkOutputStream.java#L149] is passed on to the NettyOutbound#sendByteArray to write the response [here|https://github.com/resteasy/Resteasy/blob/4.7.1.Final/server-adapters/resteasy-reactor-netty/src/main/java/org/jboss/resteasy/plugins/server/reactor/netty/ChunkOutputStream.java#L70].  
+
+As the [future|https://github.com/resteasy/Resteasy/blob/4.7.1.Final/server-adapters/resteasy-reactor-netty/src/main/java/org/jboss/resteasy/plugins/server/reactor/netty/ChunkOutputStream.java#L141] is [completed prematurely|https://github.com/resteasy/Resteasy/blob/4.7.1.Final/server-adapters/resteasy-reactor-netty/src/main/java/org/jboss/resteasy/plugins/server/reactor/netty/ChunkOutputStream.java#L66] without relying on the actual completion of the consumption of the byte array by the sendByteArray, the byte array is loaded with the next chunk while the NettyOutbound#sendByteArray is using the same byte array reference to write the response and this is causing incomplete response writes. ",2021/09/01 10:53 AM
+RESTEASY-2982,"The {{ClientHttpEngineBuilder43.build()}} loads the {{ClientConfigProvider}} via a service loader. This is not done in a privileged action requiring users to explicitly add permissions. The service loader iteration should happen in a privileged action to avoid the user having to add overly verbose file permissions.
+
+{code:title=Snippet}
+Iterator clientConfigProviderIterator = ServiceLoader.load(ClientConfigProvider.class).iterator();
+...
+// Fails here
+  } else if (clientConfigProviderIterator.hasNext())
+   {
+      // delegate creation of socket to ClientConfigProvider implementation
+      final ClientConfigProvider configProvider = ((ClientConfigProvider) clientConfigProviderIterator.next());
+{code}",2021/08/04 10:41 PM
+RESTEASY-2968,"There are failing about 30 test classes when running integration tests against bootable-jar, because of missing {{org.jboss.resteasy.resteasy-rxjava2}} module
+
+{noformat}
+[ERROR] org.jboss.resteasy.test.rx.rxjava2.Rx2SingleTest  Time elapsed: 0.007 s  <<< ERROR!
+org.jboss.arquillian.container.spi.client.container.DeploymentException: 
+Cannot deploy Rx2SingleTest.war: {""WFLYCTL0062: Composite operation failed and was rolled back. Steps that failed:"" => {""Operation step-1"" => {""WFLYCTL0080: Failed services"" => {""jboss.module.service.\""deployment.Rx2SingleTest.war\"".main"" => ""WFLYSRV0179: Failed to load module: deployment.Rx2SingleTest.war
+    Caused by: org.jboss.modules.ModuleNotFoundException: org.jboss.resteasy.resteasy-rxjava2""}}}}
+...
+{noformat}
+
+This is caused by doubled {{includedPackages}} element of bootable jar Maven configuration: https://github.com/resteasy/Resteasy/blob/3.15/testsuite/integration-tests/pom.xml#L255-L266 Just to second occurrence is taken into account.",2021/07/14 2:28 PM
+RESTEASY-2953,"Script, enable-elytron-full-cli alters standalone-full.xml. The default
+run scenario installs a fresh wfly version for every module in testsuite,
+hence altering standalone-full.xml is not an issue. But this breaks testing
+when using -Dserver.home. The 2nd running of enable-elytron-full-cli throws
+the following error because an element can not be added when it already exists
+in standalone-full.xml.
+{code:java}
+[ERROR] Failed to execute goal org.wildfly.plugins:wildfly-maven-plugin:2.1.0.Beta1:execute-commands 
+(enable-elytron-full-cli) on project resteasy-integration-tests: Failed to execute commands: 
+See /home/rsearls/j1/Resteasy/testsuite/integration-tests/target/elytron-config.out for 
+full details of failure.
+[ERROR]     (\""application-security-domain\"" => \""other\"")
+[ERROR] ]"",
+[ERROR]     ""rolled-back"" => true
+[ERROR] }
+{code}",2021/06/26 3:13 PM
+RESTEASY-2925,"Parsing of a string into a *`javax.ws.rs.core.NewCookie`* instance return inconsistent result when the string contains attributes other that the standards ones (path, domain, secure...).
+
+ ",2021/06/09 9:20 PM
+RESTEASY-2915,"There has been introduced a [MicroProfileDependent|https://github.com/resteasy/Resteasy/commit/a94b72ace15575d6fcadb3d578bcc8bd12ee3dc6#diff-e675aa8ad9eaccceaa763dd74e09334b824d63276d1466435615a1bbb62a903dR6] class (RESTEASY-2406) into a 3.15 branch that serves as a category marker for MicroProfile tests so it is possible to disable them via a maven profile.
+
+Not all tests in `microprofile` directory of `integration-tests` are marked by this category at the moment. I'm not sure whether the point was to have all of them marked, but at least some more would be nice to mark in spite of recent removals of MicroProfile subsystems from {{JBoss EAP 7.4.0}} release. As a result following test cases now fails when Resteasy TS is executed against {{JBoss EAP 7.4.0}} due to the `NoClassDefFoundError` or `Unsatisfied dependencies`:
+{code:java}
+MicroProfileConfigFilterTest.java
+MicroProfileConfigServletTest.java
+MPClientCollectionTest.java
+RestClientProxyRedeployTest.java
+RestClientProxyTest.java
+{code}
+Adding these the `MicroProfileDependent` category eases the situation of disabling those tests via an appropriate profile (`microprofile.off`).
+----
+Since `MicroProfileDependent`category is not available in latest branches, having this change in `3.15` branch is enough for us for now.",2021/06/02 7:07 AM
+RESTEASY-2914,This issue was identified in a scenario that the exception' object is delegated to a task that works in other threads. As it uses the iterator on ResteasyViolationException#toString and it calls the convertViolations method (that modifies the violationLists) it can generate an issue if called concurrently. I have seen it on 3.9.3.SP1-redhat-00001.,2021/06/01 3:47 PM
+RESTEASY-2913,"Based on the discussion in WFLY-14737 the [JacksonDataTypeTest#testDatatypeNotSupportedDuration|https://github.com/resteasy/Resteasy/blob/1738509c298976caa57c2aed623f491b6f18a354/testsuite/integration-tests/src/test/java/org/jboss/resteasy/test/providers/jackson2/JacksonDatatypeTest.java#L111-L119] test doesn't make sense anymore since it tests scenario in which we will always get {{InvalidDefinitionException}} now. Since there is appropriate [JacksonDatatypeTest#testDatatypeSupportedDuration|https://github.com/resteasy/Resteasy/blob/1738509c298976caa57c2aed623f491b6f18a354/testsuite/integration-tests/src/test/java/org/jboss/resteasy/test/providers/jackson2/JacksonDatatypeTest.java#L161-L169] test counterpart for a supported situation, I believe it is safe to just remove this problematic test.",2021/06/01 12:27 PM
+RESTEASY-2912,"Name of [JsonpMPtest|https://github.com/resteasy/Resteasy/blob/main/testsuite/integration-tests/src/test/java/org/jboss/resteasy/test/microprofile/restclient/JsonpMPtest.java] causes that it is not detected and executed by surefire-plugin automatically, [see Inclusions|https://maven.apache.org/surefire/maven-surefire-plugin/examples/inclusion-exclusion.html].
+
+Correct name for this class should be {{JsonpMPTest}}.",2021/05/28 9:03 AM
+RESTEASY-2910,Do not skip the {{maven-install-plugin}} or {{maven-jar-plugin}} for test components. Skipping this requires you to build these components if you want to run single tests in a different module. There is no harm in installing these locally and will be require for future CI enhanements.,2021/05/27 10:34 PM
+RESTEASY-2905,"Per the analysis by [~ropalka] of JPMS --add-opens calls needed by WildFly when running on SE 16+ (see [1]), we need --add-opens=java.base/java.lang.invoke=ALL-UNNAMED due to this:
+
+{code}
+Caused by: java.lang.reflect.InaccessibleObjectException: Unable to make java.lang.invoke.MethodHandles$Lookup(java.lang.Class) accessible: module java.base does not ""opens java.lang.invoke"" to unnamed module @7cdb1e58
+    at java.base/java.lang.reflect.AccessibleObject.checkCanSetAccessible(AccessibleObject.java:357)
+    at java.base/java.lang.reflect.AccessibleObject.checkCanSetAccessible(AccessibleObject.java:297)
+    at java.base/java.lang.reflect.Constructor.checkCanSetAccessible(Constructor.java:188)
+    at java.base/java.lang.reflect.Constructor.setAccessible(Constructor.java:181)
+    at org.jboss.resteasy.resteasy-client-microprofile@3.15.1.Final//org.jboss.resteasy.microprofile.client.header.HeaderUtils.createMethodHandle(HeaderUtils.java:31)
+    at org.jboss.resteasy.resteasy-client-microprofile@3.15.1.Final//org.jboss.resteasy.microprofile.client.header.DefaultHeaderFiller.<init>(DefaultHeaderFiller.java:40)
+    at org.jboss.resteasy.resteasy-client-microprofile@3.15.1.Final//org.jboss.resteasy.microprofile.client.header.DefaultHeaderFillerFactory.createFiller(DefaultHeaderFillerFactory.java:19)
+    at org.jboss.resteasy.resteasy-client-microprofile@3.15.1.Final//org.jboss.resteasy.microprofile.client.header.ClientHeaderGenerator.<init>(ClientHeaderGenerator.java:35)
+    at org.jboss.resteasy.resteasy-client-microprofile@3.15.1.Final//org.jboss.resteasy.microprofile.client.header.ClientHeaderProvider.forMethod(ClientHeaderProvider.java:32)
+    at org.jboss.resteasy.resteasy-client-microprofile@3.15.1.Final//org.jboss.resteasy.microprofile.client.header.ClientHeaderProviders.registerForMethod(ClientHeaderProviders.java:98)
+    at org.jboss.resteasy.resteasy-client-microprofile@3.15.1.Final//org.jboss.resteasy.microprofile.client.header.ClientHeaderProviders.lambda$registerForClass$0(ClientHeaderProviders.java:72)
+    at java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:948)
+    at java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:762)
+    at org.jboss.resteasy.resteasy-client-microprofile@3.15.1.Final//org.jboss.resteasy.microprofile.client.header.ClientHeaderProviders.registerForClass(ClientHeaderProviders.java:72)
+    at org.jboss.resteasy.resteasy-client-microprofile@3.15.1.Final//org.jboss.resteasy.microprofile.client.RestClientBuilderImpl.build(RestClientBuilderImpl.java:341)
+    at deployment.InvalidInterfaceTest.war//org.eclipse.microprofile.rest.client.tck.InvalidInterfaceTest.testExceptionThrownWhenMultipleClientHeaderParamsSpecifySameHeaderOnMethod(InvalidInterfaceTest.java:90)
+{code}
+
+The smallrye faulttolerance project has code similar to what HeaderUtils does[2] but they use a multi-release jar to provide a different implementation on JDK9+[3].  If that approach is suitable to RESTEasy it would be nice as it would eliminate the need for WildFly to open that module/package.
+
+
+[1] WFCORE-5406 attachment file https://issues.redhat.com/secure/attachment/12523672/modular-params-needed-analysis.txt
+
+[2] https://github.com/smallrye/smallrye-fault-tolerance/blob/main/implementation/fault-tolerance/src/main/java/io/smallrye/faulttolerance/DefaultMethodFallbackProvider.java
+
+[3] https://github.com/smallrye/smallrye-fault-tolerance/blob/main/implementation/fault-tolerance/src/main/java9/io/smallrye/faulttolerance/DefaultMethodFallbackProvider.java",2021/05/24 3:33 PM
+RESTEASY-2874,"When invoking requests via a proxied client of T created via org.jboss.resteasy.client.jaxrs.ResteasyWebTarget#proxy(Class) the behaviour of mime types for javax.ws.rs.HeaderParam(""Content-Type"") seems inconsistent.
+
+If I have a resource that can consume multiple mime types I would expect to be able to pass a type into my proxied client via a header param and have that type favoured in negotiation.
+
+I have attempted to work around this with client filters which also experience some interesting behaviour that I was not able to find documented.
+
+ 
+
+https://gist.github.com/tcooper-uk/70407fcf3ea4a3b9a811470b06d37d71",2021/04/22 1:31 PM
+RESTEASY-2872,"Using Quarkus I found I could not use an Uni or CompletionStage as the return type of a File upload.   I have identified the issue as being caused by the @MultipartForm annotation being ignored.   Through tracing, I have tracked down the issue to the invokeAsync method of ClientInvoker not passing the entity annotations to the invoker method.
+
+ 
+
+I can create a pull request with the fix for this issue. 
+
+ 
+
+This is the specific error message. 
+{code:java}
+Apr 21, 2021 2:21:38 PM org.jboss.resteasy.core.SynchronousDispatcher unhandledAsynchronousExceptionApr 21, 2021 2:21:38 PM org.jboss.resteasy.core.SynchronousDispatcher unhandledAsynchronousExceptionERROR: RESTEASY002020: Unhandled asynchronous exception, sending back 500javax.ws.rs.ProcessingException: RESTEASY003215: could not find writer for content-type multipart/form-data type: org.acme.rest.client.multipart.MultipartBody at org.jboss.resteasy.core.interception.jaxrs.ClientWriterInterceptorContext.throwWriterNotFoundException(ClientWriterInterceptorContext.java:50) at org.jboss.resteasy.core.interception.jaxrs.AbstractWriterInterceptorContext.getWriter(AbstractWriterInterceptorContext.java:302) at org.jboss.resteasy.core.interception.jaxrs.AbstractWriterInterceptorContext.syncProceed(AbstractWriterInterceptorContext.java:240) at org.jboss.resteasy.core.interception.jaxrs.AbstractWriterInterceptorContext.proceed(AbstractWriterInterceptorContext.java:224) at org.jboss.resteasy.client.jaxrs.internal.ClientInvocation.writeRequestBody(ClientInvocation.java:440) at org.jboss.resteasy.client.jaxrs.engines.URLConnectionEngine.executeRequest(URLConnectionEngine.java:209) at org.jboss.resteasy.client.jaxrs.engines.URLConnectionEngine.invoke(URLConnectionEngine.java:58) at org.jboss.resteasy.client.jaxrs.internal.ClientInvocation.invoke(ClientInvocation.java:488) at org.jboss.resteasy.client.jaxrs.internal.ClientInvocation.lambda$executorSubmit$11(ClientInvocation.java:765) at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1700) at org.jboss.resteasy.microprofile.client.async.AsyncInvocationInterceptorHandler$Decorator.lambda$decorate$0(AsyncInvocationInterceptorHandler.java:29) at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128) at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628) at java.base/java.lang.Thread.run(Thread.java:834)java.lang.AssertionError: 1 expectation failed.Expected status code <200> but was <500>. at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method) at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:62) at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45) at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:490) at org.codehaus.groovy.reflection.CachedConstructor.invoke(CachedConstructor.java:80) at org.codehaus.groovy.reflection.CachedConstructor.doConstructorInvoke(CachedConstructor.java:74) at org.codehaus.groovy.runtime.callsite.ConstructorSite$ConstructorSiteNoUnwrap.callConstructor(ConstructorSite.java:84) at org.codehaus.groovy.runtime.callsite.CallSiteArray.defaultCallConstructor(CallSiteArray.java:59) at org.codehaus.groovy.runtime.callsite.AbstractCallSite.callConstructor(AbstractCallSite.java:237) at org.codehaus.groovy.runtime.callsite.AbstractCallSite.callConstructor(AbstractCallSite.java:249) at io.restassured.internal.ResponseSpecificationImpl$HamcrestAssertionClosure.validate(ResponseSpecificationImpl.groovy:493) at io.restassured.internal.ResponseSpecificationImpl$HamcrestAssertionClosure$validate$1.call(Unknown Source) at org.codehaus.groovy.runtime.callsite.CallSiteArray.defaultCall(CallSiteArray.java:47) at org.codehaus.groovy.runtime.callsite.AbstractCallSite.call(AbstractCallSite.java:115) at org.codehaus.groovy.runtime.callsite.AbstractCallSite.call(AbstractCallSite.java:127) at io.restassured.internal.ResponseSpecificationImpl.validateResponseIfRequired(ResponseSpecificationImpl.groovy:674) at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62) at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) at java.base/java.lang.reflect.Method.invoke(Method.java:566) at org.codehaus.groovy.runtime.callsite.PlainObjectMetaMethodSite.doInvoke(PlainObjectMetaMethodSite.java:43) at org.codehaus.groovy.runtime.callsite.PogoMetaMethodSite$PogoCachedMethodSiteNoUnwrapNoCoerce.invoke(PogoMetaMethodSite.java:190) at org.codehaus.groovy.runtime.callsite.PogoMetaMethodSite.callCurrent(PogoMetaMethodSite.java:58) at org.codehaus.groovy.runtime.callsite.CallSiteArray.defaultCallCurrent(CallSiteArray.java:51) at org.codehaus.groovy.runtime.callsite.AbstractCallSite.callCurrent(AbstractCallSite.java:156) at org.codehaus.groovy.runtime.callsite.AbstractCallSite.callCurrent(AbstractCallSite.java:168) at io.restassured.internal.ResponseSpecificationImpl.statusCode(ResponseSpecificationImpl.groovy:126) at io.restassured.specification.ResponseSpecification$statusCode$0.callCurrent(Unknown Source) at org.codehaus.groovy.runtime.callsite.CallSiteArray.defaultCallCurrent(CallSiteArray.java:51) at org.codehaus.groovy.runtime.callsite.AbstractCallSite.callCurrent(AbstractCallSite.java:156) at org.codehaus.groovy.runtime.callsite.AbstractCallSite.callCurrent(AbstractCallSite.java:168) at io.restassured.internal.ResponseSpecificationImpl.statusCode(ResponseSpecificationImpl.groovy:134) at io.restassured.internal.ValidatableResponseOptionsImpl.statusCode(ValidatableResponseOptionsImpl.java:89) at io.restassured.internal.ValidatableResponseImpl.super$2$statusCode(ValidatableResponseImpl.groovy) at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62) at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) at java.base/java.lang.reflect.Method.invoke(Method.java:566) at org.codehaus.groovy.reflection.CachedMethod.invoke(CachedMethod.java:101) at groovy.lang.MetaMethod.doMethodInvoke(MetaMethod.java:323) at groovy.lang.MetaClassImpl.invokeMethod(MetaClassImpl.java:1217) at org.codehaus.groovy.runtime.ScriptBytecodeAdapter.invokeMethodOnSuperN(ScriptBytecodeAdapter.java:144) at io.restassured.internal.ValidatableResponseImpl.statusCode(ValidatableResponseImpl.groovy:142) at io.restassured.internal.ValidatableResponseImpl.statusCode(ValidatableResponseImpl.groovy) at org.acme.rest.client.multipart.MultipartResourceTest.testMultipartDataIsSent(MultipartResourceTest.java:18) at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method) at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62) at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) at java.base/java.lang.reflect.Method.invoke(Method.java:566) at io.quarkus.test.junit.QuarkusTestExtension.runExtensionMethod(QuarkusTestExtension.java:342) at io.quarkus.test.junit.QuarkusTestExtension.interceptTestMethod(QuarkusTestExtension.java:281) at org.junit.jupiter.engine.execution.ExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(ExecutableInvoker.java:115) at org.junit.jupiter.engine.execution.ExecutableInvoker.lambda$invoke$0(ExecutableInvoker.java:105) at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:106) at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:149) at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:140) at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:84) at org.junit.jupiter.engine.execution.ExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(ExecutableInvoker.java:115) at org.junit.jupiter.engine.execution.ExecutableInvoker.lambda$invoke$0(ExecutableInvoker.java:105) at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:106) at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:64) at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:45) at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:37) at org.junit.jupiter.engine.execution.ExecutableInvoker.invoke(ExecutableInvoker.java:104) at org.junit.jupiter.engine.execution.ExecutableInvoker.invoke(ExecutableInvoker.java:98) at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$6(TestMethodTestDescriptor.java:205) at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73) at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:201) at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:137) at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:71) at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$5(NodeTestTask.java:135) at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73) at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$7(NodeTestTask.java:125) at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:135) at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:123) at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73) at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:122) at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:80) at java.base/java.util.ArrayList.forEach(ArrayList.java:1541) at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:38) at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$5(NodeTestTask.java:139) at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73) at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$7(NodeTestTask.java:125) at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:135) at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:123) at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73) at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:122) at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:80) at java.base/java.util.ArrayList.forEach(ArrayList.java:1541){code}",2021/04/21 1:58 PM
+RESTEASY-2851,"When attempting to close an SseEventSource in Open Liberty, I am seeing the following exception:
+
+[3/9/21, 11:30:57:072 CST] 00000047 id=00000000 kernel.launch.internal.MissingDoPrivDetectionSecurityManager W CWWKE0921W: Current Java 2 Security policy reported a potential violation of Java 2 Security Permission. The application needs to have permissions addedPermission: 
+ (""java.lang.RuntimePermission"" ""modifyThread"")
+ Stack: 
+ java.security.AccessControlException: Access denied (""java.lang.RuntimePermission"" ""modifyThread"")java.base/java.security.AccessController.throwACE(AccessController.java:176)
+ java.base/java.security.AccessController.checkPermissionHelper(AccessController.java:238)
+ java.base/java.security.AccessController.checkPermission(AccessController.java:385)
+ java.base/java.lang.SecurityManager.checkPermission(SecurityManager.java:322)
+ com.ibm.ws.kernel.launch.internal.MissingDoPrivDetectionSecurityManager.checkPermission(MissingDoPrivDetectionSecurityManager.java:45)
+ java.base/java.util.concurrent.ThreadPoolExecutor.checkShutdownAccess(ThreadPoolExecutor.java:748)
+ java.base/java.util.concurrent.ThreadPoolExecutor.shutdownNow(ThreadPoolExecutor.java:1405)
+ java.base/java.util.concurrent.ScheduledThreadPoolExecutor.shutdownNow(ScheduledThreadPoolExecutor.java:870)
+ java.base/java.util.concurrent.Executors$DelegatedExecutorService.shutdownNow(Executors.java:693)
+ org.jboss.resteasy.plugins.providers.sse.client.SseEventSourceScheduler.shutdownNow(SseEventSourceScheduler.java:146)
+ org.jboss.resteasy.plugins.providers.sse.client.SseEventSourceImpl.close(SseEventSourceImpl.java:255)
+
+I've place an attempted fix at [https://github.com/resteasy/Resteasy/pull/2689|http://example.com]",2021/03/09 2:31 PM
+RESTEASY-2850,"RestEasy's current Server Sent Events design will continually reconnect after events are sent, causing the same events to be sent repeatedly until the SseEventSource is closed.
+
+See Pull request #2687:  I've added a test variation (testSseEventSourceCountDownOnCompleteCallback) to SseEventSourceTest.java.  In this testcase the CountDownLatch is not closed until the OnComplete event is received.  Running this test will result in the single event to be sent over an over again until the latch times out.  In my sandbox the event was re-sent 60 times.   This behavior is different from what occurs on CXF or WebSphere Liberty.",2021/03/08 4:24 PM
+RESTEASY-2831,"An http form post without a ""{{Content-Type}}"" header causes a {{NullPointerException}} in {{org.jboss.resteasy.plugins.server.BaseHttpRequest.getFormParameters}}.
+
+While it is probably okay to throw an exception, it is very hard to figure out the reason for a NullPointerException deep in the implementation. ",2021/02/16 10:21 AM

@@ -1,0 +1,302 @@
+bug_report_id,bug_report_desc,bug_report_time
+WELD-1474,"It would appear that a bean that implements Extension is not serializable when injected. If an Extension is injected you should get the Contextual Reference for it. In turn the serializable proxy.
+
+Currently it would appear that it is getting injected direction without a 
+
+http://pastebin.com/DFJEFCQP",2013/07/31 9:25 AM
+WELD-1492,"Weld does not report a definition error for the following producers:
+{code}
+@Produces Bar<Foo<?>> wildcardFooBarProducerField;
+@Produces Bar<Foo<?>> produceWildcardFooBar() { ... }
+@Produces @RequestScoped Bar<Foo<T>> typedFooBarProducerField;
+@Produces @RequestScoped Bar<Foo<T>> produceTypedFooBar() { ... };
+{code}
+
+But it does report the error for simple(r) producers:
+{code}
+@Produces Foo<?> wildcardFooProducerField;
+@Produces Foo<?> produceWildcardFoo() { ... }
+@Produces @RequestScoped Foo<T> typedFooProducerField;
+@Produces @RequestScoped Foo<T> produceTypedFoo() { ... };
+{code}
+",2013/09/02 3:06 AM
+WELD-1456,ProgrammaticallyAddedProcessBeanAttributesTest counts the number of ProcessBeanAttributes events and expects the count to be 0 in the end (That would suggest that no PBA was fired for built-in beans nor beans added via AfterBeanDiscovery.addBean()). However this is incorrect since an application server may bundle extensions that register (synthetic) annotated types. These are not built-in beans per definition and therefore they affect the counter in the test.,2013/07/15 8:51 AM
+WELD-1444,"After the OSGi version upgrade, weld-osgi examples are no longer working as containers versions are using older OSGi version.",2013/06/28 12:04 PM
+WELD-1407,"While trying to use the 1.2.0.Beta1 of weld-osgi, launching weld-osgi bundles in felix wasn't working properly as some runtime dependencies were not satified
+
+{code}
+Constraint violation for package 'org.jboss.weld.environment.se' when resolving module 14.0
+  between existing export 14.0.org.jboss.weld.environment.se
+   NO BLAME and uses constraint 2.0.org.jboss.weld.environment.se
+   BLAMED ON [[14.0] package; (&(package=org.jboss.weld.environment.se)(version>=1.2.0.SNAPSHOT))]
+{code}
+
+The problem is bnd files that generates OSGi manifest.mf have hard coded versions:
+
+in core / environments / osgi / core / integration / src / main / resources / META-INF / weld-osgi-core-integration.bnd
+
+{code}
+...
+ org.jboss.weld.environment.se.events; \
+ org.jboss.weld.environment.se.bindings; \
+ org.jboss.weld.environment.se.threading; \
+ org.jboss.weld.environment.se.beans; \
+ org.jboss.weld.environment.se.discovery; \
+ org.jboss.weld.environment.se.discovery.url; \
+ org.jboss.weld.environment.se.contexts; \
+ org.jboss.weld.messages; version=1.2.0-SNAPSHOT
+...
+{code}
+This should be fixed to avoid issues for the next release.
+
+Additional work may be needed to remove all the hard coded dependencies in theses files (mostly testing and checking if it's really necessary)",2013/04/15 10:39 AM
+WELD-1406,"Following the Weld-OSGi user guide (http://docs.jboss.org/weld/reference/1.2.0.Beta1/weld-osgi/user-guide/html/)  with the latest 1.2.0-SNAPSHOT version,
+Starting the custom bundle is throwing the exception:
+
+{code}16:13:32.164 [Gogo shell]    ERROR o.j.w.e.o.i.i.Weld - Initialization of Weld instance for bundle com.sample.hello-world-multilingual [10] caused an error: java.lang.NoClassDefFoundError: org/jboss/weld/interceptor/InterceptorBindingType 
+java.lang.NoClassDefFoundError: org/jboss/weld/interceptor/InterceptorBindingType
+{code}
+
+This is because {{InterceptorBindingType}} class is used in {{weld-osgi-core-integration}} and the package is not imported in {{weld-osgi-core-integration}} nor exported in weld-osgi-core-mandatory",2013/04/15 10:14 AM
+WELD-1408,"WELD-1307 is removing the bundle from {{managed}} map and then the stop task is checking if the bundle is in the map (in the following lines). stop management is then never executed and stop events are not sent as expected.
+This can be easily reproduced with the user guide http://docs.jboss.org/weld/reference/1.2.0.Beta1/weld-osgi/user-guide/html/ch02.html#d0e306 example : ""Goodbye World!"" is never printed
+
+at {{org.jboss.weld.environment.osgi.impl.integration.IntegrationActivator.stopManagement(IntegrationActivator.java:241)}}
+
+{code}
+            if (future == null) {
+            final CDIContainer container = managed.remove(bundle.getBundleId());
+{code}
+
+but the stop events are fired if 
+{code}
+if (started.get() && managed.containsKey(bundle.getBundleId())) {
+{code}
+",2013/04/15 11:07 AM
+WELD-1481,We should either remove this section (20.1. Excluding classes from scanning and deployment) or reword the contents to follow the spec (12.4 Bean discovery).,2013/08/08 12:03 PM
+WELD-1499,"Weld only calls {{conversation.lock()}} when using an existing conversation. It never locks the conversation when the conversation is created. Since a new request with the same cid can be started before the first request (the one that created the conversation) has finished, there can in fact be two requests associated with the same conversation.",2013/09/04 4:43 PM
+WELD-1418,"There's a race condition in AbstractConversationContext when create first conversation scope if it's the first request of one session.
+Suppose such scenario
+# User requests a jsf page
+# weld creates a conversations map in the AbstractConversationContext.associate()
+# Because it is the first request, there's no session. Weld keep this map in request
+# A conversation scoped bean is created and put to the map.
+# In somewhere, a session is created
+# In the render phase, server sends partial response back. The page need some jsf resource, eg, jsf2 ajax or jsf resource
+# Browser requests the new jsf resource
+# At this time  The first request has not finished. So it doesn't reach dissociate() and doesn't put conversations map in the session.
+# Meanwhile  The second request reach associate(). There's no conversations map in the session, and the session is existing. It puts its new map! <====
+# Then, even the first request reach dissociate(), because there's already a map, it doesn't put its owner anymore. <====
+
+A quick and dirty fix is always create session before associate(). However, it's better to merge the map in the dissociate()
+
+
+I upload a example which is very easy to reproduce the problem.
+
+
+
+
+",2013/04/27 12:14 PM
+WELD-1493,"For producer fields with an invalid type (containing a wildcard or type variable), the exception message does not mention producer fields, but producer methods: ""A producer method cannot have a return type parameterized with wildcards. Method {0}""
+",2013/09/02 3:09 AM
+WELD-1494,Weld should throw a definition exception when a producer's return type is an array with a component type that is a type variable or a parameterized type containing a wildcard ({{T[]}} or {{Foo<?>[]}}). ,2013/09/02 3:14 AM
+WELD-1451,"Injecting a session bean that specializes another session bean is failing deployment due to an ambiguous dependency exception.  The reason for the  exception is because the injection point injects by the interface of the EBJs.  If I make the injection point type the EJB class it successfully deploys.  Below is  the summary of the classes that are included in the attachment.
+
+This works ok in Weld 2.0 with GlassFish but fails on existing WLS which 
+is using 1.1.10.Final and also fails with 1.1.13.Final.
+Class Summary:
+@Local
+public interface AccountBeanLocal {}
+
+@Stateless
+public class AccountBean implements AccountBeanLocal {}
+
+@Stateless
+@Specializes
+public class MockAccountBean extends AccountBean {}
+
+public class EarSpecializeServlet extends HttpServlet {}
+     @Inject
+     AccountBeanLocal bean;
+...
+}
+
+
+If I change the injection point to the super class then it deploys fine.
+     @Inject
+     AccountBean bean;",2013/07/10 9:26 AM
+WELD-1466,"BeanManager.getBeans() throws an exception if the state of the container is anything other than VALIDATED or INITIALIZED. 
+
+The message of the exception is ""BeanManager method getBeans() is not available during application initialization"", which is misleading when the container is in the SHUTDOWN state. 
+
+Actually, the spec doesn't even say that an exception should be thrown when shutdown. But it sounds reasonable that it should.
+
+We should either not throw the exception or change the message to something like ""... getBeans() is not available during application initialization or after shutdown"" (or split these two cases and have different messages for each case).",2013/07/21 4:36 AM
+WELD-1174,See the forum discussion at https://community.jboss.org/thread/203007,2012/07/24 4:35 PM
+WELD-1192,"{code}
+11:50:54,213 ERROR [org.jboss.msc.service.fail] (MSC service thread 1-2) MSC00001: Failed to start service jboss.deployment.unit.""Cerberus.ear"".WeldService: org.jboss.msc.service.StartException in service jboss.deployment.unit.""Cerberus.ear"".WeldService: java.lang.NullPointerException
+	at org.jboss.as.weld.services.WeldService.start(WeldService.java:83)
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.startService(ServiceControllerImpl.java:1811) [jboss-msc-1.0.2.GA.jar:1.0.2.GA]
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.run(ServiceControllerImpl.java:1746) [jboss-msc-1.0.2.GA.jar:1.0.2.GA]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source) [rt.jar:1.7.0_05]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source) [rt.jar:1.7.0_05]
+	at java.lang.Thread.run(Unknown Source) [rt.jar:1.7.0_05]
+Caused by: java.lang.NullPointerException
+	at org.jboss.weld.bootstrap.Validator.validateBean(Validator.java:147)
+	at org.jboss.weld.bootstrap.Validator.validateRIBean(Validator.java:163)
+	at org.jboss.weld.bootstrap.Validator.validateBeans(Validator.java:382)
+	at org.jboss.weld.bootstrap.Validator.validateDeployment(Validator.java:367)
+	at org.jboss.weld.bootstrap.WeldBootstrap.validateBeans(WeldBootstrap.java:380)
+	at org.jboss.as.weld.WeldContainer.start(WeldContainer.java:83)
+	at org.jboss.as.weld.services.WeldService.start(WeldService.java:76)
+	... 5 more
+{code}",2012/09/03 6:26 AM
+WELD-1191,"My project has a JSF converter that is made injectable by Seam Faces. It extends the Seam Faces Converter abstract class:
+
+{code}
+@FacesConverter(""QueryField"")
+@RequestScoped
+public class QueryFieldConverter extends Converter<QueryField<?>>
+{code}
+
+In AS 7.1.1.Final, this is not a problem. In a recent AS 7.2.0.Alpha1 snapshot (which uses Weld 1.1.9.Final), I get the following exception:
+
+{code}
+11:56:41,539 ERROR [org.jboss.msc.service.fail] (MSC service thread 1-15) MSC00001: Failed to start service jboss.deployment.unit.""Cerberus.ear"".WeldService: org.jboss.msc.service.StartException in service jboss.deployment.unit.""Cerberus.ear"".WeldService: org.jboss.weld.exceptions.UnproxyableResolutionException: WELD-001435 Normal scoped bean class com.lapis.cerberus.status.query.QueryField is not proxyable because it has no no-args constructor - Managed Bean [class com.lapis.cerberus.portal.convert.QueryFieldConverter] with qualifiers [@Any @Default].
+	at org.jboss.as.weld.services.WeldService.start(WeldService.java:83)
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.startService(ServiceControllerImpl.java:1811) [jboss-msc-1.0.2.GA.jar:1.0.2.GA]
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.run(ServiceControllerImpl.java:1746) [jboss-msc-1.0.2.GA.jar:1.0.2.GA]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source) [rt.jar:1.7.0_05]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source) [rt.jar:1.7.0_05]
+	at java.lang.Thread.run(Unknown Source) [rt.jar:1.7.0_05]
+Caused by: org.jboss.weld.exceptions.UnproxyableResolutionException: WELD-001435 Normal scoped bean class com.lapis.cerberus.status.query.QueryField is not proxyable because it has no no-args constructor - Managed Bean [class com.lapis.cerberus.portal.convert.QueryFieldConverter] with qualifiers [@Any @Default].
+	at org.jboss.weld.util.Proxies.getUnproxyableClassException(Proxies.java:214)
+	at org.jboss.weld.util.Proxies.getUnproxyableTypeException(Proxies.java:184)
+	at org.jboss.weld.util.Proxies.getUnproxyableTypesExceptionInt(Proxies.java:195)
+	at org.jboss.weld.util.Proxies.getUnproxyableTypesException(Proxies.java:169)
+	at org.jboss.weld.bootstrap.Validator.validateBean(Validator.java:147)
+	at org.jboss.weld.bootstrap.Validator.validateRIBean(Validator.java:163)
+	at org.jboss.weld.bootstrap.Validator.validateBeans(Validator.java:382)
+	at org.jboss.weld.bootstrap.Validator.validateDeployment(Validator.java:367)
+	at org.jboss.weld.bootstrap.WeldBootstrap.validateBeans(WeldBootstrap.java:380)
+	at org.jboss.as.weld.WeldContainer.start(WeldContainer.java:83)
+	at org.jboss.as.weld.services.WeldService.start(WeldService.java:76)
+	... 5 more
+{code}
+
+If I'm not mistaken, Converter should be a bean type of QueryFieldConverter, but QueryField should not, given that QueryFieldConverter does not extend QueryField (which is an abstract class). Therefore, Weld should not be trying to proxy it.
+
+I attempted to work around this issue by using @Typed to specify which types should be considered bean types. The mere presence of that annotation results in this exception:
+
+{code}
+11:50:54,213 ERROR [org.jboss.msc.service.fail] (MSC service thread 1-2) MSC00001: Failed to start service jboss.deployment.unit.""Cerberus.ear"".WeldService: org.jboss.msc.service.StartException in service jboss.deployment.unit.""Cerberus.ear"".WeldService: java.lang.NullPointerException
+	at org.jboss.as.weld.services.WeldService.start(WeldService.java:83)
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.startService(ServiceControllerImpl.java:1811) [jboss-msc-1.0.2.GA.jar:1.0.2.GA]
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.run(ServiceControllerImpl.java:1746) [jboss-msc-1.0.2.GA.jar:1.0.2.GA]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source) [rt.jar:1.7.0_05]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source) [rt.jar:1.7.0_05]
+	at java.lang.Thread.run(Unknown Source) [rt.jar:1.7.0_05]
+Caused by: java.lang.NullPointerException
+	at org.jboss.weld.bootstrap.Validator.validateBean(Validator.java:147)
+	at org.jboss.weld.bootstrap.Validator.validateRIBean(Validator.java:163)
+	at org.jboss.weld.bootstrap.Validator.validateBeans(Validator.java:382)
+	at org.jboss.weld.bootstrap.Validator.validateDeployment(Validator.java:367)
+	at org.jboss.weld.bootstrap.WeldBootstrap.validateBeans(WeldBootstrap.java:380)
+	at org.jboss.as.weld.WeldContainer.start(WeldContainer.java:83)
+	at org.jboss.as.weld.services.WeldService.start(WeldService.java:76)
+	... 5 more
+{code}",2012/08/31 12:28 PM
+WELD-1007,"I use {{org.jboss.weld.environment.se.StartMain}} to bootstrap weld se environment. Project is compiled and packaged by maven. When starting assembly it fails with such stacktrace:
+{quote}
+Exception in thread ""main"" com.google.common.collect.ComputationException: java.lang.ArrayIndexOutOfBoundsException: 3
+        at com.google.common.collect.ComputingConcurrentHashMap.compute(ComputingConcurrentHashMap.java:218)
+        at com.google.common.collect.ComputingConcurrentHashMap.apply(ComputingConcurrentHashMap.java:100)
+        at com.google.common.collect.MapMaker$ComputingMapAdapter.get(MapMaker.java:515)
+        at org.jboss.weld.resources.ClassTransformer.loadClass(ClassTransformer.java:183)
+        at org.jboss.weld.introspector.jlr.WeldClassImpl.<init>(WeldClassImpl.java:128)
+        at org.jboss.weld.introspector.jlr.WeldClassImpl.of(WeldClassImpl.java:98)
+        at org.jboss.weld.resources.ClassTransformer$TransformTypeToWeldClass.apply(ClassTransformer.java:54)
+        at org.jboss.weld.resources.ClassTransformer$TransformTypeToWeldClass.apply(ClassTransformer.java:42)
+        at com.google.common.collect.ComputingConcurrentHashMap.compute(ComputingConcurrentHashMap.java:206)
+        at com.google.common.collect.ComputingConcurrentHashMap.apply(ComputingConcurrentHashMap.java:100)
+        at com.google.common.collect.MapMaker$ComputingMapAdapter.get(MapMaker.java:515)
+        at org.jboss.weld.resources.ClassTransformer.loadClass(ClassTransformer.java:183)
+        at org.jboss.weld.introspector.jlr.WeldClassImpl.<init>(WeldClassImpl.java:128)
+        at org.jboss.weld.introspector.jlr.WeldClassImpl.of(WeldClassImpl.java:98)
+        at org.jboss.weld.resources.ClassTransformer$TransformTypeToWeldClass.apply(ClassTransformer.java:54)
+        at org.jboss.weld.resources.ClassTransformer$TransformTypeToWeldClass.apply(ClassTransformer.java:42)
+        at com.google.common.collect.ComputingConcurrentHashMap.compute(ComputingConcurrentHashMap.java:206)
+        at com.google.common.collect.ComputingConcurrentHashMap.apply(ComputingConcurrentHashMap.java:100)
+        at com.google.common.collect.MapMaker$ComputingMapAdapter.get(MapMaker.java:515)
+        at org.jboss.weld.resources.ClassTransformer.loadClass(ClassTransformer.java:183)
+        at org.jboss.weld.bootstrap.BeanDeployer.addClass(BeanDeployer.java:95)
+        at org.jboss.weld.bootstrap.BeanDeployer.addClasses(BeanDeployer.java:134)
+        at org.jboss.weld.bootstrap.BeanDeployment.createBeans(BeanDeployment.java:191)
+        at org.jboss.weld.bootstrap.WeldBootstrap.deployBeans(WeldBootstrap.java:368)
+        at org.jboss.weld.environment.se.Weld.initialize(Weld.java:92)
+        at org.jboss.weld.environment.se.StartMain.go(StartMain.java:46)
+        at org.jboss.weld.environment.se.StartMain.main(StartMain.java:59)
+Caused by: java.lang.ArrayIndexOutOfBoundsException: 3
+        at org.jboss.weld.introspector.jlr.WeldConstructorImpl.<init>(WeldConstructorImpl.java:113)
+        at org.jboss.weld.introspector.jlr.WeldConstructorImpl.of(WeldConstructorImpl.java:70)
+        at org.jboss.weld.introspector.jlr.WeldClassImpl.<init>(WeldClassImpl.java:210)
+        at org.jboss.weld.introspector.jlr.WeldClassImpl.of(WeldClassImpl.java:98)
+        at org.jboss.weld.resources.ClassTransformer$TransformTypeToWeldClass.apply(ClassTransformer.java:54)
+        at org.jboss.weld.resources.ClassTransformer$TransformTypeToWeldClass.apply(ClassTransformer.java:42)
+        at com.google.common.collect.ComputingConcurrentHashMap.compute(ComputingConcurrentHashMap.java:206)
+{quote}
+
+When I try to run this project in IntelliJ IDEA it works fine with such exec command:
+{quote}
+/home/gross/soft/jdk1.7.0_02/bin/java -Didea.launcher.port=7537 -Didea.launcher.bin.path=/opt/idea/bin -Dfile.encoding=UTF-8 -classpath /home/gross/soft/jdk1.7.0_02/jre/lib/deploy.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/jce.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/jsse.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/rt.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/management-agent.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/javaws.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/plugin.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/resources.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/charsets.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/alt-rt.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/ext/localedata.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/ext/sunec.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/ext/zipfs.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/ext/dnsns.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/ext/sunjce_provider.jar:/home/gross/soft/jdk1.7.0_02/jre/lib/ext/sunpkcs11.jar:/home/gross/crawler/app/target/classes:/home/gross/crawler/common/target/classes:/home/gross/.m2/repository/org/slf4j/slf4j-api/1.5.10/slf4j-api-1.5.10.jar:/home/gross/.m2/repository/org/jboss/resteasy/resteasy-jaxrs/2.2.2.GA/resteasy-jaxrs-2.2.2.GA.jar:/home/gross/.m2/repository/org/jboss/resteasy/jaxrs-api/2.2.2.GA/jaxrs-api-2.2.2.GA.jar:/home/gross/.m2/repository/org/scannotation/scannotation/1.0.3/scannotation-1.0.3.jar:/home/gross/.m2/repository/javassist/javassist/3.12.1.GA/javassist-3.12.1.GA.jar:/home/gross/.m2/repository/javax/annotation/jsr250-api/1.0/jsr250-api-1.0.jar:/home/gross/.m2/repository/javax/activation/activation/1.1/activation-1.1.jar:/home/gross/.m2/repository/commons-httpclient/commons-httpclient/3.1/commons-httpclient-3.1.jar:/home/gross/.m2/repository/commons-codec/commons-codec/1.5/commons-codec-1.5.jar:/home/gross/.m2/repository/org/apache/httpcomponents/httpclient/4.0.3/httpclient-4.0.3.jar:/home/gross/.m2/repository/org/apache/httpcomponents/httpcore/4.0.1/httpcore-4.0.1.jar:/home/gross/.m2/repository/net/jcip/jcip-annotations/1.0/jcip-annotations-1.0.jar:/home/gross/.m2/repository/org/slf4j/slf4j-log4j12/1.5.10/slf4j-log4j12-1.5.10.jar:/home/gross/.m2/repository/log4j/log4j/1.2.16/log4j-1.2.16.jar:/home/gross/.m2/repository/org/slf4j/jcl-over-slf4j/1.5.10/jcl-over-slf4j-1.5.10.jar:/home/gross/.m2/repository/org/apache/commons/commons-io/1.3.2/commons-io-1.3.2.jar:/home/gross/.m2/repository/org/apache/commons/commons-compress/1.1/commons-compress-1.1.jar:/home/gross/.m2/repository/org/apache/james/apache-mime4j-dom/0.8-SNAPSHOT/apache-mime4j-dom-0.8-SNAPSHOT.jar:/home/gross/.m2/repository/org/apache/james/apache-mime4j-core/0.8-SNAPSHOT/apache-mime4j-core-0.8-SNAPSHOT.jar:/home/gross/.m2/repository/org/jboss/weld/se/weld-se-core/1.1.2.Final/weld-se-core-1.1.2.Final.jar:/home/gross/.m2/repository/org/jboss/weld/weld-spi/1.1.Beta2/weld-spi-1.1.Beta2.jar:/home/gross/.m2/repository/org/jboss/weld/weld-api/1.1.Beta2/weld-api-1.1.Beta2.jar:/home/gross/.m2/repository/org/jboss/weld/weld-core/1.1.2.Final/weld-core-1.1.2.Final.jar:/home/gross/.m2/repository/com/google/guava/guava/r06/guava-r06.jar:/home/gross/.m2/repository/org/jboss/spec/javax/interceptor/jboss-interceptors-api_1.1_spec/1.0.0.Beta1/jboss-interceptors-api_1.1_spec-1.0.0.Beta1.jar:/home/gross/.m2/repository/org/jboss/interceptor/jboss-interceptor-spi/2.0.0.CR1/jboss-interceptor-spi-2.0.0.CR1.jar:/home/gross/.m2/repository/org/jboss/interceptor/jboss-interceptor-core/2.0.0.CR1/jboss-interceptor-core-2.0.0.CR1.jar:/home/gross/.m2/repository/org/slf4j/slf4j-ext/1.5.10/slf4j-ext-1.5.10.jar:/home/gross/.m2/repository/ch/qos/cal10n/cal10n-api/0.7.2/cal10n-api-0.7.2.jar:/home/gross/.m2/repository/javax/el/el-api/2.2/el-api-2.2.jar:/home/gross/.m2/repository/javax/enterprise/cdi-api/1.0-SP4/cdi-api-1.0-SP4.jar:/home/gross/.m2/repository/javax/inject/javax.inject/1/javax.inject-1.jar:/home/gross/.m2/repository/org/jboss/resteasy/resteasy-jaxb-provider/2.2.2.GA/resteasy-jaxb-provider-2.2.2.GA.jar:/home/gross/.m2/repository/com/sun/xml/bind/jaxb-impl/2.2.4/jaxb-impl-2.2.4.jar:/home/gross/.m2/repository/javax/xml/bind/jaxb-api/2.2.3/jaxb-api-2.2.3.jar:/home/gross/.m2/repository/javax/xml/stream/stax-api/1.0/stax-api-1.0.jar:/home/gross/.m2/repository/com/sun/xml/stream/sjsxp/1.0.1/sjsxp-1.0.1.jar:/home/gross/.m2/repository/org/jboss/resteasy/resteasy-jettison-provider/2.2.2.GA/resteasy-jettison-provider-2.2.2.GA.jar:/home/gross/.m2/repository/org/codehaus/jettison/jettison/1.2/jettison-1.2.jar:/opt/idea/lib/idea_rt.jar com.intellij.rt.execution.application.AppMain org.jboss.weld.environment.se.StartMain
+{quote}
+
+I think, it's dependencies interfere problem, but haven't yet found the solution.",2011/11/09 12:31 PM
+WELD-1016,"The CDI spec says:
+{quote}
+An interceptor instance is a dependent object of the object it inter-cepts.
+{quote}
+
+The Interceptors spec says:
+{quote}
+The lifecycle of an interceptor instance is the same as that of the target class instance with which it
+is associated. When the target instance is created, a corresponding interceptor instance is created for
+each associated interceptor class. These interceptor instances are destroyed when the target instance
+is removed.
+{quote}
+
+and also
+
+{quote}
+An interceptor instance may hold state.
+{quote}
+
+It is clear that at most one instance of an interceptor class should be created for an instance of a CDI bean. However, Weld currently creates an instance per method per target instance.
+
+Having a simple intercepted bean:
+{code:JAVA}
+@ApplicationScoped
+@LionBinding
+public class Lion
+    public Object foo() {
+        return null;
+    }
+
+    public Object bar() {
+        return null;
+    }
+}
+{code}
+
+* multiple invocations of a single method (e.g. foo()) are intercepted by the same interceptor instance
+* when invoking different methods on the same bean instance, every method is intercepted by a different interceptor instance - which is wrong",2011/11/19 9:37 AM
+WELD-1448,"This error occurred when stopping a bundle:
+{code}
+16:19:57.466 [Felix Shell T] ERROR o.j.w.e.o.i.i.Weld - Shutdown of Weld instance for bundle org.jboss.weld.osgi.examples.weld-osgi-paint-triangle [14] caused an error: java.lang.StringIndexOutOfBoundsException: String index out of range: -1
+{code}
+
+This is a cal10n bug when a message contain the string {code}\\""{code}
+
+Which is the case in ./impl/src/main/resources/org/jboss/weld/messages/context_en.properties
+
+The version 0.7.7 which is already used in the 2.0.0 branch. The fix consists in cherry picking the changesets in the 1.2 branch",2013/07/04 10:37 AM

@@ -1,0 +1,623 @@
+bug_report_id,bug_report_desc,bug_report_time
+JGRP-2144,"Something happened in {{FD_HOST}} but a stack trace is omitted, which could have a clue to the root cause.
+
+{code}
+2016-11-02 15:55:49,738 SEVERE [org.jgroups.protocols.FD_HOST] (Timer-2,node331-53459) node331-53459: ping command failed: java.lang.NullPointerException
+{code}
+",2016/12/11 9:37 PM
+JGRP-2072,"{noformat}
+11:24:19,178 TRACE (OOB-10,NodeD-30623:[]) [MFC] NodeA-6644 used 4969 credits, 396763 remaining
+11:24:19,238 TRACE (OOB-10,NodeD-30623:[]) [MFC] sending 603237 credits to NodeA-6644
+11:24:19,238 TRACE (OOB-10,NodeD-30623:[]) [UDP] NodeD-30623: sending msg to NodeA-6644, src=NodeD-30623, headers are MFC: REPLENISH, UNICAST3: DATA, seqno=8825, TP: [cluster_name=default]
+11:24:19,246 TRACE (INT-1,NodeA-6644:[]) [UDP] NodeA-6644: received [dst: NodeA-6644, src: NodeD-30623 (3 headers), size=8 bytes, flags=OOB|DONT_BUNDLE|INTERNAL], headers are UFC: REPLENISH, UNICAST3: DATA, seqno=8825, TP: [cluster_name=default]
+11:24:19,246 TRACE (INT-1,NodeA-6644:[]) [UFC] received 603237 credits from NodeD-30623, old credits: 938772, new credits: 1000000
+{noformat}
+
+{noformat}
+15:20:14,596 TRACE (OOB-44,NodeC-64981:[]) [UFC] NodeA-12977 used 2305 credits, 798175 remaining
+15:20:14,614 TRACE (OOB-44,NodeC-64981:[]) [UFC] sending 1201825 credits to NodeA-12977
+15:20:14,614 TRACE (OOB-44,NodeC-64981:[]) [UDP] NodeC-64981: sending msg to NodeA-12977, src=NodeC-64981, headers are UFC: REPLENISH, UNICAST3: DATA, seqno=34854, TP: [cluster_name=default]
+15:20:14,629 TRACE (INT-1,NodeA-12977:[]) [UDP] NodeA-12977: received [dst: NodeA-12977, src: NodeC-64981 (3 headers), size=8 bytes, flags=OOB|DONT_BUNDLE|INTERNAL], headers are MFC: REPLENISH, UNICAST3: DATA, seqno=34854, TP: [cluster_name=default]
+15:20:14,629 TRACE (INT-1,NodeA-12977:[]) [UFC] NodeC-64981 used 8 credits, 1859662 remaining
+15:20:14,629 TRACE (INT-1,NodeA-12977:[]) [MFC] received 1201825 credits from NodeC-64981, new credits for NodeC-64981: 2000000, min_credits=793978
+{noformat}
+
+UFC/MFC expect their messages to be reliable, so they don't repeat {{REPLENISH}} messages, and the only way to replenish the credits is to send a {{CREDIT_REQUEST}} message. But UFC/MFC only send a credit request after all the threads trying to send a request or response to the affected destination block for {{max_block_time}}.
+
+I was able to reproduce the problem with an Infinispan [micro-benchmark|https://github.com/danberindei/infinispan-microbenchmarks]: a cluster of 4 nodes, a replicated cache, 400 threads writing to the cache. It happens both with JGroups 3.6.9.Final and the latest master.",2016/06/01 3:39 AM
+JGRP-2051,"Not sure when this changed, but using the current `http` URLs fails with a `403` error.",2016/04/15 4:14 PM
+JGRP-2045,"The ActiveMQ Artemis message broker, which can use JGroups for clustering, can be configured to forward any pending messages to another broker in the cluster when it is shutdown.  However, since the JVM is in the process of shutting down the shutdown hook which org.jgroups.protocols.FILE_PING#init attempts to add fails and the broker is unable to move its messages.",2016/04/13 2:20 PM
+JGRP-2035,"{{org.jgroups.util.Util}} class tries to locate jg-messages bundle using the TCCL, not its own class loader. In a Java SE environment, this typically doesn't matter, because the class loaders are the same, but in EAP, this means that jg-messages is sought by the class loader of the application rather than the class loader of JGroups module, which is obviously wrong. This is the offending line: https://github.com/belaban/JGroups/blob/master/src/org/jgroups/util/Util.java#L93 
+
+The call to getBundle fails with a MissingResourceException (see http://docs.oracle.com/javase/6/docs/api/java/util/ResourceBundle.html#getBundle%28java.lang.String,%20java.util.Locale,%20java.lang.ClassLoader%29) and because this code is in a static initializer, the Util class becomes unusable.
+
+This causes Hibernate applications with 2LC infinispan clustering backend to not work.",2016/03/29 7:39 AM
+JGRP-2034,"We see these two tests failing on IBM jdk 1.8
+org.jgroups.protocols.SASLTest-functional
+org.jgroups.protocols.SASL_SimpleAuthorizingCallbackTest-functional
+
+This issue may be related to https://issues.jboss.org/browse/JGRP-1993 somehow.
+
+There is standard output of tests.
+{code}
+
+------------- testSASLDigestMD5 -----------
+
+-------------------------------------------------------------------
+GMS: address=A, cluster=SaslTest
+-------------------------------------------------------------------
+521823 [TRACE] GMS: A: no members discovered after 3000 ms: creating cluster as first member
+
+521823 [DEBUG] GMS: A: installing view [A|0] (1) [A]
+
+521823 [DEBUG] GMS: A: created cluster (first member). My view is [A|0], impl is org.jgroups.protocols.pbcast.CoordGmsImpl
+
+
+-------------------------------------------------------------------
+GMS: address=B, cluster=SaslTest
+-------------------------------------------------------------------
+521825 [TRACE] GMS: B: discovery took 0 ms, members: 1 rsps (1 coords) [done]
+
+521826 [DEBUG] GMS: B: sending JOIN(B) to A
+
+521826 [TRACE] SASL: B: received CHALLENGE from A
+
+521827 [WARN] SASL: B: failed to validate CHALLENGE from A, token
+javax.security.sasl.SaslException: DIGEST-MD5: Error acquiring realm, authentication ID or password
+	at com.ibm.security.sasl.digest.DigestMD5Client.processChallenge(DigestMD5Client.java:380) ~[ibmsaslprovider.jar:8.0 build_20150506]
+	at com.ibm.security.sasl.digest.DigestMD5Client.evaluateChallenge(DigestMD5Client.java:236) ~[ibmsaslprovider.jar:8.0 build_20150506]
+	at org.jgroups.auth.sasl.SaslClientContext.evaluateChallenge(SaslClientContext.java:119) ~[classes/:?]
+	at org.jgroups.auth.sasl.SaslClientContext.addHeader(SaslClientContext.java:92) ~[classes/:?]
+	at org.jgroups.auth.sasl.SaslClientContext.nextMessage(SaslClientContext.java:72) ~[classes/:?]
+	at org.jgroups.protocols.SASL.up(SASL.java:239) [classes/:?]
+	at org.jgroups.protocols.pbcast.STABLE.up(STABLE.java:234) [classes/:?]
+	at org.jgroups.protocols.UNICAST3.deliverMessage(UNICAST3.java:1064) [classes/:?]
+	at org.jgroups.protocols.UNICAST3.handleDataReceived(UNICAST3.java:779) [classes/:?]
+	at org.jgroups.protocols.UNICAST3.up(UNICAST3.java:426) [classes/:?]
+	at org.jgroups.protocols.pbcast.NAKACK2.up(NAKACK2.java:645) [classes/:?]
+	at org.jgroups.protocols.Discovery.up(Discovery.java:296) [classes/:?]
+	at org.jgroups.protocols.TP.passMessageUp(TP.java:1567) [classes/:?]
+	at org.jgroups.protocols.TP$SingleMessageHandler.run(TP.java:1783) [classes/:?]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1153) [?:1.8.0-internal]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628) [?:1.8.0-internal]
+	at java.lang.Thread.run(Thread.java:785) [?:1.8.0-internal]
+Caused by: java.io.IOException: Invalid realm A
+	at org.jgroups.auth.sasl.SimpleAuthorizingCallbackHandler.handle(SimpleAuthorizingCallbackHandler.java:119) ~[classes/:?]
+	at com.ibm.security.sasl.digest.DigestMD5Client.processChallenge(DigestMD5Client.java:353) ~[ibmsaslprovider.jar:8.0 build_20150506]
+	... 16 more
+
+524826 [WARN] GMS: B: JOIN(B) sent to A timed out (after 3000 ms), on try 1
+
+524827 [TRACE] GMS: B: discovery took 1 ms, members: 1 rsps (1 coords) [done]
+
+524827 [DEBUG] GMS: B: sending JOIN(B) to A
+
+524828 [TRACE] SASL: B: received CHALLENGE from A
+
+524828 [WARN] SASL: B: failed to validate CHALLENGE from A, token
+javax.security.sasl.SaslException: DIGEST-MD5: Error acquiring realm, authentication ID or password
+	at com.ibm.security.sasl.digest.DigestMD5Client.processChallenge(DigestMD5Client.java:380) ~[ibmsaslprovider.jar:8.0 build_20150506]
+	at com.ibm.security.sasl.digest.DigestMD5Client.evaluateChallenge(DigestMD5Client.java:236) ~[ibmsaslprovider.jar:8.0 build_20150506]
+	at org.jgroups.auth.sasl.SaslClientContext.evaluateChallenge(SaslClientContext.java:119) ~[classes/:?]
+	at org.jgroups.auth.sasl.SaslClientContext.addHeader(SaslClientContext.java:92) ~[classes/:?]
+	at org.jgroups.auth.sasl.SaslClientContext.nextMessage(SaslClientContext.java:72) ~[classes/:?]
+	at org.jgroups.protocols.SASL.up(SASL.java:239) [classes/:?]
+	at org.jgroups.protocols.pbcast.STABLE.up(STABLE.java:234) [classes/:?]
+	at org.jgroups.protocols.UNICAST3.deliverMessage(UNICAST3.java:1064) [classes/:?]
+	at org.jgroups.protocols.UNICAST3.handleDataReceived(UNICAST3.java:779) [classes/:?]
+	at org.jgroups.protocols.UNICAST3.up(UNICAST3.java:426) [classes/:?]
+	at org.jgroups.protocols.pbcast.NAKACK2.up(NAKACK2.java:645) [classes/:?]
+	at org.jgroups.protocols.Discovery.up(Discovery.java:296) [classes/:?]
+	at org.jgroups.protocols.TP.passMessageUp(TP.java:1567) [classes/:?]
+	at org.jgroups.protocols.TP$SingleMessageHandler.run(TP.java:1783) [classes/:?]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1153) [?:1.8.0-internal]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628) [?:1.8.0-internal]
+	at java.lang.Thread.run(Thread.java:785) [?:1.8.0-internal]
+Caused by: java.io.IOException: Invalid realm A
+	at org.jgroups.auth.sasl.SimpleAuthorizingCallbackHandler.handle(SimpleAuthorizingCallbackHandler.java:119) ~[classes/:?]
+	at com.ibm.security.sasl.digest.DigestMD5Client.processChallenge(DigestMD5Client.java:353) ~[ibmsaslprovider.jar:8.0 build_20150506]
+	... 16 more
+
+526826 [WARN] SASL: failed to validate SaslHeader from B, header: payload=[B@ad737f58
+
+
+
+------------- testSASLDigestMD5Failure -----------
+
+-------------------------------------------------------------------
+GMS: address=A, cluster=SaslTest
+-------------------------------------------------------------------
+529863 [TRACE] GMS: A: no members discovered after 3000 ms: creating cluster as first member
+
+529864 [DEBUG] GMS: A: installing view [A|0] (1) [A]
+
+529864 [DEBUG] GMS: A: created cluster (first member). My view is [A|0], impl is org.jgroups.protocols.pbcast.CoordGmsImpl
+
+
+-------------------------------------------------------------------
+GMS: address=B, cluster=SaslTest
+-------------------------------------------------------------------
+529866 [TRACE] GMS: B: discovery took 1 ms, members: 1 rsps (1 coords) [done]
+
+529866 [DEBUG] GMS: B: sending JOIN(B) to A
+
+529867 [TRACE] SASL: B: received CHALLENGE from A
+
+529867 [WARN] SASL: B: failed to validate CHALLENGE from A, token
+javax.security.sasl.SaslException: DIGEST-MD5: Error acquiring realm, authentication ID or password
+	at com.ibm.security.sasl.digest.DigestMD5Client.processChallenge(DigestMD5Client.java:380) ~[ibmsaslprovider.jar:8.0 build_20150506]
+	at com.ibm.security.sasl.digest.DigestMD5Client.evaluateChallenge(DigestMD5Client.java:236) ~[ibmsaslprovider.jar:8.0 build_20150506]
+	at org.jgroups.auth.sasl.SaslClientContext.evaluateChallenge(SaslClientContext.java:119) ~[classes/:?]
+	at org.jgroups.auth.sasl.SaslClientContext.addHeader(SaslClientContext.java:92) ~[classes/:?]
+	at org.jgroups.auth.sasl.SaslClientContext.nextMessage(SaslClientContext.java:72) ~[classes/:?]
+	at org.jgroups.protocols.SASL.up(SASL.java:239) [classes/:?]
+	at org.jgroups.protocols.pbcast.STABLE.up(STABLE.java:234) [classes/:?]
+	at org.jgroups.protocols.UNICAST3.deliverMessage(UNICAST3.java:1064) [classes/:?]
+	at org.jgroups.protocols.UNICAST3.handleDataReceived(UNICAST3.java:779) [classes/:?]
+	at org.jgroups.protocols.UNICAST3.up(UNICAST3.java:426) [classes/:?]
+	at org.jgroups.protocols.pbcast.NAKACK2.up(NAKACK2.java:645) [classes/:?]
+	at org.jgroups.protocols.Discovery.up(Discovery.java:296) [classes/:?]
+	at org.jgroups.protocols.TP.passMessageUp(TP.java:1567) [classes/:?]
+	at org.jgroups.protocols.TP$SingleMessageHandler.run(TP.java:1783) [classes/:?]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1153) [?:1.8.0-internal]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628) [?:1.8.0-internal]
+	at java.lang.Thread.run(Thread.java:785) [?:1.8.0-internal]
+Caused by: java.io.IOException: Invalid realm A
+	at org.jgroups.auth.sasl.SimpleAuthorizingCallbackHandler.handle(SimpleAuthorizingCallbackHandler.java:119) ~[classes/:?]
+	at com.ibm.security.sasl.digest.DigestMD5Client.processChallenge(DigestMD5Client.java:353) ~[ibmsaslprovider.jar:8.0 build_20150506]
+	... 16 more
+
+532867 [WARN] GMS: B: JOIN(B) sent to A timed out (after 3000 ms), on try 1
+
+532867 [TRACE] GMS: B: discovery took 0 ms, members: 1 rsps (1 coords) [done]
+
+532867 [DEBUG] GMS: B: sending JOIN(B) to A
+
+532868 [TRACE] SASL: B: received CHALLENGE from A
+
+532869 [WARN] SASL: B: failed to validate CHALLENGE from A, token
+javax.security.sasl.SaslException: DIGEST-MD5: Error acquiring realm, authentication ID or password
+	at com.ibm.security.sasl.digest.DigestMD5Client.processChallenge(DigestMD5Client.java:380) ~[ibmsaslprovider.jar:8.0 build_20150506]
+	at com.ibm.security.sasl.digest.DigestMD5Client.evaluateChallenge(DigestMD5Client.java:236) ~[ibmsaslprovider.jar:8.0 build_20150506]
+	at org.jgroups.auth.sasl.SaslClientContext.evaluateChallenge(SaslClientContext.java:119) ~[classes/:?]
+	at org.jgroups.auth.sasl.SaslClientContext.addHeader(SaslClientContext.java:92) ~[classes/:?]
+	at org.jgroups.auth.sasl.SaslClientContext.nextMessage(SaslClientContext.java:72) ~[classes/:?]
+	at org.jgroups.protocols.SASL.up(SASL.java:239) [classes/:?]
+	at org.jgroups.protocols.pbcast.STABLE.up(STABLE.java:234) [classes/:?]
+	at org.jgroups.protocols.UNICAST3.deliverMessage(UNICAST3.java:1064) [classes/:?]
+	at org.jgroups.protocols.UNICAST3.handleDataReceived(UNICAST3.java:779) [classes/:?]
+	at org.jgroups.protocols.UNICAST3.up(UNICAST3.java:426) [classes/:?]
+	at org.jgroups.protocols.pbcast.NAKACK2.up(NAKACK2.java:645) [classes/:?]
+	at org.jgroups.protocols.Discovery.up(Discovery.java:296) [classes/:?]
+	at org.jgroups.protocols.TP.passMessageUp(TP.java:1567) [classes/:?]
+	at org.jgroups.protocols.TP$SingleMessageHandler.run(TP.java:1783) [classes/:?]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1153) [?:1.8.0-internal]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628) [?:1.8.0-internal]
+	at java.lang.Thread.run(Thread.java:785) [?:1.8.0-internal]
+Caused by: java.io.IOException: Invalid realm A
+	at org.jgroups.auth.sasl.SimpleAuthorizingCallbackHandler.handle(SimpleAuthorizingCallbackHandler.java:119) ~[classes/:?]
+	at com.ibm.security.sasl.digest.DigestMD5Client.processChallenge(DigestMD5Client.java:353) ~[ibmsaslprovider.jar:8.0 build_20150506]
+	... 16 more
+
+534867 [WARN] SASL: failed to validate SaslHeader from B, header: payload=[B@6f6c2511
+
+{code}
+",2016/03/24 11:08 AM
+JGRP-2015,"It seems to me there are few issues in the new DONT_BUNDLE+OOB processing:
+
+* messages are not removed from batch when execution fails
+* rejections are not counted to num_rejected_msgs
+* lot of logging per message overfills the log",2016/02/10 6:14 AM
+JGRP-2014,"I was attempting to use FILE_PING as the discovery protocol with Infinispan server and the following configuration:
+
+{noformat}
+<protocol type=""FILE_PING"">
+   <property name=""location"">${jgroups.file.dir:/Users/afield/Documents}</property>
+</protocol>
+{noformat}
+
+However, the following exceptions occur when I try to start the server:
+
+{noformat}
+15:34:41,662 INFO  [org.infinispan.remoting.transport.jgroups.JGroupsTransport] (MSC service thread 1-11) ISPN000078: Starting JGroups Channel
+15:34:41,675 ERROR [org.jgroups.protocols.FILE_PING] (MSC service thread 1-11) attempt to write data failed at clustered : clustered.list: java.io.FileNotFoundException: /Users/afield/Documents/clustered/3e5f03c6-c297-474a-cb72-1ca0841f8e5c.afield-osx/clustered.list (No such file or directory)
+	at java.io.FileOutputStream.open0(Native Method) [rt.jar:1.8.0_72]
+	at java.io.FileOutputStream.open(FileOutputStream.java:270) [rt.jar:1.8.0_72]
+	at java.io.FileOutputStream.<init>(FileOutputStream.java:213) [rt.jar:1.8.0_72]
+	at java.io.FileOutputStream.<init>(FileOutputStream.java:162) [rt.jar:1.8.0_72]
+	at org.jgroups.protocols.FILE_PING.write(FILE_PING.java:294) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.FILE_PING.findMembers(FILE_PING.java:116) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.Discovery.findMembers(Discovery.java:240) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.Discovery.down(Discovery.java:380) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.FILE_PING.down(FILE_PING.java:107) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.MERGE3.down(MERGE3.java:255) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.FD_SOCK.down(FD_SOCK.java:360) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.FD_ALL.down(FD_ALL.java:233) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.VERIFY_SUSPECT.down(VERIFY_SUSPECT.java:92) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.pbcast.NAKACK2.down(NAKACK2.java:589) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.UNICAST3.down(UNICAST3.java:669) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.pbcast.STABLE.down(STABLE.java:347) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.pbcast.ClientGmsImpl.joinInternal(ClientGmsImpl.java:76) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.pbcast.ClientGmsImpl.join(ClientGmsImpl.java:41) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.pbcast.GMS.down(GMS.java:1087) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.FlowControl.down(FlowControl.java:353) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.protocols.FRAG2.down(FRAG2.java:136) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.stack.ProtocolStack.down(ProtocolStack.java:1038) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.JChannel.down(JChannel.java:791) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.JChannel._connect(JChannel.java:564) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.JChannel.connect(JChannel.java:294) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.jgroups.JChannel.connect(JChannel.java:279) [jgroups-3.6.3.Final-redhat-4.jar:3.6.3.Final-redhat-4]
+	at org.infinispan.remoting.transport.jgroups.JGroupsTransport.startJGroupsChannelIfNeeded(JGroupsTransport.java:208) [infinispan-core-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.remoting.transport.jgroups.JGroupsTransport.start(JGroupsTransport.java:199) [infinispan-core-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.8.0_72]
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62) [rt.jar:1.8.0_72]
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.8.0_72]
+	at java.lang.reflect.Method.invoke(Method.java:498) [rt.jar:1.8.0_72]
+	at org.infinispan.commons.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:176) [infinispan-commons-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.factories.AbstractComponentRegistry$PrioritizedMethod.invoke(AbstractComponentRegistry.java:870) [infinispan-core-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.factories.AbstractComponentRegistry.invokeStartMethods(AbstractComponentRegistry.java:639) [infinispan-core-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.factories.AbstractComponentRegistry.internalStart(AbstractComponentRegistry.java:628) [infinispan-core-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.factories.AbstractComponentRegistry.start(AbstractComponentRegistry.java:531) [infinispan-core-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.factories.GlobalComponentRegistry.start(GlobalComponentRegistry.java:238) [infinispan-core-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.manager.DefaultCacheManager.wireAndStartCache(DefaultCacheManager.java:583) [infinispan-core-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.manager.DefaultCacheManager.createCache(DefaultCacheManager.java:549) [infinispan-core-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:420) [infinispan-core-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:434) [infinispan-core-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.jboss.as.clustering.infinispan.DefaultEmbeddedCacheManager.getCache(DefaultEmbeddedCacheManager.java:89) [infinispan-server-infinispan-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.jboss.as.clustering.infinispan.DefaultEmbeddedCacheManager.getCache(DefaultEmbeddedCacheManager.java:80) [infinispan-server-infinispan-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.server.infinispan.SecurityActions$4.run(SecurityActions.java:105) [infinispan-server-infinispan-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.server.infinispan.SecurityActions$4.run(SecurityActions.java:102) [infinispan-server-infinispan-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.security.Security.doPrivileged(Security.java:76) [infinispan-core-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.server.infinispan.SecurityActions.doPrivileged(SecurityActions.java:49) [infinispan-server-infinispan-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.infinispan.server.infinispan.SecurityActions.startCache(SecurityActions.java:110) [infinispan-server-infinispan-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.jboss.as.clustering.infinispan.subsystem.CacheService.start(CacheService.java:85) [infinispan-server-infinispan-6.4.0.Final-redhat-4.jar:6.4.0.Final-redhat-4]
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.startService(ServiceControllerImpl.java:1980) [jboss-msc-1.1.5.Final-redhat-1.jar:1.1.5.Final-redhat-1]
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.run(ServiceControllerImpl.java:1913) [jboss-msc-1.1.5.Final-redhat-1.jar:1.1.5.Final-redhat-1]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142) [rt.jar:1.8.0_72]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617) [rt.jar:1.8.0_72]
+	at java.lang.Thread.run(Thread.java:745) [rt.jar:1.8.0_72]
+{noformat}
+
+From looking at the code, FILE_PING creates the {{/Users/afield/Documents/clustered}} directory, but the problem is that the {{local_addr}} for the host is {{afield-osx/clustered}}, so {{destination}} is defined as {{75b5c5b8-014d-26ff-c400-5398a96ad3f4.afield-osx/clustered.list}} when {{addressToFilename()}} is called and then the subsequent write fails. File.separator need to be removed or replaced in the {{destination}} variable.",2016/02/08 4:01 PM
+JGRP-1993,"org.jgroups.protocols.ENCRYPTAsymmetricTest.testKeyChangesDuringKeyServerChange fails on IBM jdk 1.8 (JGroups 3.6.6.Final):
+
+{code}
+Error Message
+
+expected [javax.crypto.spec.SecretKeySpec@174de] but found [com.ibm.crypto.provider.AESSecretKey@e562eaa8]
+
+Stacktrace
+
+java.lang.AssertionError 
+at org.testng.Assert.fail(Assert.java:94) 
+at org.testng.Assert.failNotEquals(Assert.java:496) 
+at org.testng.Assert.assertEquals(Assert.java:125) 
+at org.testng.Assert.assertEquals(Assert.java:167) 
+at org.jgroups.protocols.ENCRYPTAsymmetricTest.testKeyChangesDuringKeyServerChange(ENCRYPTAsymmetricTest.java:404) 
+at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) 
+at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:95) 
+at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:55) 
+at java.lang.reflect.Method.invoke(Method.java:507) 
+at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:85) 
+at org.testng.internal.Invoker.invokeMethod(Invoker.java:639) 
+at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:816) 
+at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1124) 
+at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:125) 
+at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:108) 
+at org.testng.TestRunner.privateRun(TestRunner.java:774) 
+at org.testng.TestRunner.run(TestRunner.java:624) 
+at org.testng.SuiteRunner.runTest(SuiteRunner.java:359) 
+at org.testng.SuiteRunner.runSequentially(SuiteRunner.java:354) 
+at org.testng.SuiteRunner.privateRun(SuiteRunner.java:312) 
+at org.testng.SuiteRunner.run(SuiteRunner.java:261) 
+at org.testng.SuiteRunnerWorker.runSuite(SuiteRunnerWorker.java:52) 
+at org.testng.SuiteRunnerWorker.run(SuiteRunnerWorker.java:86) 
+at org.testng.TestNG.runSuitesSequentially(TestNG.java:1215) 
+at org.testng.TestNG.runSuitesLocally(TestNG.java:1140) 
+at org.testng.TestNG.run(TestNG.java:1048) 
+at org.testng.TestNG.privateMain(TestNG.java:1355) 
+at org.testng.TestNG.main(TestNG.java:1324) 
+{code}",2015/12/10 10:30 AM
+JGRP-1992,"I was doing some testing with GCE, and I ran into the following issue. I have the following in my JGroups configuration file:
+
+   <GOOGLE_PING access_key=""access_key""
+                secret_access_key=""secret_access_key""
+                location=""jdg-cluster"" />
+
+But I was getting the following exception when starting the JChannel:
+
+caused by: javax.net.ssl.SSLException: Unrecognized SSL message, plaintext connection?
+         at sun.security.ssl.InputRecord.handleUnknownRecord(InputRecord.java:710)
+         at sun.security.ssl.InputRecord.read(InputRecord.java:527)
+         at sun.security.ssl.SSLSocketImpl.readRecord(SSLSocketImpl.java:973)
+         at sun.security.ssl.SSLSocketImpl.performInitialHandshake(SSLSocketImpl.java:1375)
+         at sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:1403)
+         at sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:1387)
+         at sun.net.www.protocol.https.HttpsClient.afterConnect(HttpsClient.java:559)
+         at sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.connect(AbstractDelegateHttpsURLConnection.java:185)
+         at sun.net.www.protocol.http.HttpURLConnection.getInputStream0(HttpURLConnection.java:1513)
+         at sun.net.www.protocol.http.HttpURLConnection.getInputStream(HttpURLConnection.java:1441)
+         at java.net.HttpURLConnection.getResponseCode(HttpURLConnection.java:480)
+         at sun.net.www.protocol.https.HttpsURLConnectionImpl.getResponseCode(HttpsURLConnectionImpl.java:338)
+         at org.jgroups.protocols.S3_PING$AWSAuthConnection.checkBucketExists(S3_PING.java:485)
+         at org.jgroups.protocols.S3_PING.init(S3_PING.java:98)
+         at org.jgroups.protocols.GOOGLE_PING.init(GOOGLE_PING.java:16)
+         at org.jgroups.stack.ProtocolStack.initProtocolStack(ProtocolStack.java:860)
+         at org.jgroups.stack.ProtocolStack.setup(ProtocolStack.java:481)
+         at org.jgroups.JChannel.init(JChannel.java:854)
+         at org.jgroups.JChannel.<init>(JChannel.java:159)
+         at org.jgroups.JChannel.<init>(JChannel.java:129)
+         at org.infinispan.remoting.transport.jgroups.JGroupsTransport.buildChannel(JGroupsTransport.java:415)
+         at org.infinispan.remoting.transport.jgroups.JGroupsTransport.initChannel(JGroupsTransport.java:316)
+         at org.infinispan.remoting.transport.jgroups.JGroupsTransport.initChannelAndRPCDispatcher(JGroupsTransport.java:360)
+         at org.infinispan.remoting.transport.jgroups.JGroupsTransport.start(JGroupsTransport.java:198)
+         at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+         at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+         at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+         at java.lang.reflect.Method.invoke(Method.java:497)
+         at org.infinispan.commons.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:176)
+         at org.infinispan.factories.AbstractComponentRegistry$PrioritizedMethod.invoke(AbstractComponentRegistry.java:870)
+         at org.infinispan.factories.AbstractComponentRegistry.invokeStartMethods(AbstractComponentRegistry.java:639)
+         at org.infinispan.factories.AbstractComponentRegistry.internalStart(AbstractComponentRegistry.java:628)
+         at org.infinispan.factories.AbstractComponentRegistry.start(AbstractComponentRegistry.java:531)
+         at org.infinispan.factories.GlobalComponentRegistry.start(GlobalComponentRegistry.java:238)
+         at org.infinispan.manager.DefaultCacheManager.wireAndStartCache(DefaultCacheManager.java:583)
+         at org.infinispan.manager.DefaultCacheManager.createCache(DefaultCacheManager.java:549)
+         at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:420)
+         at org.radargun.service.InfinispanEmbeddedService.startCaches(InfinispanEmbeddedService.java:119)
+         at org.radargun.service.Infinispan51EmbeddedService.startCaches(Infinispan51EmbeddedService.java:100)
+         at org.radargun.service.InfinispanLifecycle.start(InfinispanLifecycle.java:45)
+         at org.radargun.service.InfinispanKillableLifecycle.start(InfinispanKillableLifecycle.java:51)
+         at org.radargun.stages.lifecycle.LifecycleHelper.start(LifecycleHelper.java:59)
+         at org.radargun.stages.lifecycle.ServiceStartStage.executeOnSlave(ServiceStartStage.java:83)
+         at org.radargun.SlaveBase.scenarioLoop(SlaveBase.java:87)
+         at org.radargun.SlaveBase$ScenarioRunner.run(SlaveBase.java:151)
+
+If I skip the check for the existence of the bucket, I get the same exception when trying to read or write the file. I worked around it by making GOOGLE_PING use the SSL port:
+
+   <GOOGLE_PING access_key=""access_key""
+                secret_access_key=""secret_access_key""
+                location=""jdg-cluster""
+                port=""443"" />
+
+I have looked at the docs for migrating from S3 to Google Cloud Storage (https://cloud.google.com/storage/docs/migrating?hl=en), and they don't mention this requirement. I also verified that S3_PING works without any changes.
+",2015/12/09 1:58 PM
+JGRP-1967,"The SASL merge authentication fails because the merge leader is asked to merge with itself.
+
+    3741 [TRACE] SASL: B: received CHALLENGE from A
+    3744 [TRACE] SASL: B: sending RESPONSE to A
+    3744 [TRACE] SASL: A: received RESPONSE from B
+    3745 [TRACE] SASL: A: sending CHALLENGE to B
+    3745 [DEBUG] SASL: Authentication successful for user
+    3746 [TRACE] SASL: B: received CHALLENGE from A
+    3746 [TRACE] SASL: B: authentication complete from A
+    A: [A|1] (2) [A, B]
+    B: [A|1] (2) [A, B]
+    A: [A|10] (1) [A]
+    B: [B|10] (1) [B]
+    3823 [DEBUG] GMS: B: I will be the merge leader. Starting the merge task. Views: {A=[A|10] (1) [A], B=[B|10] (1) [B]}
+    3825 [DEBUG] GMS: B: merge task B::1 started with 2 participants
+    3825 [TRACE] GMS: B: sending MERGE_REQ to [B, A]
+    3826 [TRACE] SASL: B: received CHALLENGE from B
+    3829 [TRACE] GMS: B: queue is suspended; request LEAVE(B, false) is discarded
+    3827 [WARN] SASL: failed to validate CHALLENGE from B, token
+    javax.security.sasl.SaslException: DIGEST-MD5: digest response format violation. Missing username.
+            at com.sun.security.sasl.digest.DigestMD5Server.validateClientResponse(DigestMD5Server.java:417) ~[?:1.7.0_85]
+            at com.sun.security.sasl.digest.DigestMD5Server.evaluateResponse(DigestMD5Server.java:244) ~[?:1.7.0_85]
+            at org.jgroups.auth.sasl.SaslServerContext.nextMessage(SaslServerContext.java:73) ~[classes/:?]
+            at org.jgroups.protocols.SASL.up(SASL.java:239) [classes/:?]
+            at org.jgroups.protocols.pbcast.STABLE.up(STABLE.java:234) [classes/:?]
+            at org.jgroups.protocols.UNICAST3.deliverMessage(UNICAST3.java:1064) [classes/:?]
+            at org.jgroups.protocols.UNICAST3.handleDataReceivedFromSelf(UNICAST3.java:810) [classes/:?]
+            at org.jgroups.protocols.UNICAST3.up(UNICAST3.java:424) [classes/:?]
+            at org.jgroups.protocols.pbcast.NAKACK2.up(NAKACK2.java:652) [classes/:?]
+            at org.jgroups.protocols.MERGE3.up(MERGE3.java:285) [classes/:?]
+            at org.jgroups.protocols.Discovery.up(Discovery.java:295) [classes/:?]
+            at org.jgroups.protocols.TP.passMessageUp(TP.java:1577) [classes/:?]
+            at org.jgroups.protocols.TP$3.run(TP.java:1511) [classes/:?]
+            at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145) [?:1.7.0_85]
+            at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615) [?:1.7.0_85]
+            at java.lang.Thread.run(Thread.java:745) [?:1.7.0_85]
+
+",2015/10/06 4:54 AM
+JGRP-1965,"Currently, JGroups transport thread pools use discard as a rejection policy.  Thus if there are no available threads, and the queue is full, the executor will silently drop the task.
+Abort will throw a RejectedExecutionException, in which case, which JGroups catches to populate the num_rejected_msgs statistic.  This is a better default, so that users can monitor this value to determine whether or not to modify their thread pool configuration.  Otherwise, num_rejected_msgs is 0, which might be a source of confusion.",2015/09/16 11:19 AM
+JGRP-1905,"When we have nodes A,B,C,D, but fork-stack ""fs-2"" is not available on B, or fork-channel ""ch-3"" is not available on B, then an RPC invoked by A on all cluster nodes will time out.
+h5. Solution
+* Throw an exception on B if a fork-stack or -channel is not available on a target node. This way, the RPC would return quickly and B's response would be set to the exception (e.g. ""fork channel fc-2 not available"").",2014/12/13 7:35 AM
+JGRP-1852," The SASL challenge-response cycle between a client peer and a server peer should look like this:
+* client sends (possibly empty) response
+* server evaluates response and sends challenge
+* client evaluates challenge and returns response
+and so on until the cycle ends.
+
+The client sends responses in SASL headers marked Type.RESPONSE.; the server sends challenges in SASL headers marked Type.CHALLENGE.
+
+Due to a typo, all headers are marked as Type.RESPONSE, so that CHALLENGE messages were not being processed. The test case passes none the less!",2014/06/12 4:29 PM
+JGRP-1803,"AWS changed the format for presigned URLs, so S3_PING doesn't work anymore with presigned URLs. 
+All pre-signed URLs must include the bucket name in the hostname now. This updates the S3_PING code to both generate the new style URLs as well as be able to parse and use them.",2014/03/03 10:01 AM
+JGRP-1802,"OverlappingUnicastMergeTest does the following:
+
+- set up three channels a,b,c with the layers MERGE2, VERIFY_SUSPECT and FC removed
+- the receiver of each channel will look at all incoming messages: if mcast, ignore it; if unicast, add to the list of messages received
+- inject some new view into the channels which represents a view configuration which should be recovered from
+- send messages to the channels and check that the messages are received, despite the  injected view
+
+OverlappingUnicastMergeTest this test is failing in a number of ways (i.e. many of the test methods are failing within the test class on multiple platforms. 
+
+What we expect to see is:
+{noformat}
+receiver A: ucasts=15
+receiver B: ucasts=15
+receiver C: ucasts=15
+{noformat}
+
+What we instead see is:
+{noformat}
+receiver A: ucasts=15
+receiver B: ucasts=11
+
+ucasts for B: 
+B: unicast msg #1 from B B: unicast msg #2 from B B: unicast msg #3 from B B: unicast msg #4 from B B: unicast msg #5 from B  A: unicast msg #1 from A C: unicast msg #2 from C C: unicast msg #3 from C A: unicast msg #4 from A C: unicast msg #4 from C C: unicast msg #5 from C 
+{noformat}
+
+The order here is the order in which the unicasts were received from all three senders by the single receiver. For example, in the above, in testWithViewBC, channel A should receive messages #1 through #5 from channels A, B and C, but it does not receive #1 from channel C. ",2014/03/03 9:23 AM
+JGRP-1799,"The two tests:
+* testLargeReturnValue
+* testLargeReturnValueUnicastCall
+make RPC calls with values which are increasingly large. 
+
+The values used are in this range:
+{noformat}
+SIZES={10000, 20000, 40000, 80000, 100000, 200000, 400000, 800000,1000000, 2000000, 5000000}
+{noformat}
+
+The tests have been see to fail with the values 1000000, 2000000 and 5000000, always with the same error in each case. 
+
+In the case of testLargeReturnValue, the test fails because one of the returned values from the RPC is null.
+
+In the case of testLargeReturnValueUnicastCall, the test fails due to a timeout while sending the RPC.
+
+ 
+
+
+
+",2014/02/24 10:14 AM
+JGRP-1797,"This test does the following:
+- involves channels A, B, and C where only B and C are senders and all are receivers
+- B and C send 1000 multicast messages
+- checks that all messages are received and in the correct order
+
+This test is failing intermittently but quite often.
+",2014/02/23 4:50 PM
+JGRP-1739,"Test case output written to System.out and System.err can be written from test case Y and end up in the output files of test case X, where Y is the test case immediately following X in the execution sequence.
+
+Here is an example obrained from running the ant target stack-independent::
+{noformat}
+stack-independent:
+    [mkdir] Created dir: /home/nrla/projects/jgroups-git-repo/tmp/test-results/xml/stack-independent
+     [xslt] Processing /home/nrla/projects/jgroups-git-repo/conf/testng/stack-independent.xml to /home/nrla/projects/jgroups-git-repo/tmp/stack-independent.xml
+     [xslt] Loading stylesheet /home/nrla/projects/jgroups-git-repo/conf/testng/parallelConfig.xsl
+   [testng] OK:   [8] org.jgroups.protocols.GMS_MergeTest.testConcurrentMergeMultiplePartitions()
+   [testng] OK:   [8] org.jgroups.protocols.GMS_MergeTest.testConcurrentMergeMultiplePartitionsWithFlush()
+   [testng] OK:   [8] org.jgroups.protocols.GMS_MergeTest.testConcurrentMergeTwoPartitions()
+   [testng] OK:   [8] org.jgroups.protocols.GMS_MergeTest.testConcurrentMergeTwoPartitionsWithFlush()
+   [testng] OK:   [8] org.jgroups.protocols.GMS_MergeTest.testMergeAsymmetricPartitions()
+   [testng] OK:   [8] org.jgroups.protocols.GMS_MergeTest.testMergeAsymmetricPartitions2()
+   [testng] OK:   [8] org.jgroups.protocols.GMS_MergeTest.testMergeAsymmetricPartitionsWithFlush()
+   [testng] OK:   [8] org.jgroups.protocols.GMS_MergeTest.testMergeAsymmetricPartitionsWithFlush2()
+   [testng] OK:   [8] org.jgroups.protocols.GMS_MergeTest.testMergeRequestTimeout()
+   [testng] OK:   [8] org.jgroups.protocols.GMS_MergeTest.testMergeRequestTimeoutWithFlush()
+   [testng] OK:   [8] org.jgroups.protocols.GMS_MergeTest.testSimpleMerge()
+   [testng] OK:   [8] org.jgroups.protocols.GMS_MergeTest.testSimpleMergeWithFlush()
+   [testng] OK:   [8] org.jgroups.protocols.UNICAST_ContentionTest.testMessageReceptionUnderHighLoad-String()
+   [testng] OK:   [8] org.jgroups.protocols.UNICAST_ContentionTest.testMessageReceptionUnderHighLoad-String()
+   [testng] OK:   [8] org.jgroups.protocols.UNICAST_ContentionTest.testSimpleMessageReception-String()
+   [testng] OK:   [8] org.jgroups.protocols.UNICAST_ContentionTest.testSimpleMessageReception-String()
+   [testng] OK:   [8] org.jgroups.tests.TUNNELDeadLockTest.testStress()
+   [testng] OK:   [8] org.jgroups.tests.ConnectStressTest.testConcurrentJoining()
+   [testng] OK:   [8] org.jgroups.tests.SequencerOrderTest.testBroadcastSequence()
+   [testng] OK:   [8] org.jgroups.tests.SendAndReceiveTest.testSendAndReceiveWithDefaultUDP_Loopback()
+   [testng] OK:   [8] org.jgroups.tests.SendAndReceiveTest.testSendAndReceiveWithDefaultUDP_NoLoopback()
+   [testng] OK:   [8] org.jgroups.tests.SendAndReceiveTest.testSendAndReceiveWithLoopback()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testGeneratePreSignedUrlForDelete()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testGeneratePreSignedUrlForPut()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testGenerateQueryStringAuthenticationWithBasicGet()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testGenerateQueryStringAuthenticationWithBasicPost()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testGenerateQueryStringAuthenticationWithBasicPutAndHeaders()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testUsingPreSignedUrlWhenNotSet()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testUsingPreSignedUrlWhenSet()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testValidatePropertiesWithBothPreSignedSetButNoBucket()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testValidatePropertiesWithBothPreSignedSetButNoFile()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testValidatePropertiesWithBothPreSignedSetButTooManySubdirectories()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testValidatePropertiesWithBothPreSignedSetToValid()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testValidatePropertiesWithBothPreSignedSetToValidSubdirectory()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testValidatePropertiesWithPreSignedDeleteSet()
+   [testng] OK:   [8] org.jgroups.protocols.S3_PINGTest.testValidatePropertiesWithPreSignedPutSet()
+   [testng] OK:   [8] org.jgroups.tests.TCPGOSSIP_Test.testAddInitialHosts()
+   [testng] OK:   [8] org.jgroups.tests.TCPGOSSIP_Test.testConnectThree()
+   [testng] OK:   [8] org.jgroups.tests.TCPGOSSIP_Test.testConnectThreeChannelsWithGRAlreadyDown()
+   [testng] OK:   [8] org.jgroups.tests.TCPGOSSIP_Test.testConnectThreeChannelsWithGRDown()
+   [testng] OK:   [8] org.jgroups.tests.TCPGOSSIP_Test.testDisconnectConnectTwo()
+   [testng] OK:   [8] org.jgroups.tests.GossipRouterTest.testLateStart()
+   [testng] OK:   [8] org.jgroups.tests.TUNNEL_Test.testConnectThree()
+   [testng] OK:   [8] org.jgroups.tests.TUNNEL_Test.testDisconnectConnectOne_Default()
+   [testng] OK:   [8] org.jgroups.tests.TUNNEL_Test.testDisconnectConnectOne_TUNNEL()
+   [testng] OK:   [8] org.jgroups.tests.TUNNEL_Test.testDisconnectConnectSendTwo_Default()
+   [testng] OK:   [8] org.jgroups.tests.TUNNEL_Test.testDisconnectConnectSendTwo_TUNNEL()
+   [testng] OK:   [8] org.jgroups.tests.TUNNEL_Test.testDisconnectConnectTwo_Default()
+   [testng] OK:   [8] org.jgroups.tests.TUNNEL_Test.testDisconnectConnectTwo_TUNNEL()
+   [testng] OK:   [8] org.jgroups.tests.TUNNEL_Test.testFailureDetection()
+   [testng] OK:   [8] org.jgroups.tests.TUNNEL_Test.testNullLocalAddress_TUNNEL()
+   [testng] OK:   [8] org.jgroups.tests.SequencerMergeTest.testMergeAndSendOrdering()
+   [testng] OK:   [8] org.jgroups.tests.SequencerMergeTest.testMergeWithParticipant()
+
+BUILD SUCCESSFUL
+Total time: 4 minutes 20 seconds
+[1]+  Done                    emacs
+[nrla@lenovo jgroups-git-repo]$ grep -R testGeneratePreSignedUrlForDelete *
+Binary file classes/org/jgroups/protocols/S3_PINGTest.class matches 
+tests/junit/org/jgroups/protocols/S3_PINGTest.java:    public void testGeneratePreSignedUrlForDelete() {
+tmp/test-results/xml/stack-independent/org.jgroups.tests.SendAndReceiveTest/stdout.txt:------------- testGeneratePreSignedUrlForDelete -----------
+tmp/test-results/xml/stack-independent/TESTS-org.jgroups.tests.SendAndReceiveTest-stack-independent.xml:------------- testGeneratePreSignedUrlForDelete -----------
+Binary file tmp/test-results/xml/stack-independent/org.jgroups.protocols.S3_PINGTest/tests.data matches
+tmp/test-results/xml/stack-independent/TESTS-org.jgroups.protocols.S3_PINGTest-stack-independent.xml:    <testcase classname=""org.jgroups.protocols.S3_PINGTest""  name=""testGeneratePreSignedUrlForDelete"" time=""0.16"">
+{noformat}
+ 
+You'll see that some output from S3_PINGTest is written to the output file of SendAndReceiveTest, which precedes it in execution order. ",2013/11/11 9:29 PM
+JGRP-1728,"Directives controlling parallel execution of the JGroups testsuite can be specified at two levels: as parameters to the testng ant task (in build.xml), or as attributes of the suite element in the suite definition files (found in the conf/testng directory).
+
+At present, parallelism directives in the various suite definition files (functional.xml, udp.xml, tcp.xml, etc.) take precedence over any directives specified in testng ant tasks. In fact, the directives passed to runtest in build.xml are (incorrectly) not passed through to the testng ant task, so that parallelism is controlled solely from the suite definition files.
+
+Making use of parallel execution of test cases when running in the QA lab leads to a higher proportion of test failures, leading to a proliferation of JIRA/bugzilla issues. Therefore it is important that we be able to turn on (turn off) parallel execution of test cases through some simple specification of system properties.
+
+",2013/11/04 11:28 PM
+JGRP-1607,"sequence range get/set fails when num is bigger than Interger.MAX_VAL
+this bug make NAKACK(use_range_based_retransmitter=true) go crazy after Integer.MAX_VAL messages.
+
+",2013/03/06 3:48 AM
+JGRP-1597,"When a node leaves, discard the messages no longer needed. This will avoid any blocking issues in the deliver queue.
+
+In a sender perspective, avoid waiting acks for the leavers.",2013/02/19 6:03 AM
+JGRP-1426,"We have two sub-groups, [B, C, A] and [D].
+
+(1) D sends a MERGE_REQ to B.
+
+2012-02-18 22:15:03.888 [MergeTask,Clumpy Test Cluster,Member-D] TRACE org.jgroups.protocols.pbcast.Merger - Member-B: sending MERGE_REQ to [Member-D, Member-B]
+
+(2) B receives this.  There's some delay in processing it (I think because there's another merge or flush going on; but the exact reason doesn't matter for this issue).  When processing does start, B begins a flush.
+
+2012-02-18 22:15:03.889 [OOB-2,Clumpy Test Cluster,Member-B] TRACE org.jgroups.protocols.TCP - received [dst: Member-B, src: Member-D (3 headers), size=0 bytes, flags=OOB], headers are GMS: GmsHeader[MERGE_REQ]: merge_id=Member-D::1, mbrs=[Member-B, Member-C, Member-A, Member-D], UNICAST2: DATA, seqno=1, conn_id=2, first, TCP: [channel_name=Clumpy Test Cluster]
+
+
+2012-02-18 22:15:08.811 [OOB-2,Clumpy Test Cluster,Member-B] TRACE org.jgroups.protocols.pbcast.Merger - Member-B: got merge request from Member-D, merge_id=Member-D::1, mbrs=[Member-B, Member-A, Member-C, Member-D]
+
+(3) D times out waiting for the MERGE_RSP from B:
+
+2012-02-18 22:15:08.889 [MergeTask,Clumpy Test Cluster,Member-D] TRACE org.jgroups.protocols.pbcast.Merger - Member-D: collected 1 merge response(s) in 5001 ms
+2012-02-18 22:15:08.889 [MergeTask,Clumpy Test Cluster,Member-D] DEBUG org.jgroups.protocols.pbcast.Merger - merge leader Member-D did not get responses from all 2 partition coordinators; missing responses from 1 members, removing them from the merge
+
+(4) D completes the (failed) merge and broadcasts STOP_FLUSH:
+
+2012-02-18 22:15:08.896 [MergeTask,Clumpy Test Cluster,Member-D] TRACE org.jgroups.protocols.pbcast.Merger - Member-D: received all ACKs (1) for merge view MergeView::[Member-D|1] [Member-D], subgroups=[Member-D|0] [Member-D] in 7ms
+2012-02-18 22:15:08.896 [MergeTask,Clumpy Test Cluster,Member-D] TRACE org.jgroups.protocols.pbcast.GMS - Member-D: sending RESUME event
+2012-02-18 22:15:08.897 [MergeTask,Clumpy Test Cluster,Member-D] DEBUG org.jgroups.protocols.pbcast.FLUSH - Member-D: received RESUME, sending STOP_FLUSH to all
+
+But, since B is not a member of D's view, B does not receive this message.  
+
+(5) Now all future merge attempts fail, because B is stuck in a flush:
+
+2012-02-18 22:15:31.186 [OOB-1,Clumpy Test Cluster,Member-B] WARN  org.jgroups.protocols.pbcast.GMS - Member-B: GMS flush by coordinator failed
+2012-02-18 22:15:54.380 [OOB-2,Clumpy Test Cluster,Member-B] WARN  org.jgroups.protocols.pbcast.GMS - Member-B: GMS flush by coordinator failed
+2012-02-18 22:16:13.705 [OOB-1,Clumpy Test Cluster,Member-B] WARN  org.jgroups.protocols.pbcast.GMS - Member-B: GMS flush by coordinator failed
+
+
+
+Note that I have implemented a workaround in my application where I:
+-  start a long-ish timer in the block() callback; and stop that timer in unblock()
+-  if the timer is allowed to pop, call channel.stopFlush()
+
+This seems to be allowing the group to recover.  Any comments on whether this is a good or bad idea would be appreciated.",2012/02/21 3:57 AM
+JGRP-1308,"# The invokeAny methods don't work since they are using a ExecutorCompletionService internally which isn't support with ExecutionService
+# Need to plug hole that when a request or consumer is sent to a coordinator while it is going down that we resubmit that request to the new coordinator.
+# Differentiate between a consumer stop and a task interrupt as well.",2011/03/20 11:38 PM
