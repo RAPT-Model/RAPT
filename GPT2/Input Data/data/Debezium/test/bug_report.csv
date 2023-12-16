@@ -1,0 +1,891 @@
+bug_report_id,bug_report_desc,bug_report_time
+DBZ-3267,The docs PR was lost https://github.com/debezium/debezium.github.io/pull/217,2021/03/12 5:57 AM
+DBZ-2698,"Using
+ * Sql Server 2008R2
+ * sqlserver-connector v1.3.0.Final 
+
+Exceptions are thrown (see exceptions.txt attached) when extracting default values while reading table structure)
+ * StringIndexOutOfBoundsException
+ * NumberFormatException
+ * SQLServerException
+ * IllegalArgumentException
+
+ ",2020/10/24 7:23 AM
+DBZ-2049,"This is a companion Jira for 
+
+https://issues.redhat.com/browse/FUSEDOC-3896
+",2020/05/04 2:05 PM
+DBZ-1935,"Some internals links are broken in the documentation, I attached screenshots from the following page.
+
+https://debezium.io/documentation/reference/1.1/assemblies/cdc-mysql-connector/as_overview-of-how-the-mysql-connector-works.html#connector-common-issues
+
+I'll create a pull request von GitHub later today to fix them.
+
+Shameless plug: I was developing a link checker for the [AsciiDoc plugin for IntelliJ|https://github.com/asciidoctor/asciidoctor-intellij-plugin] and took it for a test run on the Debezium docs. Pre-Release 0.30.51 contains the latest tuning to avoid false-positives.
+
+",2020/04/05 9:47 AM
+DBZ-1198,"h1. Issue
+When a MongoDB collection haven't had activity for a period of time an initial sync is 
+triggered
+
+h2. Context
+Let's see the scenario:
+- The connector is working normally and publishes the `offset` of the oplog in the kafka connect offset topic, marking the offset as `2019-03-25 10:00`
+- There's no activity for more than a day in the monitored collection
+- oplog is a buffer which can last less or longer depending on the configured size, but for our example it's 24 hours
+- Right now is `2019-03-26 17:00`
+- The connector task is restarted or rebalanced, it tries to reach the offset `2019-03-25 10:00` but it's no longer available, because the oldest available right now is `2019-03-25 17:00`
+- The connector causes an initial sync since it couldn't find the oplog offset
+
+This happens because since the collection haven't had any update for longer than 24 hours there was nothing updating the offset in the KC offset topic.
+
+h2. Suggestion
+Often (configured time) update the current oplog cursor offset even if there are no events for the specific monitored collection
+
+h3. Our case
+It's not a ""real"" issue since this is happening in our staging cluster due to inactivity, it won't ever happen in our production cluster, it's just an inconvenience which made me feel insecure about the production state and that's why I had to research on it
+
+h2. Implementation
+I'd like to hear possible implementation strategies for this, an suggestions?",2019/03/26 1:44 PM
+DBZ-768,"{noformat}
+2018-06-25 21:32:16,825 WARN   MySQL|dev_db1|snapshot  Column is missing a character set: mno VARCHAR(64) NOT NULL DEFAULT VALUE 0   [io.debezium.connector.mysql.MySqlValueConverters]
+2018-06-25 21:32:16,825 WARN   MySQL|dev_db1|snapshot  Using UTF-8 charset by default for column without charset: mno VARCHAR(64) NOT NULL DEFAULT VALUE 0   [io.debezium.connector.mysql.MySqlValueConverters]
+2018-06-25 21:32:16,826 INFO   MySQL|dev_db1|snapshot  	CREATE TABLE `abc` (
+  `def` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `ghi` int(11) unsigned NOT NULL,
+  `jkl` int(11) unsigned NOT NULL COMMENT 'comment',
+  `mno` varchar(64) NOT NULL DEFAULT '0' COMMENT 'comment',
+  `pqr` varchar(32) NOT NULL COMMENT 'comment',
+  `stu` varchar(16) DEFAULT NULL COMMENT 'comment',
+  `vwx` varchar(64) NOT NULL COMMENT 'comment',
+  `bcd` timestamp(3) NOT NULL DEFAULT '0000-00-00 00:00:00.000' COMMENT 'comment',
+  `efg` timestamp(3) NOT NULL DEFAULT '0000-00-00 00:00:00.000' COMMENT 'comment',
+  `hij` timestamp(3) NOT NULL DEFAULT '0000-00-00 00:00:00.000' COMMENT 'comment',
+  `klm` varchar(255) DEFAULT NULL COMMENT 'comment',
+  `nop` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `qrs` int(11) DEFAULT NULL,
+  PRIMARY KEY (`def`)
+) ENGINE=InnoDB AUTO_INCREMENT=1955 DEFAULT CHARSET=utf8 COMMENT='comment'   [io.debezium.connector.mysql.SnapshotReader]
+2018-06-25 21:32:16,829 INFO   MySQL|dev_db1|snapshot  Step 7: rolling back transaction after abort   [io.debezium.connector.mysql.SnapshotReader]
+2018-06-25 21:32:16,831 ERROR  MySQL|dev_db1|snapshot  Failed due to error: Aborting snapshot due to error when last running 'ROLLBACK': Timestamp format must be yyyy-mm-dd hh:mm:ss[.fffffffff]   [io.debezium.connector.mysql.SnapshotReader]
+org.apache.kafka.connect.errors.ConnectException: Timestamp format must be yyyy-mm-dd hh:mm:ss[.fffffffff]
+	at io.debezium.connector.mysql.AbstractReader.wrap(AbstractReader.java:200)
+	at io.debezium.connector.mysql.AbstractReader.failed(AbstractReader.java:178)
+	at io.debezium.connector.mysql.SnapshotReader.execute(SnapshotReader.java:692)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+Caused by: java.lang.IllegalArgumentException: Timestamp format must be yyyy-mm-dd hh:mm:ss[.fffffffff]
+	at java.sql.Timestamp.valueOf(Timestamp.java:237)
+	at io.debezium.connector.mysql.MySqlDefaultValuePreConverter.convertToTimestamp(MySqlDefaultValuePreConverter.java:129)
+	at io.debezium.connector.mysql.MySqlDefaultValuePreConverter.convert(MySqlDefaultValuePreConverter.java:58)
+	at io.debezium.connector.mysql.antlr.listener.ColumnDefinitionParserListener.convertDefaultValueToSchemaType(ColumnDefinitionParserListener.java:261)
+	at io.debezium.connector.mysql.antlr.listener.ColumnDefinitionParserListener.enterDefaultValue(ColumnDefinitionParserListener.java:129)
+	at io.debezium.ddl.parser.mysql.generated.MySqlParser$DefaultValueContext.enterRule(MySqlParser.java:48914)
+	at io.debezium.antlr.ProxyParseTreeListenerUtil.delegateEnterRule(ProxyParseTreeListenerUtil.java:45)
+	at io.debezium.connector.mysql.antlr.listener.MySqlAntlrDdlParserListener.enterEveryRule(MySqlAntlrDdlParserListener.java:89)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.enterRule(ParseTreeWalker.java:41)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:25)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at io.debezium.antlr.AntlrDdlParser.parse(AntlrDdlParser.java:85)
+	at io.debezium.connector.mysql.MySqlSchema.applyDdl(MySqlSchema.java:344)
+	at io.debezium.connector.mysql.SnapshotReader.lambda$execute$12(SnapshotReader.java:441)
+	at io.debezium.jdbc.JdbcConnection.query(JdbcConnection.java:393)
+	at io.debezium.jdbc.JdbcConnection.query(JdbcConnection.java:348)
+	at io.debezium.connector.mysql.SnapshotReader.execute(SnapshotReader.java:439)
+	... 3 more
+2018-06-25 21:32:17,023 INFO   ||  WorkerSourceTask{id=inventory-connector-0} Committing offsets   [org.apache.kafka.connect.runtime.WorkerSourceTask]
+2018-06-25 21:32:17,023 INFO   ||  WorkerSourceTask{id=inventory-connector-0} flushing 0 outstanding messages for offset commit   [org.apache.kafka.connect.runtime.WorkerSourceTask]
+2018-06-25 21:32:17,032 INFO   ||  Cluster ID: 5GrwXr9pS1uvmX43LO8tdw   [org.apache.kafka.clients.Metadata]
+2018-06-25 21:32:17,048 INFO   ||  WorkerSourceTask{id=inventory-connector-0} Finished commitOffsets successfully in 25 ms   [org.apache.kafka.connect.runtime.WorkerSourceTask]
+2018-06-25 21:32:17,048 ERROR  ||  WorkerSourceTask{id=inventory-connector-0} Task threw an uncaught and unrecoverable exception   [org.apache.kafka.connect.runtime.WorkerTask]
+org.apache.kafka.connect.errors.ConnectException: Timestamp format must be yyyy-mm-dd hh:mm:ss[.fffffffff]
+	at io.debezium.connector.mysql.AbstractReader.wrap(AbstractReader.java:200)
+	at io.debezium.connector.mysql.AbstractReader.failed(AbstractReader.java:178)
+	at io.debezium.connector.mysql.SnapshotReader.execute(SnapshotReader.java:692)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+Caused by: java.lang.IllegalArgumentException: Timestamp format must be yyyy-mm-dd hh:mm:ss[.fffffffff]
+	at java.sql.Timestamp.valueOf(Timestamp.java:237)
+	at io.debezium.connector.mysql.MySqlDefaultValuePreConverter.convertToTimestamp(MySqlDefaultValuePreConverter.java:129)
+	at io.debezium.connector.mysql.MySqlDefaultValuePreConverter.convert(MySqlDefaultValuePreConverter.java:58)
+	at io.debezium.connector.mysql.antlr.listener.ColumnDefinitionParserListener.convertDefaultValueToSchemaType(ColumnDefinitionParserListener.java:261)
+	at io.debezium.connector.mysql.antlr.listener.ColumnDefinitionParserListener.enterDefaultValue(ColumnDefinitionParserListener.java:129)
+	at io.debezium.ddl.parser.mysql.generated.MySqlParser$DefaultValueContext.enterRule(MySqlParser.java:48914)
+	at io.debezium.antlr.ProxyParseTreeListenerUtil.delegateEnterRule(ProxyParseTreeListenerUtil.java:45)
+	at io.debezium.connector.mysql.antlr.listener.MySqlAntlrDdlParserListener.enterEveryRule(MySqlAntlrDdlParserListener.java:89)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.enterRule(ParseTreeWalker.java:41)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:25)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at org.antlr.v4.runtime.tree.ParseTreeWalker.walk(ParseTreeWalker.java:28)
+	at io.debezium.antlr.AntlrDdlParser.parse(AntlrDdlParser.java:85)
+	at io.debezium.connector.mysql.MySqlSchema.applyDdl(MySqlSchema.java:344)
+	at io.debezium.connector.mysql.SnapshotReader.lambda$execute$12(SnapshotReader.java:441)
+	at io.debezium.jdbc.JdbcConnection.query(JdbcConnection.java:393)
+	at io.debezium.jdbc.JdbcConnection.query(JdbcConnection.java:348)
+	at io.debezium.connector.mysql.SnapshotReader.execute(SnapshotReader.java:439)
+	... 3 more
+2018-06-25 21:32:17,048 ERROR  ||  WorkerSourceTask{id=inventory-connector-0} Task is being killed and will not recover until manually restarted   [org.apache.kafka.connect.runtime.WorkerTask]
+2018-06-25 21:32:17,048 INFO   ||  [Producer clientId=producer-4] Closing the Kafka producer with timeoutMillis = 30000 ms.   [org.apache.kafka.clients.producer.KafkaProducer]
+2018-06-25 21:33:06,953 INFO   ||  WorkerSourceTask{id=inventory-connector-0} Committing offsets   [org.apache.kafka.connect.runtime.WorkerSourceTask]
+2018-06-25 21:33:06,954 INFO   ||  WorkerSourceTask{id=inventory-connector-0} flushing 0 outstanding messages for offset commit   [org.apache.kafka.connect.runtime.WorkerSourceTask]
+{noformat}",2018/06/25 5:59 PM
+DBZ-599,"If there's an unparseable DDL statement and the schema changes topic is enabled, it may happen that the offset of that DDL event gets committed by Kafka Connect (the reason being that {{poll()}} may emit the corresponding {{SourceRecord}} before the {{failure}} property is set which will stop the connector eventually. This should not happen, i.e. such unparseable DDL event should not be propagated.",2018/02/06 6:52 AM
+DBZ-342,"*Description*
+
+If we have MySQL table schema with a *TIME* field, for example the following schema:
+{code}
+CREATE TABLE `time_bug` (
+  `id` int(11) NOT NULL,
+  `time_field` time DEFAULT NULL,
+  `field_2` varchar(45) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+{code}
+
+The connector produces the following errors:
+* During the Snapshot phase:
+{code}
+[2017-08-31 12:01:03,065] INFO Step 8: committing transaction (io.debezium.connector.mysql.SnapshotReader:520)
+[2017-08-31 12:01:03,066] ERROR Failed due to error: Aborting snapshot due to error when last running 'COMMIT': Illegal hour value '56' for java.sql.Time type in value '56:00:00. (io.debezium.connector.mysql.SnapshotReader:143)
+org.apache.kafka.connect.errors.ConnectException: Illegal hour value '56' for java.sql.Time type in value '56:00:00. Error code: 0; SQLSTATE: S1009.
+	at io.debezium.connector.mysql.AbstractReader.wrap(AbstractReader.java:164)
+	at io.debezium.connector.mysql.AbstractReader.failed(AbstractReader.java:142)
+	at io.debezium.connector.mysql.SnapshotReader.execute(SnapshotReader.java:574)
+	at java.lang.Thread.run(Thread.java:748)
+Caused by: java.sql.SQLException: Illegal hour value '56' for java.sql.Time type in value '56:00:00.
+	at com.mysql.jdbc.SQLError.createSQLException(SQLError.java:964)
+	at com.mysql.jdbc.SQLError.createSQLException(SQLError.java:897)
+	at com.mysql.jdbc.SQLError.createSQLException(SQLError.java:886)
+	at com.mysql.jdbc.SQLError.createSQLException(SQLError.java:860)
+	at com.mysql.jdbc.TimeUtil.fastTimeCreate(TimeUtil.java:286)
+	at com.mysql.jdbc.ResultSetImpl.fastTimeCreate(ResultSetImpl.java:976)
+	at com.mysql.jdbc.ResultSetRow.getTimeFast(ResultSetRow.java:884)
+	at com.mysql.jdbc.ByteArrayRow.getTimeFast(ByteArrayRow.java:232)
+	at com.mysql.jdbc.ResultSetImpl.getTimeInternal(ResultSetImpl.java:5572)
+	at com.mysql.jdbc.ResultSetImpl.getTime(ResultSetImpl.java:5340)
+	at com.mysql.jdbc.ResultSetImpl.getObject(ResultSetImpl.java:4546)
+	at io.debezium.connector.mysql.SnapshotReader.lambda$execute$12(SnapshotReader.java:442)
+	at io.debezium.jdbc.JdbcConnection.query(JdbcConnection.java:389)
+	at io.debezium.connector.mysql.SnapshotReader.execute(SnapshotReader.java:432)
+	... 1 more
+[2017-08-31 12:01:03,469] ERROR Task dbz-proto-dev-1-0 threw an uncaught and unrecoverable exception (org.apache.kafka.connect.runtime.WorkerTask:141)
+{code}
+* During the binlog scan phase (after the snapshot phase is completed):
+{code}
+2017-08-31 12:06:13,648] INFO Finished WorkerSourceTask{id=dbz-proto-dev-1-0} commitOffsets successfully in 8 ms (org.apache.kafka.connect.runtime.WorkerSourceTask:371)
+[2017-08-31 12:06:13,648] ERROR Task dbz-proto-dev-1-0 threw an uncaught and unrecoverable exception (org.apache.kafka.connect.runtime.WorkerTask:141)
+org.apache.kafka.connect.errors.ConnectException: Invalid value for HourOfDay (valid values 0 - 23): 50
+	at io.debezium.connector.mysql.AbstractReader.wrap(AbstractReader.java:164)
+	at io.debezium.connector.mysql.AbstractReader.failed(AbstractReader.java:131)
+	at io.debezium.connector.mysql.BinlogReader$ReaderThreadLifecycleListener.onEventDeserializationFailure(BinlogReader.java:707)
+	at com.github.shyiko.mysql.binlog.BinaryLogClient.listenForEventPackets(BinaryLogClient.java:752)
+	at com.github.shyiko.mysql.binlog.BinaryLogClient.connect(BinaryLogClient.java:472)
+	at com.github.shyiko.mysql.binlog.BinaryLogClient$5.run(BinaryLogClient.java:657)
+	at java.lang.Thread.run(Thread.java:748)
+Caused by: java.time.DateTimeException: Invalid value for HourOfDay (valid values 0 - 23): 50
+	at java.time.temporal.ValueRange.checkValidValue(ValueRange.java:311)
+	at java.time.temporal.ChronoField.checkValidValue(ChronoField.java:703)
+	at java.time.LocalTime.of(LocalTime.java:339)
+	at io.debezium.connector.mysql.RowDeserializers.deserializeTimeV2(RowDeserializers.java:329)
+	at io.debezium.connector.mysql.RowDeserializers$UpdateRowsDeserializer.deserializeTimeV2(RowDeserializers.java:148)
+	at com.github.shyiko.mysql.binlog.event.deserialization.AbstractRowsEventDataDeserializer.deserializeCell(AbstractRowsEventDataDeserializer.java:164)
+	at com.github.shyiko.mysql.binlog.event.deserialization.AbstractRowsEventDataDeserializer.deserializeRow(AbstractRowsEventDataDeserializer.java:132)
+	at com.github.shyiko.mysql.binlog.event.deserialization.UpdateRowsEventDataDeserializer.deserializeRows(UpdateRowsEventDataDeserializer.java:70)
+	at com.github.shyiko.mysql.binlog.event.deserialization.UpdateRowsEventDataDeserializer.deserialize(UpdateRowsEventDataDeserializer.java:58)
+	at com.github.shyiko.mysql.binlog.event.deserialization.UpdateRowsEventDataDeserializer.deserialize(UpdateRowsEventDataDeserializer.java:33)
+	at com.github.shyiko.mysql.binlog.event.deserialization.EventDeserializer.deserializeEventData(EventDeserializer.java:206)
+	at com.github.shyiko.mysql.binlog.event.deserialization.EventDeserializer.nextEvent(EventDeserializer.java:180)
+	at io.debezium.connector.mysql.BinlogReader$1.nextEvent(BinlogReader.java:116)
+	at com.github.shyiko.mysql.binlog.BinaryLogClient.listenForEventPackets(BinaryLogClient.java:741)
+	... 3 more
+{code}",2017/08/31 6:29 AM
+DBZ-284,"The support for MySQL's {{POINT}} type introduced with DBZ-222 has one bug -- an NPE is raised when a null value is processed:
+
+{code}
+org.apache.kafka.connect.errors.ConnectException
+	at io.debezium.connector.mysql.AbstractReader.wrap(AbstractReader.java:164)
+	at io.debezium.connector.mysql.AbstractReader.failed(AbstractReader.java:142)
+	at io.debezium.connector.mysql.BinlogReader.handleEvent(BinlogReader.java:332)
+	at com.github.shyiko.mysql.binlog.BinaryLogClient.notifyEventListeners(BinaryLogClient.java:902)
+	at com.github.shyiko.mysql.binlog.BinaryLogClient.listenForEventPackets(BinaryLogClient.java:760)
+	at com.github.shyiko.mysql.binlog.BinaryLogClient.connect(BinaryLogClient.java:472)
+	at com.github.shyiko.mysql.binlog.BinaryLogClient$5.run(BinaryLogClient.java:657)
+	at java.lang.Thread.run(Thread.java:745)
+Caused by: java.lang.NullPointerException
+	at io.debezium.jdbc.JdbcValueConverters.handleUnknownData(JdbcValueConverters.java:1224)
+	at io.debezium.connector.mysql.MySqlValueConverters.convertPoint(MySqlValueConverters.java:525)
+	at io.debezium.connector.mysql.MySqlValueConverters.lambda$converter$1(MySqlValueConverters.java:193)
+	at io.debezium.relational.TableSchemaBuilder.lambda$createValueGenerator$3(TableSchemaBuilder.java:230)
+	at io.debezium.relational.TableSchema.valueFromColumnData(TableSchema.java:111)
+	at io.debezium.connector.mysql.RecordMakers$1.update(RecordMakers.java:235)
+	at io.debezium.connector.mysql.RecordMakers$RecordsForTable.update(RecordMakers.java:444)
+	at io.debezium.connector.mysql.BinlogReader.handleUpdate(BinlogReader.java:573)
+	at io.debezium.connector.mysql.BinlogReader.handleEvent(BinlogReader.java:319)
+	... 5 more
+{code}",2017/06/09 2:47 PM
+DBZ-254,"We recently observed what appears to be a pretty nasty bug in either Debezium or Shyiko's binlog library. Our data quality checkers noticed that some of our rows have what appear to be corrupt binary fields.
+
+An example row follows. The lifecycle of the row is:
+
+# Row is inserted and processed via binlog
+# Row is updated and processed via binlog
+# Row is re-bootstrapped via JDBC DBZ snapshot (upon determining the corruption in the row)
+
+{noformat}
+# initial insert (binlog)
+{""before"":null,""after"":{""file_uuid"":""ZRrtCDkPSJOy8TaSPnt0"",""server_file_path"":""***"",""state"":""1"",""service_timestamp"":""1493991133000"",""modify_time"":""1493991601"",""create_time"":""1493991601"",""server_id"":""***""},""source"":{""name"":""***"",""server_id"":""4132478999"",""ts_sec"":""1493991601"",""gtid"":""***:1284003"",""file"":""mysql-bin.000086"",""pos"":""504068621"",""row"":""0"",""snapshot"":null,""thread"":""177217"",""db"":""***"",""table"":""response_files""},""op"":""c"",""ts_ms"":""1493991601989"",""kafkaData"":{""topic"":""***"",""partition"":""1"",""offset"":""1365"",""insertTime"":""1493991602""}}
+
+# update (binlog)
+{""before"":{""file_uuid"":""ZRrtCDkPSJOy8TaSPnt0"",""server_file_path"":""***"",""state"":""1"",""service_timestamp"":""1493991133000"",""modify_time"":""1493991601"",""create_time"":""1493991601"",""server_id"":""***""},""after"":{""file_uuid"":""ZRrtCDkPSJOy8TaSPnt0"",""server_file_path"":""***"",""state"":""2"",""service_timestamp"":""1493991133000"",""modify_time"":""1493991604"",""create_time"":""1493991601"",""server_id"":""***""},""source"":{""name"":""***"",""server_id"":""4132478999"",""ts_sec"":""1493991604"",""gtid"":""***:1284006"",""file"":""mysql-bin.000086"",""pos"":""504340610"",""row"":""0"",""snapshot"":null,""thread"":""177217"",""db"":""***"",""table"":""response_files""},""op"":""u"",""ts_ms"":""1493991604032"",""kafkaData"":{""topic"":""***"",""partition"":""1"",""offset"":""1366"",""insertTime"":""1493991604.038""}}
+
+# re-snapshot (JDBC)
+{""before"":null,""after"":{""file_uuid"":""ZRrtCDkPSJOy8TaSPnt0AA=="",""server_file_path"":""***"",""state"":""2"",""service_timestamp"":""1493991133000"",""modify_time"":""1493991604"",""create_time"":""1493991601"",""server_id"":""***""},""source"":{""name"":""***"",""server_id"":""0"",""ts_sec"":""0"",""gtid"":null,""file"":""mysql-bin.000141"",""pos"":""997974085"",""row"":""0"",""snapshot"":""true"",""thread"":null,""db"":""***"",""table"":""response_files""},""op"":""c"",""ts_ms"":""1494884115072"",""kafkaData"":{""topic"":""***"",""partition"":""0"",""offset"":""1623"",""insertTime"":""1494884126.866""}}
+{noformat}
+
+Note the file_uuid fields. In the initial binlog-based insert/update, they're {{ZRrtCDkPSJOy8TaSPnt0}}. In the JDBC-based snapshot, the file_uuid is {{ZRrtCDkPSJOy8TaSPnt0AA==}}. We went to the source DB, and determined that the file UUID is the full 16 bytes. As a normally-formatted UUID, the value is: {{651aed08-390f-4893-b2f1-36923e7b7400}}. Note the trailing double zero. This trailing double zero is what's getting truncated in the binlog path.
+
+We have reviewed our DB, and determined this issue to be widespread. It seems that at LEAST any UUID with a trailing 0 results in this truncation. We have not investigated whether binary fields with multiple 0's at the end all get truncated, but I suspect it's the case as well.
+
+NOTE: the schema for the table is:
+
+{noformat}
+field               type         null  key  default
+file_uuid           binary(16)   NO    PRI		
+server_file_path    varchar(255) NO	
+state               int(11)	     NO	
+service_timestamp   bigint(20)	 NO	
+modify_time         timestamp	 NO         CURRENT_TIMESTAMP	
+create_time         timestamp	 NO         CURRENT_TIMESTAMP	
+server_id           varchar(64)	 NO    PRI		
+{noformat}",2017/05/16 12:20 PM
+DBZ-246,When enum type imeplements EnmueratedValue then enum recommender does not work as it takes into consideration name of enum and not its value. The same is probem is with default value. Last but not least - config builder should handle enumeratedtype as well.,2017/05/09 5:23 AM
+DBZ-245,"The test is passing but assertions are probably incorrect as the log contains exception
+{noformat}
+May 09, 2017 8:19:13 AM org.postgresql.Driver connect
+SEVERE: Connection error: 
+org.postgresql.util.PSQLException: Invalid sslmode value: REQUIRED
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:101)
+	at org.postgresql.core.ConnectionFactory.openConnection(ConnectionFactory.java:49)
+	at org.postgresql.jdbc.PgConnection.<init>(PgConnection.java:194)
+	at org.postgresql.Driver.makeConnection(Driver.java:431)
+	at org.postgresql.Driver.connect(Driver.java:247)
+	at io.debezium.jdbc.JdbcConnection.lambda$patternBasedFactory$1(JdbcConnection.java:160)
+	at io.debezium.jdbc.JdbcConnection.connection(JdbcConnection.java:565)
+	at io.debezium.jdbc.JdbcConnection.query(JdbcConnection.java:380)
+	at io.debezium.jdbc.JdbcConnection.query(JdbcConnection.java:342)
+	at io.debezium.connector.postgresql.connection.PostgresConnection.serverInfo(PostgresConnection.java:208)
+	at io.debezium.connector.postgresql.PostgresConnectorTask.start(PostgresConnectorTask.java:81)
+	at io.debezium.embedded.EmbeddedEngine.run(EmbeddedEngine.java:626)
+	at io.debezium.embedded.AbstractConnectorTest.lambda$start$3(AbstractConnectorTest.java:298)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+{noformat}",2017/05/09 2:21 AM
+DBZ-229,The code in aforementioned method queries grants for the user and verifies either ALL or LOKC tables privilege - but only for first record. The checking should be done in a loop.,2017/04/26 9:25 AM
+DBZ-213,"The MongoDB images have changed behavior, and during container startup the MongoDB server is started once, then stopped, and then restarted. Each time the server starts it outputs the following line:
+
+{code}
+2017-04-04T15:45:16.901+0000 I NETWORK  [initandlisten] waiting for connections on port 27017
+{code}
+
+Our build starts the {{mongo-init}} replica set initiator container as soon as the {{mongo}} container outputs a line containing ""{{waiting for connections on port 27017}}"". Since that appears once before the server is stopped, the {{mongo-init}} container gets an error upon connection and terminates immediately. As a result, the build times out waiting for the completion of the replica set initiation.",2017/04/04 11:51 AM
+DBZ-205,"So we are inserting date as 11-04-03 in MySQL which in MySQL is treated as 2011-04-03 and by the dbz  it is being treated as 0011-04-03 .
+
+[MySQL doc for DATE datatype|https://dev.mysql.com/doc/refman/5.7/en/datetime.html]
+Few lines from docs:
+Dates containing two-digit year values are ambiguous because the century is unknown. MySQL interprets two-digit year values using these rules:
+
+Year values in the range 00-69 are converted to 2000-2069.
+
+Year values in the range 70-99 are converted to 1970-1999.",2017/03/21 9:09 AM
+DBZ-200,"If reserved keywords (e.g. `UNIQUE`) is used as column name in source table - processing of that table fails / related kafka topic is not created. See attached error-msg.txt. 
+----
+General problem of conditions which are used in current context is they in the same moment modify compared content and consume token. Even if column is quoted and should be anyhow used, second part condition is run - than finds keyword and consume it. My simple partial solution (for `UNIQUE` keyword) I added in attached zip - included is mysql-connector part and core part. I tested it by my unit tests and worked, but this problem should be generally solved.",2017/03/07 8:57 AM
+DBZ-197,"I'm getting an ArrayIndexOutOfBoundsException error in the MySqlValueConverters::convertEnumToString method. I've spent hours trying to recreate it in a simple environment, but it seems to happen randomly, meaning that the same sql queries sometime succeed, and sometimes create this error. I've not been able to repeatedly replicate it, but it happens after 3-4 update queries, usually, at what point debezium crashes and stops propagating updates to kafka.
+
+Mysql version: 
+
+{code}
+mysql  Ver 14.14 Distrib 5.6.32, for debian-linux-gnu (x86_64)
+{code}
+
+The error:
+
+{code}
+Feb 24 21:12:23 devbox debezium-mysql-start.sh[3283]: [2017-02-24 21:12:23,531] INFO Finished WorkerSourceTask{id=cep_debezium_mysql-0} commitOffsets successfully in 6 ms (org.apache.kafka.connect.runtime.WorkerSourceTask:356)
+Feb 24 21:13:22 devbox debezium-mysql-start.sh[3283]: [2017-02-24 21:13:22,635] INFO 1 records sent during previous 00:01:05.701, last recorded offset: {ts_sec=1487970801, file=mysql-bin.000001, pos=2143, row=1, server_id=1, event=2} (io.debezium.connector.mysql.BinlogReader:267)
+Feb 24 21:13:23 devbox debezium-mysql-start.sh[3283]: [2017-02-24 21:13:23,535] INFO Finished WorkerSourceTask{id=cep_debezium_mysql-0} commitOffsets successfully in 1 ms (org.apache.kafka.connect.runtime.WorkerSourceTask:356)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]: [2017-02-24 21:14:38,036] ERROR Failed due to error: Error processing binlog event (io.debezium.connector.mysql.BinlogReader:143)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]: org.apache.kafka.connect.errors.ConnectException: -1
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at io.debezium.connector.mysql.AbstractReader.wrap(AbstractReader.java:164)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at io.debezium.connector.mysql.AbstractReader.failed(AbstractReader.java:142)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at io.debezium.connector.mysql.BinlogReader.handleEvent(BinlogReader.java:326)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at com.github.shyiko.mysql.binlog.BinaryLogClient.notifyEventListeners(BinaryLogClient.java:902)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at com.github.shyiko.mysql.binlog.BinaryLogClient.listenForEventPackets(BinaryLogClient.java:760)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at com.github.shyiko.mysql.binlog.BinaryLogClient.connect(BinaryLogClient.java:472)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at com.github.shyiko.mysql.binlog.BinaryLogClient$5.run(BinaryLogClient.java:657)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at java.lang.Thread.run(Thread.java:745)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]: Caused by: java.lang.ArrayIndexOutOfBoundsException: -1
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at java.util.ArrayList.elementData(ArrayList.java:418)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at java.util.ArrayList.get(ArrayList.java:431)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at io.debezium.connector.mysql.MySqlValueConverters.convertEnumToString(MySqlValueConverters.java:311)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at io.debezium.connector.mysql.MySqlValueConverters.lambda$converter$2(MySqlValueConverters.java:125)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at io.debezium.relational.TableSchemaBuilder.lambda$createValueGenerator$3(TableSchemaBuilder.java:230)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at io.debezium.relational.TableSchema.valueFromColumnData(TableSchema.java:111)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at io.debezium.connector.mysql.RecordMakers$1.update(RecordMakers.java:235)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at io.debezium.connector.mysql.RecordMakers$RecordsForTable.update(RecordMakers.java:444)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at io.debezium.connector.mysql.BinlogReader.handleUpdate(BinlogReader.java:551)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         at io.debezium.connector.mysql.BinlogReader.handleEvent(BinlogReader.java:313)
+Feb 24 21:14:38 devbox debezium-mysql-start.sh[3283]:         ... 5 more
+{code}
+
+DDL:
+
+{code}
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]: [2017-02-24 21:12:16,551] INFO         CREATE TABLE `conversation` (
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `id` int(11) NOT NULL AUTO_INCREMENT,
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `data_source` enum('twitter','facebook','generic') DEFAULT NULL,
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `owner_profile_id` bigint(20) unsigned NOT NULL,
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `participant_profile_id` bigint(20) unsigned NOT NULL,
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `status` enum('new','archived','assigned','bulkarchiving','pending') DEFAULT NULL,
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `not_archived_since` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `not_assigned_since` timestamp NULL DEFAULT NULL,
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `last_message_received` timestamp NULL DEFAULT NULL,
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `status_updated_at` timestamp NULL DEFAULT NULL,
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `assigned_to_client_user_id` int(11) NOT NULL DEFAULT '0',
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `last_updated_at` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `inverted_vip` tinyint(3) unsigned NOT NULL DEFAULT '1',
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `inverted_followers_count` int(11) NOT NULL DEFAULT '0',
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `inverted_not_archived_since` int(10) unsigned NOT NULL DEFAULT '0',
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `inverted_status_updated_at` int(10) unsigned DEFAULT '0',
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   `batch_id` int(11) NOT NULL DEFAULT '0',
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   PRIMARY KEY (`id`),
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   UNIQUE KEY `owner_participant` (`data_source`,`owner_profile_id`,`participant_profile_id`),
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   KEY `status_source_vip` (`status`,`data_source`,`inverted_vip`,`status_updated_at`),
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   KEY `status_source_vip_inverted` (`status`,`data_source`,`inverted_vip`,`inverted_status_updated_at`),
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   KEY `status_source_vip_inverted_followers` (`status`,`data_source`,`inverted_vip`,`inverted_followers_count`),
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   KEY `status_source_inverted_updated` (`status`,`data_source`,`inverted_status_updated_at`),
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   KEY `status_source_updated` (`status`,`data_source`,`status_updated_at`),
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]:   KEY `batch_id` (`batch_id`)
+Feb 24 21:12:16 devbox debezium-mysql-start.sh[3283]: ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8 (io.debezium.connector.mysql.SnapshotReader:697)
+{code}
+
+
+The binlog entry/query that fails:
+
+{code}
+UPDATE `conversation` SET `assigned_to_client_user_id` = NULL, `status` = 'archived', `not_archived_since` = '2017-02-24 21:14:37', `inverted_not_archived_since` = TIMESTAMPDIFF(SECOND, '2017-02-24 21:14:37', '2050-01-01'), `status_updated_at` = '2017-02-24 21:14:37', `inverted_status_updated_at` = TIMESTAMPDIFF(SECOND, '2017-02-24 21:14:37', '2050-01-01'   ) WHERE `id` = '2'
+{code}
+
+{code}
+BINLOG '
+PaKwWBMBAAAAYQAAABgPAAAAAEgAAAAAAAMAFWxvY2FsX3R3ZWV0c19jbGllbnRfMQAMY29udmVy
+c2F0aW9uABAD/ggI/hEREREDEQEDAwMDCfcB9wEAAAAAANJBGLZ9bg==
+PaKwWB8BAAAAmAAAALAPAAAAAEgAAAAAAAEAAgAQ/////8AAAgAAAAEGREmkAAAAAMSrEqQAAAAA
+AViwoCtYsKHxAAAAAFiwnskB/////9XVyT3V1ck9AAAAAMAAAgAAAAEGREmkAAAAAMSrEqQAAAAA
+Aliwoj1YsKI9AAAAAFiwnskB/////8PTyT3D08k9AAAAAK9hASc=
+'/*!*/;
+### UPDATE `local_tweets_client_1`.`conversation`
+### WHERE
+###   @1=2
+###   @2=1
+###   @3=2756264966
+###   @4=2752687044
+###   @5=1
+###   @6=1487970347
+###   @7=NULL
+###   @8=NULL
+###   @9=1487970801
+###   @10=0
+###   @11=1487969993
+###   @12=1
+###   @13=-1 (4294967295)
+###   @14=1036637653
+###   @15=1036637653
+###   @16=0
+### SET
+###   @1=2
+###   @2=1
+###   @3=2756264966
+###   @4=2752687044
+###   @5=2
+###   @6=1487970877
+###   @7=NULL
+###   @8=NULL
+###   @9=1487970877
+###   @10=0
+###   @11=1487969993
+###   @12=1
+###   @13=-1 (4294967295)
+###   @14=1036637123
+###   @15=1036637123
+###   @16=0
+{code}
+
+A previous, similar binlog entry that works, updating the same enum, from this sql:
+
+{code}
+UPDATE `conversation` SET `status` = 'pending', `status_updated_at` = '2017-02-24 21:10:45' WHERE `id` = '2'
+{code}
+
+{code}
+BINLOG '
+8aGwWBMBAAAAYQAAACMJAAAAAEgAAAAAAAMAFWxvY2FsX3R3ZWV0c19jbGllbnRfMQAMY29udmVy
+c2F0aW9uABAD/ggI/hEREREDEQEDAwMDCfcB9wEAAAAAANJBgui9Ow==
+8aGwWB8BAAAAmAAAALsJAAAAAEgAAAAAAAEAAgAQ/////8AAAgAAAAEGREmkAAAAAMSrEqQAAAAA
+BViwoCtYsKFVAAAAAFiwnskB/////9XVyT3V1ck9AAAAAMAAAgAAAAEGREmkAAAAAMSrEqQAAAAA
+AViwoCtYsKHxAAAAAFiwnskB/////9XVyT3V1ck9AAAAABM9xJI=
+'/*!*/;
+### UPDATE `local_tweets_client_1`.`conversation`
+### WHERE
+###   @1=2
+###   @2=1
+###   @3=2756264966
+###   @4=2752687044
+###   @5=5
+###   @6=1487970347
+###   @7=NULL
+###   @8=NULL
+###   @9=1487970645
+###   @10=0
+###   @11=1487969993
+###   @12=1
+###   @13=-1 (4294967295)
+###   @14=1036637653
+###   @15=1036637653
+###   @16=0
+### SET
+###   @1=2
+###   @2=1
+###   @3=2756264966
+###   @4=2752687044
+###   @5=1
+###   @6=1487970347
+###   @7=NULL
+###   @8=NULL
+###   @9=1487970801
+###   @10=0
+###   @11=1487969993
+###   @12=1
+###   @13=-1 (4294967295)
+###   @14=1036637653
+###   @15=1036637653
+###   @16=0
+{code}
+
+",2017/02/24 4:30 PM
+DBZ-194,"Users in the [dev|https://gitter.im/debezium/dev] and [users|https://gitter.im/debezium/users] chat rooms have [run|https://gitter.im/debezium/user?at=58a25fce238b1dae57071167] [across|https://gitter.im/debezium/dev?at=58a2aae9238b1dae57086204] problems with the connector ignoring a {{User}} table in their own database. By default the connector will filter out built-in database tables, but this feature needs to be improved so that it doesn't filter out tables that are in non-system databases.",2017/02/14 9:42 AM
+DBZ-193,"Parsing of the following DDL fails:
+
+{code}
+{
+  ""source"" : {
+    ""server"" : ""localhost.9092""
+  },
+  ""position"" : {
+    ""file"" : ""mysql-bin.000001"",
+    ""pos"" : 151,
+    ""snapshot"" : true
+  },
+  ""databaseName"" : ""auth_context_local"",
+  ""ddl"" : ""CREATE TABLE `roles` (\n  `id` varchar(32) NOT NULL,\n  `name` varchar(100) NOT NULL,\n  `context` varchar(20) NOT NULL,\n  `organization_id` int(11) DEFAULT NULL,\n  `client_id` varchar(32) NOT NULL,\n  `scope_action_ids` text NOT NULL,\n  PRIMARY KEY (`id`),\n  FULLTEXT KEY `scope_action_ids_idx` (`scope_action_ids`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8""
+}
+{code}
+
+It generates the following error on debezium startup:
+
+{code}
+[2017-02-10 19:37:04,731] ERROR Task cep_debezium_mysql-0 threw an uncaught and unrecoverable exception (org.apache.kafka.connect.runtime.WorkerTask:142)
+org.apache.kafka.connect.errors.ConnectException: io.debezium.text.ParsingException: Expecting ')' at line 9, column 16 but found 'scope_action_ids_idx': `),
+  FULLTEXT KEY ` ===>> scope_action_ids_idx
+	at io.debezium.connector.mysql.MySqlConnectorTask.start(MySqlConnectorTask.java:192)
+	at org.apache.kafka.connect.runtime.WorkerSourceTask.execute(WorkerSourceTask.java:137)
+	at org.apache.kafka.connect.runtime.WorkerTask.doRun(WorkerTask.java:140)
+	at org.apache.kafka.connect.runtime.WorkerTask.run(WorkerTask.java:175)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+Caused by: io.debezium.text.ParsingException: Expecting ')' at line 9, column 16 but found 'scope_action_ids_idx': `),
+  FULLTEXT KEY ` ===>> scope_action_ids_idx
+	at io.debezium.text.TokenStream.consume(TokenStream.java:694)
+	at io.debezium.connector.mysql.MySqlDdlParser.parseCreateDefinitionList(MySqlDdlParser.java:546)
+	at io.debezium.connector.mysql.MySqlDdlParser.parseCreateTable(MySqlDdlParser.java:363)
+	at io.debezium.connector.mysql.MySqlDdlParser.parseCreate(MySqlDdlParser.java:266)
+	at io.debezium.connector.mysql.MySqlDdlParser.parseNextStatement(MySqlDdlParser.java:141)
+	at io.debezium.relational.ddl.DdlParser.parse(DdlParser.java:285)
+	at io.debezium.relational.ddl.DdlParser.parse(DdlParser.java:266)
+	at io.debezium.relational.history.AbstractDatabaseHistory.lambda$recover$0(AbstractDatabaseHistory.java:57)
+	at io.debezium.relational.history.KafkaDatabaseHistory.recoverRecords(KafkaDatabaseHistory.java:202)
+	at io.debezium.relational.history.AbstractDatabaseHistory.recover(AbstractDatabaseHistory.java:52)
+	at io.debezium.connector.mysql.MySqlSchema.loadHistory(MySqlSchema.java:312)
+	at io.debezium.connector.mysql.MySqlTaskContext.loadHistory(MySqlTaskContext.java:116)
+	at io.debezium.connector.mysql.MySqlConnectorTask.start(MySqlConnectorTask.java:80)
+	... 8 more
+[2017-02-10 19:37:04,731] ERROR Task is being killed and will not recover until manually restarted (org.apache.kafka.connect.runtime.WorkerTask:143)
+{code}",2017/02/10 2:38 PM
+DBZ-192,"Unless you have a jboss jira account and are logged in, end users are not able to access the release notes linked in CHANGELOG.md. You'll just get a permission error on JIRA's side. Probably a config in jira somewhere. 
+
+Not the end of the world, i figured it out and got it working, but was certainly confusing initially. 
+
+",2017/02/10 11:58 AM
+DBZ-185,"We run our Debezium off of a MySQL cluster with HA proxy in front of it. (We're using GTIDs.) The topology is like this:
+
+{noformat}
+MySQL1 \
+        -- HA Proxy -- Debezium
+MySQL2 /
+{noformat}
+
+We have HA proxy pointing to just MySQL 1. At some point, we do a fail over by switching HA proxy to point to MySQL2. When we do this, we see very strange behavior, where Debezium appears to start up, and then just sit there. No messages come through.
+
+With DEBUG enabled, we can see that Debezium is skipping all messages, INCLUDING messages that we believe it should be processing:
+
+{noformat}
+Feb 06 13:23:17 dbzconnector01 kafkaconnect_logs:  [2017-02-06 21:23:07,379] DEBUG Skipping insert row event: Event{header=EventHeaderV4{timestamp=1486416187000, eventType=EXT_WRITE_ROWS, serverId=2822443076, headerLength=19, dataLength=1255, nextPosition=442649556, flags=0}, data=WriteRowsEventData{tableId=110, includedColumns={0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, {noformat}
+
+Furthermore, we see that Debezium appears to be skipping all DML when starting up, again including DML that it should be applying:
+
+{noformat}
+Feb 06 14:24:10 dbzconnector01 kafkaconnect_logs:  [2017-02-06 22:24:07,076] DEBUG Skipping: SET character_set_server=latin1, collation_server=latin1_swedish_ci; (io.debezium.relational.history.KafkaDatabaseHistory)
+Feb 06 14:24:10 dbzconnector01 kafkaconnect_logs:  [2017-02-06 22:24:07,086] DEBUG Skipping: DROP TABLE IF EXISTS docs.schema_version (io.debezium.relational.history.KafkaDatabaseHistory)
+Feb 06 14:24:10 dbzconnector01 kafkaconnect_logs:  [2017-02-06 22:24:07,087] DEBUG Skipping: DROP TABLE IF EXISTS docs.table1 (io.debezium.relational.history.KafkaDatabaseHistory)
+Feb 06 14:24:10 dbzconnector01 kafkaconnect_logs:  [2017-02-06 22:24:07,087] DEBUG Skipping: DROP TABLE IF EXISTS docs.table2 (io.debezium.relational.history.KafkaDatabaseHistory)
+Feb 06 14:24:10 dbzconnector01 kafkaconnect_logs:  [2017-02-06 22:24:07,088] DEBUG Skipping: DROP DATABASE IF EXISTS docs (io.debezium.relational.history.KafkaDatabaseHistory)
+Feb 06 14:24:10 dbzconnector01 kafkaconnect_logs:  [2017-02-06 22:24:07,089] DEBUG Skipping: CREATE DATABASE docs (io.debezium.relational.history.KafkaDatabaseHistory)
+Feb 06 14:24:10 dbzconnector01 kafkaconnect_logs:  [2017-02-06 22:24:07,090] DEBUG Skipping: USE docs (io.debezium.relational.history.KafkaDatabaseHistory)
+Feb 06 14:24:10 dbzconnector01 kafkaconnect_logs:  [2017-02-06 22:24:07,091] DEBUG Skipping: CREATE TABLE `oauth2_token` (
+Feb 06 14:24:10 dbzconnector01 kafkaconnect_logs:  [2017-02-06 22:24:07,092] DEBUG Skipping: CREATE TABLE `table1` (
+Feb 06 14:24:10 dbzconnector01 kafkaconnect_logs:  [2017-02-06 22:24:07,093] DEBUG Skipping: CREATE TABLE `table2` (
+Feb 06 14:24:10 dbzconnector01 kafkaconnect_logs:  [2017-02-06 22:24:07,094] DEBUG Skipping: SET character_set_server=latin1, collation_server=latin1_swedish_ci; (io.debezium.relational.history.KafkaDatabaseHistory)
+{noformat}
+
+These tables should be included. When we dump the DB history table, we see rows as expected:
+
+{noformat}
+{
+  ""source"" : {
+    ""server"" : ""db.debezium.service""
+  },
+  ""position"" : {
+    ""file"" : ""mysql-bin.000008"",
+    ""pos"" : 380941551,
+    ""gtids"" : ""01261278-6ade-11e6-b36a-42010af00790:1-378422946,4d1a4918-44ba-11e6-bf12-42010af0040b:1-11002284,716ec46f-d522-11e5-bb56-0242ac110004:1-34673215,96c2072e-e428-11e6-9590-42010a28002d:1-3,c627b2bc-9647-11e6-a886-42010af0044a:1-9541144"",
+    ""snapshot"" : true
+  },
+  ""ddl"" : ""DROP TABLE IF EXISTS docs.schema_version""
+}
+{noformat}
+
+Everything looks fine, except the GTIDs don't quite match the GTIDs shown here:
+
+{noformat}
+Feb 06 14:24:10 dbzconnector01 kafkaconnect_logs: [2017-02-06 22:24:06,725] DEBUG Recovering DDL history for source partition {server=db.debezium.service} and offset {file=mysql-bin.000016, pos=645115324, gtids=01261278-6ade-11e6-b36a-42010af00790:1-400944168,30efb117-e42a-11e6-ba9e-42010a28002e:1-9,4d1a4918-44ba-11e6-bf12-42010af0040b:1-11604379,621dc2f6-803b-11e6-acc1-42010af000a4:1-7963838,716ec46f-d522-11e5-bb56-0242ac110004:1-35850702,c627b2bc-9647-11e6-a886-42010af0044a:1-10426868,d079cbb3-750f-11e6-954e-42010af00c28:1-11544291:11544293-11885648, row=1, event=2} (io.debezium.relational.history.KafkaDatabaseHistory)
+{noformat}
+
+Note how the DB history has {{96c2072e-e428-11e6-9590-42010a28002d}} in the GTID, but the recovery log line does not. Likewise, the recovery log line has {{30efb117-e42a-11e6-ba9e-42010a28002e}}, but the DB history line does not. These are the UUIDs of MySQL 1 and MySQL 2.
+
+We are applying filtered GTID sets as described in DBZ-143. I believe that the filtered GTIDs are being applied to the recovery portion, but not to the messages going into the DB history. I think that this leads to DMLs getting skipped when they should be being applied.",2017/02/07 12:06 PM
+DBZ-183,"When parsing the MySQL binlog and generating events for {{TIMESTAMP}} columns, the MySQL connector currently uses Java's {{OffsetDateTime}} class which does not handle {{Daylight Savings Time}} changes (these are specific to a TimeZone with certain rules) 
+
+This means that for example when running on a JVM which has the {{Europe/Bucharest}} timezone a value such as {{2014-09-08T17:51:04.780}} is reported back by the connector as a String {{2014-09-08T17:51:04.780+02:00}}. 
+
+The correct (expected) result in this case should be {{2014-09-08T17:51:04.780+03:00}} which takes into account the DST value for this timezone.",2017/01/25 4:33 AM
+DBZ-176,"Following error that killed connector task was noticed in logs :
+{code}
+[2016-12-23 14:27:16,635] ERROR Error parsing DDL statement and updating tables: CREATE DEFINER=`trunk2`@`%` TRIGGER PipelineHistory_insert AFTER INSERT ON Pipeline
+ FOR EACH ROW BEGIN
+ INSERT INTO PipelineHistory (
+ PipelineId
+ , InterfaceId
+ , SourceHost
+ , SourceDir
+ , SourcePattern
+ , SinkHost
+ , SinkDir
+ , SinkCommand
+ , Active
+ , Retries
+ ) VALUES (
+ NEW.PipelineId
+ , NEW.InterfaceId
+ , NEW.SourceHost
+ , NEW.SourceDir
+ , NEW.SourcePattern
+ , NEW.SinkHost
+ , NEW.SinkDir
+ , NEW.SinkCommand
+ , NEW.Active
+ , NEW.Retries
+ );
+ END (io.debezium.connector.mysql.MySqlSchema:337)
+io.debezium.text.ParsingException: No matching single quote found after line 1, column 27
+	at io.debezium.relational.ddl.DdlTokenizer.tokenize(DdlTokenizer.java:262)
+	at io.debezium.text.TokenStream.start(TokenStream.java:444)
+	at io.debezium.relational.ddl.DdlParser.parse(DdlParser.java:265)
+	at io.debezium.connector.mysql.MySqlSchema.applyDdl(MySqlSchema.java:335)
+	at io.debezium.connector.mysql.BinlogReader.handleQueryEvent(BinlogReader.java:443)
+	at io.debezium.connector.mysql.BinlogReader.handleEvent(BinlogReader.java:311)
+{code} ",2017/01/05 7:07 AM
+DBZ-171,"When trying to release 0.3.6, I discovered that the {{nexus-staging-maven-plugin}} plugin is used for deployment (to a Maven Central staging repository), but this does not respect nor use the configuration of the {{maven-deploy-plugin}} that normally prevents deployment.
+
+So, either we deploy all of our integration tests to Maven Central, or we somehow change our deployment mechanism.
+
+For 0.3.6, I'm going to altogether remove the integration tests (see DBZ-151) from the {{0.3.x}} branch. They are still in the {{master}} branch, and so we still need to figure out what to do with the 0.4 release.",2016/12/21 6:58 PM
+DBZ-170,"As reported by [~sean171_jira] in the [dev chat room|https://gitter.im/debezium/user?at=585a9244c5a4e0233bb26059], the connector is able to connect to the configuration replica set of a sharded cluster, but when the task is started the connector fails to connect to the MonoDB primary node since it does not have the {{config}} database. 
+
+The {{ConnectionContext}} constructor currently sets up the MongoDB client with credentials for the {{admin}} and {{config}} databases, and apparently the client ""eagerly performs authentication against all databases passed in, rather than doing this lazily as DBs are use."" (See [this issue for details|https://jira.mongodb.org/browse/JAVA-2117].)
+
+A  ""workaround"" is to comment out the code that sets up the credentials for the {{config}} database and to only use the {{admin}} database for authentication and authorization. This works as long as the user specified in the connector configuration can read the {{config}} database.",2016/12/21 3:24 PM
+DBZ-169,"When I create a new table with following statement the debezium will throw ParsingException.
+
+{code:sql}
+create table secondtry (
+   orderid int primary key auto_increment,
+   createtime datetime,
+   modifiedtime datetime on update now(),
+   status char(4)
+);
+{code}
+
+
+Here is the error log. 
+
+{code:java}
+[2016-12-20 16:38:18,000] ERROR Error parsing DDL statement and updating tables: create table secondtry (
+   orderid int primary key auto_increment,
+   createtime datetime,
+   modifiedtime datetime on update now(),
+   status char(4)
+) (io.debezium.connector.mysql.MySqlSchema:333)
+io.debezium.text.ParsingException: Expecting ')' at line 4, column 39 but found '(': tetime on update now ===>> (),
+   status char(4
+	at io.debezium.text.TokenStream.consume(TokenStream.java:694)
+	at io.debezium.connector.mysql.MySqlDdlParser.parseCreateDefinitionList(MySqlDdlParser.java:536)
+	at io.debezium.connector.mysql.MySqlDdlParser.parseCreateTable(MySqlDdlParser.java:353)
+	at io.debezium.connector.mysql.MySqlDdlParser.parseCreate(MySqlDdlParser.java:259)
+	at io.debezium.connector.mysql.MySqlDdlParser.parseNextStatement(MySqlDdlParser.java:134)
+	at io.debezium.relational.ddl.DdlParser.parse(DdlParser.java:285)
+	at io.debezium.relational.ddl.DdlParser.parse(DdlParser.java:266)
+	at io.debezium.connector.mysql.MySqlSchema.applyDdl(MySqlSchema.java:331)
+	at io.debezium.connector.mysql.BinlogReader.handleQueryEvent(BinlogReader.java:423)
+	at io.debezium.connector.mysql.BinlogReader.handleEvent(BinlogReader.java:296)
+	at com.github.shyiko.mysql.binlog.BinaryLogClient.notifyEventListeners(BinaryLogClient.java:877)
+	at com.github.shyiko.mysql.binlog.BinaryLogClient.listenForEventPackets(BinaryLogClient.java:735)
+	at com.github.shyiko.mysql.binlog.BinaryLogClient.connect(BinaryLogClient.java:451)
+	at com.github.shyiko.mysql.binlog.BinaryLogClient$5.run(BinaryLogClient.java:632)
+	at java.lang.Thread.run(Thread.java:745)
+{code}
+",2016/12/20 3:54 AM
+DBZ-166,"When the connector is running a snapshot and is shutdown, the code is interrupted and not everything will stop.",2016/12/09 7:04 PM
+DBZ-162,"The debezium connector fails after parsing a DDL statement from the MySQL DB source.
+Even when I restart the connect container, it refails instantly on the same statement.
+
+{noformat}
+Failed due to error: Error processing binlog event
+...
+java.util.NoSuchElementException: No more content
+...
+at io.debezium.relational.ddl.DdlParser.parse(DdlParser.java:266)
+{noformat}
+
+After looking in the corresponding binlog at the right position I found the failing statement : 
+
+{noformat}
+ALTER TABLE `collection` ADD `user_id` INT(10)\n NULL\n DEFAULT NULL\n AFTER `collection_id;
+{noformat}
+
+Seems like a pretty easy statement. Previous statement were : 
+
+{noformat}
+CREATE TABLE `test` (id INT(11) UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT);
+ALTER TABLE `test` CHANGE `id` `collection_id` INT(11)\n UNSIGNED\n NOT NULL\n AUTO_INCREMENT;
+{noformat}
+
+Do you need something more ? I'm gonna try to reproduce the issue after maybe reloading from scratch.
+
+Thanks",2016/12/01 1:27 PM
+DBZ-161,"{code}
+[2016-11-28 13:10:41,915] INFO Step 8: scanned 1251477 rows in 2 tables in 00:01:53.939 (io.debezium.connector.mysql.SnapshotReader:417)
+[2016-11-28 13:10:41,915] INFO Step 9: committing transaction (io.debezium.connector.mysql.SnapshotReader:458)
+[2016-11-28 13:10:41,951] INFO Completed snapshot in 00:01:55.293 (io.debezium.connector.mysql.SnapshotReader:471)
+[2016-11-28 13:10:42,695] INFO Finished WorkerSourceTask{id=pay_sandbox_connector-0} commitOffsets successfully in 1 ms (org.apache.kafka.connect.runtime.WorkerSourceTask:356)
+[2016-11-28 13:10:42,696] ERROR Task pay_sandbox_connector-0 threw an uncaught and unrecoverable exception (org.apache.kafka.connect.runtime.WorkerTask:142)
+org.apache.kafka.connect.errors.ConnectException: Unexpected error while connecting to MySQL and looking at GTID mode:
+        at io.debezium.connector.mysql.MySqlJdbcContext.knownGtidSet(MySqlJdbcContext.java:140)
+        at io.debezium.connector.mysql.BinlogReader.doStart(BinlogReader.java:160)
+        at io.debezium.connector.mysql.AbstractReader.start(AbstractReader.java:66)
+        at io.debezium.connector.mysql.MySqlConnectorTask.transitionToReadBinlog(MySqlConnectorTask.java:267)
+        at io.debezium.connector.mysql.SnapshotReader.doCleanup(SnapshotReader.java:140)
+        at io.debezium.connector.mysql.AbstractReader.poll(AbstractReader.java:195)
+        at io.debezium.connector.mysql.MySqlConnectorTask.poll(MySqlConnectorTask.java:203)
+        at org.apache.kafka.connect.runtime.WorkerSourceTask.execute(WorkerSourceTask.java:155)
+        at org.apache.kafka.connect.runtime.WorkerTask.doRun(WorkerTask.java:140)
+        at org.apache.kafka.connect.runtime.WorkerTask.run(WorkerTask.java:175)
+        at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+        at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+        at java.lang.Thread.run(Thread.java:745)
+Caused by: java.sql.SQLException: Column Index out of range, 5 > 4.
+        at com.mysql.jdbc.SQLError.createSQLException(SQLError.java:964)
+        at com.mysql.jdbc.SQLError.createSQLException(SQLError.java:897)
+        at com.mysql.jdbc.SQLError.createSQLException(SQLError.java:886)
+        at com.mysql.jdbc.SQLError.createSQLException(SQLError.java:860)
+        at com.mysql.jdbc.ResultSetImpl.checkColumnBounds(ResultSetImpl.java:767)
+        at com.mysql.jdbc.ResultSetImpl.getStringInternal(ResultSetImpl.java:5229)
+        at com.mysql.jdbc.ResultSetImpl.getString(ResultSetImpl.java:5151)
+        at io.debezium.connector.mysql.MySqlJdbcContext.lambda$knownGtidSet$1(MySqlJdbcContext.java:136)
+        at io.debezium.jdbc.JdbcConnection.query(JdbcConnection.java:308)
+        at io.debezium.jdbc.JdbcConnection.query(JdbcConnection.java:287)
+        at io.debezium.connector.mysql.MySqlJdbcContext.knownGtidSet(MySqlJdbcContext.java:134)
+        ... 14 more
+{code}
+
+https://github.com/debezium/debezium/blob/master/debezium-connector-mysql/src/main/java/io/debezium/connector/mysql/MySqlJdbcContext.java#L136
+
+in homolog it's run MySQL 5.6
+{code}
+show master status;
++-------------------------+----------+--------------+------------------+-------------------+
+| File                    | Position | Binlog_Do_DB | Binlog_Ignore_DB | Executed_Gtid_Set |
++-------------------------+----------+--------------+------------------+-------------------+
+| mysqlhomolog-bin.000507 |    49987 |              |                  |                   |
++-------------------------+----------+--------------+------------------+-------------------+
+{code}
+
+in sandbox it's run MySQL 5.1
+{code}
+show master status;
++-------------------------+----------+--------------+------------------+
+| File                    | Position | Binlog_Do_DB | Binlog_Ignore_DB |
++-------------------------+----------+--------------+------------------+
+| mysqlsandbox-bin.000507 |   687122 |              |                  |
++-------------------------+----------+--------------+------------------+
+{code}
+",2016/11/28 11:18 AM
+DBZ-160,"suppose I have the following create table script :
+
+CREATE TABLE t ( c1 ENUM('a','b','c') NOT NULL DEFAULT 'b';
+
+Then, I am getting below exception while trying to parse the above ddl statement.
+
+""io.debezium.text.ParsingException: Expecting 8|16 at line 1, column 59 but found ';': NOT NULL DEFAULT 'b' ===>> ""
+
+Note : Issue happens only when the default value is 'b'.",2016/11/27 11:53 PM
+DBZ-156,"Currently the AbstractConnectorTest's {{start(...)}} methods return before the connector task is started, but this makes it difficult for tests that verify how a connector handles failures and problem situations (e.g., incomplete or invalid configuration, etc.). Part of the problem is that the EmbeddedEngine doesn't expose a way to for the {{start}} method to know when the task has been started. Additionally, it is possible for the EmbeddedEngine to fail to stop a connector under certain error conditions.",2016/11/17 11:47 AM
+DBZ-153,"It was noticed that all declared enum values which go after one with included *parentheses*  are not capturing (inclusively) by debezium.
+
+Create table script :
+{code}
+create table TestEnum (
+    Id int primary key, 
+    EnumColumn ENUM('one', 'one two', 'one two three', 'one () five', 'six')
+);
+{code}  
+
+Working insert :
+{code}
+insert into TestEnum values (1, 'one two three');
+{code}
+
+DBZ message :
+{code}
+{
+    ""before"": null,
+    ""after"": {
+        ""Id"": 1,
+        ""EnumColumn"": ""one two three""
+    },
+    ""source"": {
+        ""name"": ""anton_staging"",
+        ""server_id"": 223344,
+        ""ts_sec"": 1479129738,
+        ""gtid"": null,
+        ""file"": ""mysql-bin.000010"",
+        ""pos"": 20908,
+        ""row"": 0,
+        ""snapshot"": null
+    },
+    ""op"": ""c"",
+    ""ts_ms"": 1479129737253
+}
+{code}
+
+*Not-working* insert :
+{code}
+insert into TestEnum values (2, 'six');
+{code}
+
+DBZ message :
+{code}
+{
+    ""before"": null,
+    ""after"": {
+        ""Id"": 2,
+        ""EnumColumn"": null
+    },
+    ""source"": {
+        ""name"": ""anton_staging"",
+        ""server_id"": 223344,
+        ""ts_sec"": 1479129803,
+        ""gtid"": null,
+        ""file"": ""mysql-bin.000010"",
+        ""pos"": 21126,
+        ""row"": 0,
+        ""snapshot"": null
+    },
+    ""op"": ""c"",
+    ""ts_ms"": 1479129801478
+}
+{code}
+
+Notice, that second message has *""EnumColumn"": null* 
+",2016/11/14 8:24 AM
+DBZ-149,"We recently observed that tables that had BINARY types were getting converted to {{string}} types in their Avro schema registry schemas. We see this log line:
+
+{noformat}
+ Nov 08 15:16:57 tst-kafkaDEBUG - field ‘some_uuid' (STRING) from column some_uuid BINARY(16) CHARSET utf8 NOT NULL (io.debezium.relational.TableSchemaBuilder)
+{noformat}
+
+It looks like [this line|https://github.com/debezium/debezium/blob/master/debezium-connector-mysql/src/main/java/io/debezium/connector/mysql/MySqlDdlParser.java#L113] is the culprit.",2016/11/08 6:28 PM
+DBZ-5074,"h1. repro w/ docker-compose and steps to reproduce
+
+[https://github.com/lucasprograms/kafka-debug]
+h2. What Debezium connector do you use and what version?
+
+Postgres, version 1.8 (tested w/ 1.9 and found same issue)
+h2. What is the connector configuration?
+
+see repro link above
+h2. What is the captured database version and mode of depoyment?
+
+postgres 12, docker
+h2. What behaviour do you expect?
+
+2 connections per connector
+h2. What behaviour do you see?
+
+4 connections per connector
+h2. Do you see the same behaviour using the latest relesead Debezium version?
+
+yes
+
+ ",2022/04/29 9:03 PM

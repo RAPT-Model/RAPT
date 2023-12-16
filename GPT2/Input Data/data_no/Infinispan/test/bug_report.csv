@@ -1,0 +1,1658 @@
+bug_report_id,bug_report_desc,bug_report_time
+ISPN-4574,"If the following two conditions are simultaneously met during a split brain:
+a) less than numOwners nodes leave
+b) two clusters are formed having that size
+
+Then both partitions would be considered as available. E.g. a cluster of 6 nodes with numOwners=4, with a split brain resulting in 3 and 3 nodes partitions. 
+
+We should add some logic to prevent this situation, e.g. by requiring the remaining partition to have at least numOwners members.
+
+",2014/07/25 10:37 AM
+ISPN-4569,"If I setup XA transactions in {{ClusteredQueryDslConditionsTest}} using
+{code}
+cacheCfg.transaction().transactionMode(TransactionMode.TRANSACTIONAL).useSynchronization(false);
+{code}
+
+the test fails. The reason is in deadlock while updating {{ScopedKey}} in  __cluster_registry_cache__ : It seems that on originator we create transaction with modified inserted key and the {{ScopedKey}} for inserted class, and send it in two prepare commands to the other node. In the {{ScopedKey}}-prepare, the lock is acquired, but the regular prepare on the other node does not see it (it is not committed yet) and also tries to update this {{ScopedKey}} in  __cluster_registry_cache__ . This fails with lock timeout, as the commit is waiting on the regular prepare to finish.",2014/07/24 10:32 AM
+ISPN-4496,"EncryptProtocolIT shouldn't check passwords via JMX, this is actually a bug, that the passwords were available via JMX, see [JGRP-1854|https://issues.jboss.org/browse/JGRP-1854].",2014/07/10 8:57 AM
+ISPN-4456,"0 is currently allowed, but that does not make much sense.",2014/06/30 8:21 AM
+ISPN-4425,"The operands need to have valid format (eg. number) and a proper parsing exception with a descriptive message needs to be thrown otherwise. Currently we just see a NumberFormatException being thrown from the ObjectPropertyHelper.convertToPropertyType().
+
+This is not just for numbers, other primitives too.",2014/06/20 10:14 AM
+ISPN-4409,"The LevelDBCacheStoreIT fails to start with an error resulting from initialising the server side cache marshaller. The way the cache manager is created is not correct. You might as well just use the same marshaller as for the client.
+
+Even if you really need a cache's marshaller, you should get it via an injected cache rather than initialising a cache from scratch.
+
+{code}com.arjuna.ats.arjuna.exceptions.FatalError: null
+    at com.arjuna.ats.internal.jts.ORBManager.getPOA(ORBManager.java:96)
+    at com.arjuna.ats.internal.jts.OTSImpleManager.<clinit>(OTSImpleManager.java:300)
+    at com.arjuna.ats.internal.jta.transaction.jts.TransactionImple.getTransaction(TransactionImple.java:1146)
+    at com.arjuna.ats.internal.jta.transaction.jts.TransactionManagerImple.getTransaction(TransactionManagerImple.java:69)
+    at org.infinispan.cache.impl.CacheImpl.getOngoingTransaction(CacheImpl.java:1414)
+    at org.infinispan.cache.impl.CacheImpl.getInvocationContextForRead(CacheImpl.java:592)
+    at org.infinispan.cache.impl.CacheImpl.keySet(CacheImpl.java:474)
+    at org.infinispan.cache.impl.CacheImpl.keySet(CacheImpl.java:469)
+    at org.infinispan.registry.impl.ClusterRegistryImpl.keys(ClusterRegistryImpl.java:81)
+    at org.infinispan.query.remote.ProtobufMetadataManager.ensureInit(ProtobufMetadataManager.java:67)
+    at org.infinispan.query.remote.ProtobufMetadataManager.getSerializationContext(ProtobufMetadataManager.java:132)
+    at org.infinispan.query.remote.LifecycleManager.cacheStarting(LifecycleManager.java:114)
+    at org.infinispan.factories.ComponentRegistry.notifyCacheStarting(ComponentRegistry.java:228)
+    at org.infinispan.factories.ComponentRegistry.start(ComponentRegistry.java:214)
+    at org.infinispan.cache.impl.CacheImpl.start(CacheImpl.java:699)
+    at org.infinispan.manager.DefaultCacheManager.wireAndStartCache(DefaultCacheManager.java:573)
+    at org.infinispan.manager.DefaultCacheManager.createCache(DefaultCacheManager.java:528)
+    at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:408)
+    at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:381)
+    at org.infinispan.server.test.cs.leveldb.LevelDBCacheStoreIT.getServerMarshaller(LevelDBCacheStoreIT.java:190)
+    at org.infinispan.server.test.cs.leveldb.LevelDBCacheStoreIT.<clinit>(LevelDBCacheStoreIT.java:67)
+« Hide stacktrace{code}
+
+The fix gets past this particular error but it still shows this afterwards:
+
+{code}Caused by: javax.management.InstanceNotFoundException: jboss.infinispan:type=Server,name=HotRod,component=Transport{code}
+
+Tristan is working on this...",2014/06/16 9:45 AM
+ISPN-4237,"{{org.infinispan.security.QueryAuthorizationTest.testQuery}} fails (no matter which JDK is used) with 
+
+{noformat}
+java.lang.IllegalArgumentException: Indexing was not enabled on this cache. interface org.hibernate.search.spi.SearchFactoryIntegrator not found in registry
+	at org.infinispan.query.impl.ComponentRegistryUtils.getComponent(ComponentRegistryUtils.java:27)
+	at org.infinispan.query.impl.ComponentRegistryUtils.getComponent(ComponentRegistryUtils.java:20)
+	at org.infinispan.query.impl.SearchManagerImpl.<init>(SearchManagerImpl.java:42)
+	at org.infinispan.query.Search.getSearchManager(Search.java:21)
+	at org.infinispan.security.QueryAuthorizationTest.queryTest(QueryAuthorizationTest.java:97)
+	at org.infinispan.security.QueryAuthorizationTest.access$300(QueryAuthorizationTest.java:32)
+	at org.infinispan.security.QueryAuthorizationTest$4.run(QueryAuthorizationTest.java:113)
+	at org.infinispan.security.QueryAuthorizationTest$4.run(QueryAuthorizationTest.java:109)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at javax.security.auth.Subject.doAs(Subject.java:415)
+	at org.infinispan.security.QueryAuthorizationTest.testQuery(QueryAuthorizationTest.java:109)
+{noformat}
+
+Example of test failure in Jenkins on RHEL6 and Oracle JDK 7 is e.g. [here|https://jenkins.mw.lab.eng.bos.redhat.com/hudson/job/edg-60-ispn-testsuite-rhel/317/USE_JDK=JDK7,jdk=java17_default,label=RHEL6_x86_64/testReport/junit/org.infinispan.security/QueryAuthorizationTest/testQuery/].
+
+Maybe it's some setup issue, as on Jenkins it fails on all platforms, while I;m not able to reproduce it on my machine.",2014/04/25 8:43 AM
+ISPN-4196,"The cleanup phase of FilesystemQueryDslIterationTest of this test is based on Cache.clear() and is very slow , taking about 30 seconds, or at least that's how much we gain if the cache cleanup is removed. Without the cleanup, this test takes about 2.5 seconds, so we need to investigate why Cache.clear() creates a problem here or in general.",2014/04/09 12:44 PM
+ISPN-4186,"{code}
+junit.framework.AssertionFailedError: expected:<5> but was:<4>
+    at junit.framework.Assert.fail(Assert.java:50)
+    at junit.framework.Assert.failNotEquals(Assert.java:287)
+    at junit.framework.Assert.assertEquals(Assert.java:67)
+    at junit.framework.Assert.assertEquals(Assert.java:199)
+    at junit.framework.Assert.assertEquals(Assert.java:205)
+    at org.infinispan.query.distributed.MultiNodeDistributedTest.assertIndexSize(MultiNodeDistributedTest.java:119)
+    at org.infinispan.query.distributed.MultiNodeDistributedTest.testIndexingWorkDistribution(MultiNodeDistributedTest.java:85)
+    at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+    at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:39)
+    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+    at java.lang.reflect.Method.invoke(Method.java:597)
+    at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:80)
+    at org.testng.internal.Invoker.invokeMethod(Invoker.java:714)
+    at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:901)
+    at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1231)
+    at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
+    at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
+    at org.testng.TestRunner.privateRun(TestRunner.java:767)
+    at org.testng.TestRunner.run(TestRunner.java:617)
+    at org.testng.SuiteRunner.runTest(SuiteRunner.java:334)
+    at org.testng.SuiteRunner.access$000(SuiteRunner.java:37)
+    at org.testng.SuiteRunner$SuiteWorker.run(SuiteRunner.java:368)
+    at org.testng.internal.thread.ThreadUtil$2.call(ThreadUtil.java:64)
+    at java.util.concurrent.FutureTask$Sync.innerRun(FutureTask.java:303)
+    at java.util.concurrent.FutureTask.run(FutureTask.java:138)
+    at java.util.concurrent.ThreadPoolExecutor$Worker.runTask(ThreadPoolExecutor.java:895)
+    at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:918)
+    at java.lang.Thread.run(Thread.java:662)
+------- Stdout: -------
+[testng-MultiNodeDistributedTest] Test testIndexingWorkDistribution(org.infinispan.query.distributed.MultiNodeDistributedTest) failed.
+Test suite progress: tests succeeded: 70, failed: 1, skipped: 0.
+{code}",2014/04/03 9:43 AM
+ISPN-4123,"Any of the Remote* tests from here https://github.com/infinispan/infinispan/tree/master/server/integration/testsuite/src/test/java/org/infinispan/server/test/query sometimes fail with this exception on all platforms:
+
+{code}
+org.infinispan.client.hotrod.exceptions.HotRodClientException:Request for message id[52] returned server error (status=0x85): org.hibernate.search.SearchException: Can't build query for type org.infinispan.query.remote.indexing.ProtobufValueWrapper which is neither indexed nor has any indexed sub-types.
+	at org.infinispan.client.hotrod.impl.protocol.Codec10.checkForErrorsInResponseStatus(Codec10.java:143)
+	at org.infinispan.client.hotrod.impl.protocol.Codec10.readHeader(Codec10.java:99)
+	at org.infinispan.client.hotrod.impl.operations.HotRodOperation.readHeaderAndValidate(HotRodOperation.java:56)
+	at org.infinispan.client.hotrod.impl.operations.QueryOperation.executeOperation(QueryOperation.java:68)
+	at org.infinispan.client.hotrod.impl.operations.QueryOperation.executeOperation(QueryOperation.java:26)
+	at org.infinispan.client.hotrod.impl.operations.RetryOnFailureOperation.execute(RetryOnFailureOperation.java:46)
+	at org.infinispan.client.hotrod.impl.query.RemoteQuery.executeQuery(RemoteQuery.java:79)
+	at org.infinispan.client.hotrod.impl.query.RemoteQuery.list(RemoteQuery.java:69)
+	at org.infinispan.server.test.query.RemoteQueryTest.testProjections(RemoteQueryTest.java:148)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:60)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:37)
+	at java.lang.reflect.Method.invoke(Method.java:611)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:47)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:44)
+	at org.jboss.arquillian.junit.Arquillian$6$1.invoke(Arquillian.java:270)
+	at org.jboss.arquillian.container.test.impl.execution.LocalTestExecuter.execute(LocalTestExecuter.java:60)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:60)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:37)
+	at java.lang.reflect.Method.invoke(Method.java:611)
+	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90)
+	at org.jboss.arquillian.core.impl.EventContextImpl.invokeObservers(EventContextImpl.java:99)
+	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:81)
+	at org.jboss.arquillian.core.impl.ManagerImpl.fire(ManagerImpl.java:135)
+	at org.jboss.arquillian.core.impl.ManagerImpl.fire(ManagerImpl.java:115)
+	at org.jboss.arquillian.core.impl.EventImpl.fire(EventImpl.java:67)
+	at org.jboss.arquillian.container.test.impl.execution.ClientTestExecuter.execute(ClientTestExecuter.java:53)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:60)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:37)
+	at java.lang.reflect.Method.invoke(Method.java:611)
+	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90)
+	at org.jboss.arquillian.core.impl.EventContextImpl.invokeObservers(EventContextImpl.java:99)
+	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:81)
+	at org.jboss.arquillian.container.test.impl.client.ContainerEventController.createContext(ContainerEventController.java:142)
+	at org.jboss.arquillian.container.test.impl.client.ContainerEventController.createTestContext(ContainerEventController.java:129)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:60)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:37)
+	at java.lang.reflect.Method.invoke(Method.java:611)
+	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90)
+	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:88)
+	at org.jboss.arquillian.test.impl.TestContextHandler.createTestContext(TestContextHandler.java:89)
+	at sun.reflect.GeneratedMethodAccessor18.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:37)
+	at java.lang.reflect.Method.invoke(Method.java:611)
+	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90)
+	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:88)
+	at org.jboss.arquillian.test.impl.TestContextHandler.createClassContext(TestContextHandler.java:75)
+	at sun.reflect.GeneratedMethodAccessor17.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:37)
+	at java.lang.reflect.Method.invoke(Method.java:611)
+	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90)
+	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:88)
+	at org.jboss.arquillian.test.impl.TestContextHandler.createSuiteContext(TestContextHandler.java:60)
+	at sun.reflect.GeneratedMethodAccessor16.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:37)
+	at java.lang.reflect.Method.invoke(Method.java:611)
+	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90)
+	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:88)
+	at org.jboss.arquillian.core.impl.ManagerImpl.fire(ManagerImpl.java:135)
+	at org.jboss.arquillian.test.impl.EventTestRunnerAdaptor.test(EventTestRunnerAdaptor.java:111)
+	at org.jboss.arquillian.junit.Arquillian$6.evaluate(Arquillian.java:263)
+	at org.jboss.arquillian.junit.Arquillian$4.evaluate(Arquillian.java:226)
+	at org.jboss.arquillian.junit.Arquillian.multiExecute(Arquillian.java:314)
+	at org.jboss.arquillian.junit.Arquillian.access$100(Arquillian.java:46)
+	at org.jboss.arquillian.junit.Arquillian$5.evaluate(Arquillian.java:240)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:271)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:70)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:50)
+	at org.junit.runners.ParentRunner$3.run(ParentRunner.java:238)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:63)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:236)
+	at org.junit.runners.ParentRunner.access$000(ParentRunner.java:53)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:229)
+	at org.jboss.arquillian.junit.Arquillian$2.evaluate(Arquillian.java:185)
+	at org.jboss.arquillian.junit.Arquillian.multiExecute(Arquillian.java:314)
+	at org.jboss.arquillian.junit.Arquillian.access$100(Arquillian.java:46)
+	at org.jboss.arquillian.junit.Arquillian$3.evaluate(Arquillian.java:199)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:309)
+	at org.jboss.arquillian.junit.Arquillian.run(Arquillian.java:147)
+	at org.junit.runners.Suite.runChild(Suite.java:127)
+	at org.junit.runners.Suite.runChild(Suite.java:26)
+	at org.junit.runners.ParentRunner$3.run(ParentRunner.java:238)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:63)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:236)
+	at org.junit.runners.ParentRunner.access$000(ParentRunner.java:53)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:229)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:309)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:160)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:138)
+	at org.apache.maven.surefire.junitcore.JUnitCoreWrapper.execute(JUnitCoreWrapper.java:62)
+	at org.apache.maven.surefire.junitcore.JUnitCoreProvider.invoke(JUnitCoreProvider.java:139)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:60)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:37)
+	at java.lang.reflect.Method.invoke(Method.java:611)
+	at org.apache.maven.surefire.util.ReflectionUtils.invokeMethodWithArray(ReflectionUtils.java:189)
+	at org.apache.maven.surefire.booter.ProviderFactory$ProviderProxy.invoke(ProviderFactory.java:165)
+	at org.apache.maven.surefire.booter.ProviderFactory.invokeProvider(ProviderFactory.java:85)
+	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:115)
+	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:75)
+{code}",2014/03/17 9:34 AM
+ISPN-4048,"The failures in CI have a different stack trace, they used an obsolete DummyInMemoryStore statistic name (""store"" instead of ""write"").
+
+{noformat}
+16:32:40,025 ERROR (testng-SharedCacheLoaderQueryIndexTest:) [UnitTestTestNGListener] Test testPreloadIndexingAfterAddingNewNode(org.infinispan.query.persistence.SharedCacheLoaderQueryIndexTest) failed.
+java.lang.AssertionError: expected:<1> but was:<0>
+	at org.testng.AssertJUnit.fail(AssertJUnit.java:59)
+	at org.testng.AssertJUnit.failNotEquals(AssertJUnit.java:364)
+	at org.testng.AssertJUnit.assertEquals(AssertJUnit.java:80)
+	at org.testng.AssertJUnit.assertEquals(AssertJUnit.java:245)
+	at org.testng.AssertJUnit.assertEquals(AssertJUnit.java:252)
+	at org.infinispan.query.statetransfer.BaseReIndexingTest.executeSimpleQuery(BaseReIndexingTest.java:56)
+	at org.infinispan.query.statetransfer.BaseReIndexingTest$1.call(BaseReIndexingTest.java:109)
+	at org.infinispan.test.TestingUtil.withCacheManager(TestingUtil.java:1243)
+	at org.infinispan.query.statetransfer.BaseReIndexingTest.addNodeCheckingContentsAndQuery(BaseReIndexingTest.java:93)
+	at org.infinispan.query.persistence.SharedCacheLoaderQueryIndexTest.testPreloadIndexingAfterAddingNewNode(SharedCacheLoaderQueryIndexTest.java:49)
+{noformat}
+
+{noformat}
+16:32:43,367 ERROR (testng-SharedCacheLoaderQueryDistributedIndexTest:) [UnitTestTestNGListener] Test testPreloadIndexingAfterAddingNewNode(org.infinispan.query.persistence.SharedCacheLoaderQueryDistributedIndexTest) failed.
+java.lang.RuntimeException: org.infinispan.commons.CacheException: Unable to invoke method public void org.infinispan.persistence.manager.PersistenceManagerImpl.preload() on object of type PersistenceManagerImpl
+	at org.infinispan.query.statetransfer.BaseReIndexingTest$1.call(BaseReIndexingTest.java:111)
+	at org.infinispan.test.TestingUtil.withCacheManager(TestingUtil.java:1243)
+	at org.infinispan.query.statetransfer.BaseReIndexingTest.addNodeCheckingContentsAndQuery(BaseReIndexingTest.java:93)
+	at org.infinispan.query.persistence.SharedCacheLoaderQueryIndexTest.testPreloadIndexingAfterAddingNewNode(SharedCacheLoaderQueryIndexTest.java:49)
+Caused by: org.infinispan.commons.CacheException: Unable to invoke method public void org.infinispan.persistence.manager.PersistenceManagerImpl.preload() on object of type PersistenceManagerImpl
+	at org.infinispan.commons.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:185)
+	at org.infinispan.factories.AbstractComponentRegistry$PrioritizedMethod.invoke(AbstractComponentRegistry.java:869)
+	at org.infinispan.factories.AbstractComponentRegistry.invokeStartMethods(AbstractComponentRegistry.java:638)
+	at org.infinispan.factories.AbstractComponentRegistry.internalStart(AbstractComponentRegistry.java:627)
+	at org.infinispan.factories.AbstractComponentRegistry.start(AbstractComponentRegistry.java:530)
+	at org.infinispan.factories.ComponentRegistry.start(ComponentRegistry.java:216)
+	at org.infinispan.CacheImpl.start(CacheImpl.java:674)
+	at org.infinispan.manager.DefaultCacheManager.wireAndStartCache(DefaultCacheManager.java:553)
+	at org.infinispan.manager.DefaultCacheManager.createCache(DefaultCacheManager.java:516)
+	at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:398)
+	at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:371)
+	at org.infinispan.statetransfer.JoiningNode.getCache(JoiningNode.java:31)
+	at org.infinispan.query.statetransfer.BaseReIndexingTest$1.call(BaseReIndexingTest.java:99)
+	... 23 more
+Caused by: org.infinispan.persistence.spi.PersistenceException: Unable to preload!
+	at org.infinispan.persistence.manager.PersistenceManagerImpl.preloadKey(PersistenceManagerImpl.java:614)
+	at org.infinispan.persistence.manager.PersistenceManagerImpl.access$000(PersistenceManagerImpl.java:66)
+	at org.infinispan.persistence.manager.PersistenceManagerImpl$1.processEntry(PersistenceManagerImpl.java:224)
+	at org.infinispan.persistence.dummy.DummyInMemoryStore.process(DummyInMemoryStore.java:159)
+	at org.infinispan.persistence.manager.PersistenceManagerImpl.preload(PersistenceManagerImpl.java:216)
+	at sun.reflect.GeneratedMethodAccessor69.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:606)
+	at org.infinispan.commons.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:183)
+	... 35 more
+Caused by: java.lang.NullPointerException
+	at org.infinispan.distribution.DistributionManagerImpl.getWriteConsistentHash(DistributionManagerImpl.java:112)
+	at org.infinispan.distribution.DistributionManagerImpl.getConsistentHash(DistributionManagerImpl.java:102)
+	at org.infinispan.distribution.DistributionManagerImpl.getPrimaryLocation(DistributionManagerImpl.java:92)
+	at org.infinispan.query.indexmanager.InfinispanCommandsBackend.getPrimaryNodeAddress(InfinispanCommandsBackend.java:134)
+	at org.infinispan.query.indexmanager.InfinispanCommandsBackend.isMasterLocal(InfinispanCommandsBackend.java:112)
+	at org.infinispan.query.indexmanager.MasterSwitchDelegatingQueueProcessor.applyWork(MasterSwitchDelegatingQueueProcessor.java:47)
+	at org.hibernate.search.indexes.impl.DirectoryBasedIndexManager.performOperations(DirectoryBasedIndexManager.java:126)
+	at org.hibernate.search.backend.impl.WorkQueuePerIndexSplitter.commitOperations(WorkQueuePerIndexSplitter.java:63)
+	at org.hibernate.search.backend.impl.BatchedQueueingProcessor.performWorks(BatchedQueueingProcessor.java:99)
+	at org.hibernate.search.backend.impl.TransactionalWorker.performWork(TransactionalWorker.java:105)
+	at org.infinispan.query.backend.QueryInterceptor.performSearchWorks(QueryInterceptor.java:232)
+	at org.infinispan.query.backend.QueryInterceptor.performSearchWork(QueryInterceptor.java:226)
+	at org.infinispan.query.backend.QueryInterceptor.updateIndexes(QueryInterceptor.java:220)
+	at org.infinispan.query.backend.QueryInterceptor.processPutKeyValueCommand(QueryInterceptor.java:522)
+	at org.infinispan.query.backend.QueryInterceptor.visitPutKeyValueCommand(QueryInterceptor.java:161)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:71)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:98)
+	at org.infinispan.interceptors.locking.AbstractLockingInterceptor.visitPutKeyValueCommand(AbstractLockingInterceptor.java:68)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:71)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:98)
+	at org.infinispan.interceptors.base.CommandInterceptor.handleDefault(CommandInterceptor.java:112)
+	at org.infinispan.commands.AbstractVisitor.visitPutKeyValueCommand(AbstractVisitor.java:32)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:71)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:98)
+	at org.infinispan.interceptors.base.CommandInterceptor.handleDefault(CommandInterceptor.java:112)
+	at org.infinispan.commands.AbstractVisitor.visitPutKeyValueCommand(AbstractVisitor.java:32)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:71)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:98)
+	at org.infinispan.statetransfer.StateTransferInterceptor.handleNonTxWriteCommand(StateTransferInterceptor.java:205)
+	at org.infinispan.statetransfer.StateTransferInterceptor.visitPutKeyValueCommand(StateTransferInterceptor.java:141)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:71)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:98)
+	at org.infinispan.interceptors.CacheMgmtInterceptor.updateStoreStatistics(CacheMgmtInterceptor.java:148)
+	at org.infinispan.interceptors.CacheMgmtInterceptor.visitPutKeyValueCommand(CacheMgmtInterceptor.java:134)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:71)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:98)
+	at org.infinispan.interceptors.InvocationContextInterceptor.handleAll(InvocationContextInterceptor.java:110)
+	at org.infinispan.interceptors.InvocationContextInterceptor.handleDefault(InvocationContextInterceptor.java:73)
+	at org.infinispan.commands.AbstractVisitor.visitPutKeyValueCommand(AbstractVisitor.java:32)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:71)
+	at org.infinispan.interceptors.InterceptorChain.invoke(InterceptorChain.java:333)
+	at org.infinispan.CacheImpl.executeCommandAndCommitIfNeeded(CacheImpl.java:1399)
+	at org.infinispan.CacheImpl.putInternal(CacheImpl.java:877)
+	at org.infinispan.CacheImpl.put(CacheImpl.java:869)
+	at org.infinispan.DecoratedCache.put(DecoratedCache.java:471)
+	at org.infinispan.persistence.manager.PersistenceManagerImpl.preloadKey(PersistenceManagerImpl.java:611)
+	... 43 more
+{noformat}",2014/02/21 9:56 AM
+ISPN-3933,"The configuration schema doesn't allow to enable the ""preload"" attribute of a JDBCCacheStore.
+
+I classify this as critical as the JDBCCacheStore is the only viable solution for a shared cachestore, and the Lucene Directory requires ""preload"" to be activated.",2014/01/24 12:39 PM
+ISPN-3706,NoData,2013/11/13 5:08 PM
+ISPN-6771,"After debugging : 
+In TcpTransportFactory, the topologyInfo is global (whatever the number of caches), the balancing strategies are defined by cache.
+
+* For the 1st cache, the servers list is updated (org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory#updateServers(java.util.Collection<java.net.SocketAddress>, byte[], boolean), the topologyInfo is updated.
+** The new servers list is returned only if servers have been added.
+** As this list is not empty, the balancy strategy for the first cache is updated.
+* For the other caches, the server list is updated by calling the same ""updateServers"" method, the ""updateTopologyInfo"" method is called
+** But as the topologyInfo has been already updated for the 1st cache, it returns ""Collections.emptyList();""
+** The associated balancing strategies are not updated.
+
+{code}
+public void updateServers(Collection<SocketAddress> newServers, byte[] cacheName, boolean quiet) {
+      synchronized (lock) {
+         Collection<SocketAddress> servers = updateTopologyInfo(newServers, quiet);
+        if (!servers.isEmpty()) {
+            FailoverRequestBalancingStrategy balancer = getOrCreateIfAbsentBalancer(cacheName);
+            balancer.setServers(servers);
+         }
+      }
+   }
+{code}",2016/06/10 5:15 AM
+ISPN-6745,"When you perform multiple TX write operations in one transaction (put, replace, lock, etc) and one of the nodes goes down, there is a slight chance that some locks will be lost and acquired by another transaction before current transaction ends.
+
+So client ends up with two transactions holding the same lock on pessimistic cache at the same time. Both transactions commit at the end successfully.
+
+I spent some time debugging infinispan code and found that PessimisticLockingInterceptor#releaseLocksOnFailureBeforePrepare releases all locks when OutdatedTopologyException occurs on remote node. But then StateTransferInterceptor#handleTxWriteCommand retries last command. This behavior produces inconsistent state - all locks before last command are released and any other transaction can acquire them.
+
+I am attaching Test which reproduces this problem",2016/05/31 4:16 PM
+ISPN-6730,"{code}
+
+org.infinispan.client.hotrod.exceptions.HotRodClientException:Request for messageId=15 returned server error (status=0x85): org.infinispan.remoting.RemoteException: ISPN000217: Received exception from EmbeddedCompatContinuousQueryTest-NodeE-61776, see cause for remote stack trace
+org.infinispan.remoting.RemoteException: ISPN000217: Received exception from EmbeddedCompatContinuousQueryTest-NodeB-35705, see cause for remote stack trace
+org.infinispan.commons.CacheException: Problems invoking command.
+java.lang.ClassCastException: java.lang.Class cannot be cast to org.infinispan.metadata.Metadata
+
+	at org.infinispan.client.hotrod.impl.protocol.Codec20.checkForErrorsInResponseStatus(Codec20.java:343)
+	at org.infinispan.client.hotrod.impl.protocol.Codec20.readPartialHeader(Codec20.java:132)
+	at org.infinispan.client.hotrod.impl.protocol.Codec20.readHeaderOrEvent(Codec20.java:215)
+	at org.infinispan.client.hotrod.impl.operations.AddClientListenerOperation.executeOperation(AddClientListenerOperation.java:95)
+	at org.infinispan.client.hotrod.impl.operations.AddClientListenerOperation.executeOperation(AddClientListenerOperation.java:26)
+	at org.infinispan.client.hotrod.impl.operations.RetryOnFailureOperation.execute(RetryOnFailureOperation.java:54)
+	at org.infinispan.client.hotrod.impl.RemoteCacheImpl.addClientListener(RemoteCacheImpl.java:447)
+	at org.infinispan.client.hotrod.event.ContinuousQueryImpl.addContinuousQueryListener(ContinuousQueryImpl.java:57)
+	at org.infinispan.client.hotrod.event.EmbeddedCompatContinuousQueryTest.testContinuousQuery(EmbeddedCompatContinuousQueryTest.java:189)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:84)
+	at org.testng.internal.Invoker.invokeMethod(Invoker.java:714)
+	at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:901)
+	at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1231)
+	at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
+	at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
+	at org.testng.TestRunner.privateRun(TestRunner.java:767)
+	at org.testng.TestRunner.run(TestRunner.java:617)
+	at org.testng.SuiteRunner.runTest(SuiteRunner.java:348)
+	at org.testng.SuiteRunner.runSequentially(SuiteRunner.java:343)
+	at org.testng.SuiteRunner.privateRun(SuiteRunner.java:305)
+	at org.testng.SuiteRunner.run(SuiteRunner.java:254)
+	at org.testng.SuiteRunnerWorker.runSuite(SuiteRunnerWorker.java:52)
+	at org.testng.SuiteRunnerWorker.run(SuiteRunnerWorker.java:86)
+	at org.testng.TestNG.runSuitesSequentially(TestNG.java:1224)
+	at org.testng.TestNG.runSuitesLocally(TestNG.java:1149)
+	at org.testng.TestNG.run(TestNG.java:1057)
+	at org.testng.IDEARemoteTestNG.run(IDEARemoteTestNG.java:74)
+	at org.testng.RemoteTestNGStarter.main(RemoteTestNGStarter.java:121)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at com.intellij.rt.execution.application.AppMain.main(AppMain.java:144)
+
+12:09:49,604 ERROR (Client-Listener-3b582f6a4a0f4268) [ClientListenerNotifier] ISPN004043: Unrecoverable error reading event from server localhost/127.0.0.1:15233, exiting event reader thread
+org.infinispan.client.hotrod.exceptions.TransportException:: End of stream reached!
+	at org.infinispan.client.hotrod.impl.transport.tcp.TcpTransport.readByte(TcpTransport.java:210)
+	at org.infinispan.client.hotrod.impl.protocol.Codec20.readMagic(Codec20.java:305)
+	at org.infinispan.client.hotrod.impl.protocol.Codec20.readEvent(Codec20.java:147)
+	at org.infinispan.client.hotrod.event.ClientListenerNotifier$EventDispatcher.run(ClientListenerNotifier.java:262)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at org.infinispan.client.hotrod.event.ClientListenerNotifier.lambda$null$0(ClientListenerNotifier.java:78)
+{code}",2016/05/30 5:13 AM
+ISPN-6722,The build uses gnu-getopt:getopt but the proper coordinates are gnu.getopt:java-getopt,2016/05/27 3:35 AM
+ISPN-6720,"The parent pom adds default dependencies to testng and junit (as well as mockito). Because of this many modules use a mix of test utility classes.
+We should drop the default dependencies and force each module to choose the testing libraries it needs.",2016/05/26 3:48 PM
+ISPN-6626,"{{IntegrationTest.testGet*}} tests fail on Windows CI.
+
+Link: http://ci.infinispan.org/viewLog.html?buildId=39675&tab=buildResultsDiv&buildTypeId=Infinispan_MasterHotspotJdk8Windows#testNameId-142622157377231060
+
+Stacktrace:
+{noformat}
+java.lang.AssertionError: 
+    at org.testng.AssertJUnit.fail(AssertJUnit.java:59)
+    at org.testng.AssertJUnit.assertTrue(AssertJUnit.java:24)
+    at org.testng.AssertJUnit.assertTrue(AssertJUnit.java:33)
+    at org.infinispan.rest.IntegrationTest.testGetCollection(IntegrationTest.scala:164)
+    at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+    at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+    at java.lang.reflect.Method.invoke(Method.java:498)
+    at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:84)
+    at org.testng.internal.Invoker.invokeMethod(Invoker.java:714)
+    at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:901)
+    at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1231)
+    at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
+    at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
+    at org.testng.TestRunner.privateRun(TestRunner.java:767)
+    at org.testng.TestRunner.run(TestRunner.java:617)
+    at org.testng.SuiteRunner.runTest(SuiteRunner.java:348)
+    at org.testng.SuiteRunner.access$000(SuiteRunner.java:38)
+    at org.testng.SuiteRunner$SuiteWorker.run(SuiteRunner.java:382)
+    at org.testng.internal.thread.ThreadUtil$2.call(ThreadUtil.java:64)
+    at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+    at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+    at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+    at java.lang.Thread.run(Thread.java:745)
+------- Stdout: -------
+[TestSuiteProgress] Test starting: org.infinispan.rest.IntegrationTest.testGetCollection
+20:25:53,866 WARN  [org.apache.commons.httpclient.HttpMethodBase] (testng-IntegrationTest) Going to buffer response body of large or unknown size. Using getResponseBodyAsStream instead is recommended.
+20:25:53,875 WARN  [org.apache.commons.httpclient.HttpMethodBase] (testng-IntegrationTest) Going to buffer response body of large or unknown size. Using getResponseBodyAsStream instead is recommended.
+20:25:53,883 WARN  [org.apache.commons.httpclient.HttpMethodBase] (testng-IntegrationTest) Going to buffer response body of large or unknown size. Using getResponseBodyAsStream instead is recommended.
+[TestSuiteProgress] Test failed: org.infinispan.rest.IntegrationTest.testGetCollection
+20:25:53,884 ERROR (testng-IntegrationTest) [TestSuiteProgress] Test failed: org.infinispan.rest.IntegrationTest.testGetCollection
+java.lang.AssertionError: 
+    at org.testng.AssertJUnit.fail(AssertJUnit.java:59)
+    at org.testng.AssertJUnit.assertTrue(AssertJUnit.java:24)
+    at org.testng.AssertJUnit.assertTrue(AssertJUnit.java:33)
+    at org.infinispan.rest.IntegrationTest.testGetCollection(IntegrationTest.scala:164)
+    at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+    at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+    at java.lang.reflect.Method.invoke(Method.java:498)
+    at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:84)[TestSuiteProgress] Tests succeeded: 23, failed: 1, skipped: 0
+{noformat}",2016/05/13 7:02 AM
+ISPN-6617,"The ISPN-6099 backport for 8.1.x included some changes to {{CacheManagerTest}}, but those require additional changes in {{DefaultCacheManager}} startup that were not backported.",2016/05/10 11:19 AM
+ISPN-6609,"The regular expression added in the ISPN-6364 commit is incorrect, as it matches the package name and the class name of the test in a single group.
+",2016/05/09 9:46 AM
+ISPN-6577,"Given the following config:
+{code:xml}
+
+<replicated-cache-configuration name=""indexed-cache"" mode=""SYNC"" start=""EAGER"" remote-timeout=""20000""/>
+
+<replicated-cache name=""booksCache"" configuration=""indexed-cache"">
+    <indexing index=""LOCAL"">
+         <property name=""default.metadata_cachename"">indexMetadataBooksCache</property>
+         <property name=""default.data_cachename"">indexDataBooksCache</property>
+         <property name=""default.locking_cachename"">indexLockingBooksCache</property>
+         <property name=""default.directory_provider"">infinispan</property>
+         <property name=""default.indexmanager"">org.infinispan.query.indexmanager.InfinispanIndexManager</property>
+         <property name=""lucene_version"">LUCENE_CURRENT</property>
+   </indexing>
+</replicated-cache>
+{code}
+
+The booksCache starts in non-indexed mode, even if it explicitly configure the indexing",2016/04/29 10:41 AM
+ISPN-6549,"The query-dsl bundle does not export correct packages via Export-Package entry in Manifest.mf file. Packages called org.infinispan.query.dsl and org.infinispan.query.dsl.impl are required by other Hot Rod client modules. As a result, the Remote Queries are not available through camel-jbossdatagrid component.",2016/04/26 9:54 AM
+ISPN-6514,"When a netty write or write and flush is performed and we don't use the future, we should be passing a void promise to avoid allocating those objects.",2016/04/18 9:20 AM
+ISPN-6474,"The AbstractProtocolServer class always starts the default cache, but this should not happen.",2016/04/08 3:29 AM
+ISPN-6399,"{{GMS}} can sometimes delay the processing of a join/leave request because of JGRP-2028.
+
+Joiners retry automatically after {{GMS.join_timeout}}, so it's not that bad. Leavers, however, don't resend their leave requests, so the delay can be worse. 
+
+Normally, the FD/FD_ALL/FD_SOCK protocols would wake up the ViewHandler thread. But we remove the FD* protocols from the stack in most of our tests, unless the test uses {{DISCARD}}. That means the leave request can be delayed until another node leaves:
+
+{noformat}
+16:35:56,247 TRACE (testng-ClusterListenerDistAddListenerTest:) [GMS] NodeB-8309: sending LEAVE request to NodeA-45395
+16:35:56,268 TRACE (OOB-1,NodeA-45395:) [TCP_NIO2] NodeA-45395: received [dst: NodeA-45395, src: NodeB-8309 (3 headers), size=0 bytes, flags=OOB], headers are GMS: GmsHeader[LEAVE_REQ]: mbr=NodeB-8309, UNICAST3: DATA, seqno=22, TP: [cluster_name=ISPN]
+16:35:56,268 TRACE (OOB-1,NodeA-45395:) [UNICAST3] NodeA-45395: delivering NodeB-8309#22
+
+16:36:07,263 ERROR (testng-ClusterListenerDistAddListenerTest:) [UnitTestTestNGListener] Test testMemberJoinsAndRetrievesClusterListenersButMainListenerNodeDiesBeforeInstalled(org.infinispan.notifications.cachelistener.cluster.ClusterListenerDistAddListenerTest) failed.
+org.infinispan.util.concurrent.TimeoutException: Timed out before caches had complete views.  Expected 3 members in each view.  Views are as follows: [[NodeA-45395|3] (4) [NodeA-45395, NodeB-8309, NodeC-53222, NodeD-55165], [NodeA-45395|3] (4) [NodeA-45395, NodeB-8309, NodeC-53222, NodeD-55165], [NodeA-45395|3] (4) [NodeA-45395, NodeB-8309, NodeC-53222, NodeD-55165]]
+
+16:37:07,341 TRACE (testng-ClusterListenerDistAddListenerTest:) [GMS] NodeD-55165: sending LEAVE request to NodeA-45395
+16:37:07,361 TRACE (OOB-4,NodeA-45395:) [TCP_NIO2] NodeA-45395: received [dst: NodeA-45395, src: NodeD-55165 (3 headers), size=0 bytes, flags=OOB], headers are GMS: GmsHeader[LEAVE_REQ]: mbr=NodeD-55165, UNICAST3: DATA, seqno=21, TP: [cluster_name=ISPN]
+16:37:07,361 TRACE (OOB-4,NodeA-45395:) [UNICAST3] NodeA-45395: delivering NodeD-55165#21
+16:37:07,361 TRACE (ViewHandler,NodeA-45395:) [GMS] NodeA-45395: joiners=[], suspected=[], leaving=[NodeB-8309], new view: [NodeA-45395|4] (3) [NodeA-45395, NodeC-53222, NodeD-55165]
+{noformat}
+
+{{FD_ALL}} is pretty cheap: it just sends a message every second, without opening any new sockets. So I think we should enable it by default, and only enable {{FD_SOCK}} with {{TransportFlags.withFD(true)}}.",2016/03/18 3:44 AM
+ISPN-6373,"Query test suite is throwing tons of 
+{noformat} ISPN000323: Cache 'LuceneIndexesLocking' is in 'TERMINATED' state and so it does not accept new invocations. Either restart it or recreate the cache container.
+{noformat}
+
+for test {{ClusteredCacheWithShardedIndexManagerTest}} since stop dependencies are not added correctly during initialization.
+",2016/03/14 7:32 AM
+ISPN-6363,"NullPointerException is thrown while executing a script on non secured cache which is located in secured container. 
+
+The exception is: 
+
+{code}
+java.security.PrivilegedActionException: java.lang.NullPointerException
+	at org.infinispan.security.Security.doAs(Security.java:145)
+	at org.infinispan.scripting.SecureScriptingTest.test(SecureScriptingTest.java:142)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:497)
+	at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:84)
+	at org.testng.internal.Invoker.invokeMethod(Invoker.java:714)
+	at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:901)
+	at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1231)
+	at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
+	at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
+	at org.testng.TestRunner.privateRun(TestRunner.java:767)
+	at org.testng.TestRunner.run(TestRunner.java:617)
+	at org.testng.SuiteRunner.runTest(SuiteRunner.java:348)
+	at org.testng.SuiteRunner.runSequentially(SuiteRunner.java:343)
+	at org.testng.SuiteRunner.privateRun(SuiteRunner.java:305)
+	at org.testng.SuiteRunner.run(SuiteRunner.java:254)
+	at org.testng.SuiteRunnerWorker.runSuite(SuiteRunnerWorker.java:52)
+	at org.testng.SuiteRunnerWorker.run(SuiteRunnerWorker.java:86)
+	at org.testng.TestNG.runSuitesSequentially(TestNG.java:1224)
+	at org.testng.TestNG.runSuitesLocally(TestNG.java:1149)
+	at org.testng.TestNG.run(TestNG.java:1057)
+	at org.testng.IDEARemoteTestNG.run(IDEARemoteTestNG.java:72)
+	at org.testng.RemoteTestNGStarter.main(RemoteTestNGStarter.java:122)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:497)
+	at com.intellij.rt.execution.application.AppMain.main(AppMain.java:144)
+Caused by: java.lang.NullPointerException
+	at org.infinispan.scripting.impl.ScriptingManagerImpl.runScript(ScriptingManagerImpl.java:152)
+	at org.infinispan.scripting.SecureScriptingTest$8.run(SecureScriptingTest.java:145)
+	at org.infinispan.scripting.SecureScriptingTest$8.run(SecureScriptingTest.java:142)
+	at org.infinispan.security.Security.doAs(Security.java:143)
+	... 29 more
+{code}
+
+The test is:
+{code}
+public void test() throws ExecutionException, InterruptedException, PrivilegedActionException {
+      Security.doAs(ADMIN, new PrivilegedAction<Void>() {
+         @Override
+         public Void run() {
+            cacheManager.defineConfiguration(""nonSecuredCache"", TestCacheManagerFactory.getDefaultCacheConfiguration(true).build());
+            return null;
+         }
+      });
+
+      cache(""nonSecuredCache"").put(""a"", ""value"");
+      assertEquals(""value"", cacheManager.getCache(""nonSecuredCache"").get(""a""));
+
+      String result = Security.doAs(RUNNER, new PrivilegedExceptionAction<String>() {
+         @Override
+         public String run() throws Exception {
+            return (String) scriptingManager.runScript(""test.js"", new TaskContext().addParameter(""a"", ""a"").cache(cache(""nonSecuredCache""))).get();
+         }
+      });
+      assertEquals(""a"", result);
+      assertEquals(""a"", cacheManager.getCache(""nonSecuredCache"").get(""a""));
+   }
+{code}",2016/03/10 7:10 AM
+ISPN-6362,"As exemplified in the forum, the native DSL fails to build a query for a class who inherits an indexed field. An equivalent Hibernate Search query works",2016/03/10 6:18 AM
+ISPN-6353,"Errors are logged, REST service fails to start due to classloading problems of InfinispanIndexManager. This happens because the rest cache is not defined in the configuration so it gets created automatically based on the default config which happens to be an indexed cache, using InfinispanIndexManager, which is not normally available to the REST service. The tests do not fail.
+
+{code}
+8:58:51,182 ERROR [org.jboss.msc.service.fail] (MSC service thread 1-6) MSC000001: Failed to start service jboss.datagrid-infinispan-endpoint.rest.rest-connector: org.jboss.msc.service.StartException in service jboss.datagrid-infinispan-endpoint.rest.rest-connector: DGENDPT10015: Could not create the web context for the REST Server
+	at org.infinispan.server.endpoint.subsystem.RestService.start(RestService.java:103)
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.startService(ServiceControllerImpl.java:1948)
+	at org.jboss.msc.service.ServiceControllerImpl$StartTask.run(ServiceControllerImpl.java:1881)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+Caused by: org.hibernate.search.engine.service.classloading.spi.ClassLoadingException: Unable to load class [org.infinispan.query.indexmanager.InfinispanIndexManager]
+	at org.hibernate.search.engine.service.classloading.impl.DefaultClassLoaderService.classForName(DefaultClassLoaderService.java:64)
+	at org.hibernate.search.util.impl.ClassLoaderHelper.classForName(ClassLoaderHelper.java:320)
+	at org.hibernate.search.engine.impl.DefaultIndexManagerFactory.createIndexManagerByName(DefaultIndexManagerFactory.java:54)
+	at org.hibernate.search.indexes.impl.IndexManagerHolder.createIndexManager(IndexManagerHolder.java:247)
+	at org.hibernate.search.indexes.impl.IndexManagerHolder.createIndexManager(IndexManagerHolder.java:513)
+	at org.hibernate.search.indexes.impl.IndexManagerHolder.createIndexManagers(IndexManagerHolder.java:482)
+	at org.hibernate.search.indexes.impl.IndexManagerHolder.buildEntityIndexBinding(IndexManagerHolder.java:91)
+	at org.hibernate.search.spi.SearchIntegratorBuilder.initDocumentBuilders(SearchIntegratorBuilder.java:358)
+	at org.hibernate.search.spi.SearchIntegratorBuilder.buildNewSearchFactory(SearchIntegratorBuilder.java:199)
+	at org.hibernate.search.spi.SearchIntegratorBuilder.buildSearchIntegrator(SearchIntegratorBuilder.java:117)
+	at org.infinispan.query.impl.LifecycleManager.getSearchFactory(LifecycleManager.java:300)
+	at org.infinispan.query.impl.LifecycleManager.cacheStarting(LifecycleManager.java:112)
+	at org.infinispan.factories.ComponentRegistry.notifyCacheStarting(ComponentRegistry.java:247)
+	at org.infinispan.factories.ComponentRegistry.start(ComponentRegistry.java:236)
+	at org.infinispan.cache.impl.CacheImpl.start(CacheImpl.java:849)
+	at org.infinispan.manager.DefaultCacheManager.wireAndStartCache(DefaultCacheManager.java:635)
+	at org.infinispan.manager.DefaultCacheManager.createCache(DefaultCacheManager.java:585)
+	at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:451)
+	at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:470)
+	at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:461)
+	at org.jboss.as.clustering.infinispan.DefaultCacheContainer.getCache(DefaultCacheContainer.java:94)
+	at org.jboss.as.clustering.infinispan.DefaultCacheContainer.getCache(DefaultCacheContainer.java:85)
+	at org.infinispan.security.actions.GetCacheAction.run(GetCacheAction.java:26)
+	at org.infinispan.security.actions.GetCacheAction.run(GetCacheAction.java:14)
+	at org.infinispan.security.Security.doPrivileged(Security.java:76)
+	at org.infinispan.rest.SecurityActions.doPrivileged(SecurityActions.java:24)
+	at org.infinispan.rest.SecurityActions.getCache(SecurityActions.java:31)
+	at org.infinispan.rest.NettyRestServer$$anonfun$startCaches$1.apply(NettyRestServer.scala:77)
+	at org.infinispan.rest.NettyRestServer$$anonfun$startCaches$1.apply(NettyRestServer.scala:77)
+	at scala.collection.Iterator$class.foreach(Iterator.scala:742)
+	at scala.collection.AbstractIterator.foreach(Iterator.scala:1194)
+	at scala.collection.IterableLike$class.foreach(IterableLike.scala:72)
+	at scala.collection.AbstractIterable.foreach(Iterable.scala:54)
+	at org.infinispan.rest.NettyRestServer$.startCaches(NettyRestServer.scala:77)
+	at org.infinispan.rest.NettyRestServer$.apply(NettyRestServer.scala:52)
+	at org.infinispan.rest.NettyRestServer$.apply(NettyRestServer.scala:46)
+	at org.infinispan.rest.NettyRestServer.apply(NettyRestServer.scala)
+	at org.infinispan.server.endpoint.subsystem.RestService.start(RestService.java:101)
+	... 5 more
+Caused by: java.lang.ClassNotFoundException: Could not load requested class : org.infinispan.query.indexmanager.InfinispanIndexManager
+	at org.hibernate.search.util.impl.AggregatedClassLoader.findClass(AggregatedClassLoader.java:75)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:424)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:357)
+	at java.lang.Class.forName0(Native Method)
+	at java.lang.Class.forName(Class.java:348)
+	at org.hibernate.search.engine.service.classloading.impl.DefaultClassLoaderService.classForName(DefaultClassLoaderService.java:61)
+	... 42 more
+
+{code}",2016/03/09 11:57 AM
+ISPN-6327,NoData,2016/03/04 12:47 PM
+ISPN-6313,NoData,2016/03/03 8:47 AM
+ISPN-6126,"ISPN-5816 introduced a new implicit cache, so the new expected number of caches should be {{6}}.
+
+{noformat}
+java.lang.AssertionError: expected:<5> but was:<6>
+    at org.junit.Assert.fail(Assert.java:88)
+    at org.junit.Assert.failNotEquals(Assert.java:743)
+    at org.junit.Assert.assertEquals(Assert.java:118)
+    at org.junit.Assert.assertEquals(Assert.java:555)
+    at org.junit.Assert.assertEquals(Assert.java:542)
+    at org.infinispan.server.test.jmx.management.JmxManagementIT.testCacheManagerAttributes(JmxManagementIT.java:163)
+{noformat}",2016/01/29 12:00 PM
+ISPN-6083,Aggregation is currently ignored if present. We should report an error instead. At least until ISPN-6060 is implemented.,2016/01/19 10:01 AM
+ISPN-6076,"This should not be allowed.
+
+{code}
+   public void testGroupingAndAggregationOnSameField() {
+      QueryFactory qf = getQueryFactory();
+      Query q = qf.from(getModelFactory().getUserImplClass())
+            .select(Expression.count(""surname""), Expression.sum(""addresses.number""))
+            .groupBy(""surname"")
+            .build();
+
+      List<Object[]> list = q.list(); // throws ClassCastException
+   }
+{code}
+
+{code}
+java.lang.ClassCastException: java.lang.String cannot be cast to org.infinispan.objectfilter.impl.aggregation.Counter
+	at org.infinispan.objectfilter.impl.aggregation.CountAccumulator.merge(CountAccumulator.java:24)
+	at org.infinispan.objectfilter.impl.aggregation.FieldAccumulator.merge(FieldAccumulator.java:42)
+	at org.infinispan.objectfilter.impl.aggregation.Grouper.addRow(Grouper.java:133)
+	at org.infinispan.query.dsl.embedded.impl.AggregatingQuery.getBaseIterator(AggregatingQuery.java:52)
+	at org.infinispan.query.dsl.embedded.impl.HybridQuery$1.<init>(HybridQuery.java:47)
+	at org.infinispan.query.dsl.embedded.impl.HybridQuery.getIterator(HybridQuery.java:45)
+	at org.infinispan.query.dsl.embedded.impl.BaseEmbeddedQuery.listInternal(BaseEmbeddedQuery.java:65)
+	at org.infinispan.query.dsl.embedded.impl.BaseEmbeddedQuery.list(BaseEmbeddedQuery.java:57)
+	at org.infinispan.query.dsl.embedded.impl.DelegatingQuery.list(DelegatingQuery.java:45)
+	at org.infinispan.query.dsl.embedded.QueryDslConditionsTest.testEmbeddedSum(QueryDslConditionsTest.java:1959)
+{code}",2016/01/15 7:44 AM
+ISPN-6033,NoData,2015/12/21 7:24 AM
+ISPN-6021,NoData,2015/12/10 6:09 AM
+ISPN-6008,"{code}
+      QueryFactory qf = getQueryFactory();
+      Query q = qf.from(User.class)
+            .select(Expression.min(""name""))
+            .groupBy(""addresses.street"")
+            .build();
+      q.list();
+{code}
+
+Should throw an exception during query parsing because property ""addresses.street"" is not single-valued.
+
+Similar behaviour should be expected for orderBy. ",2015/12/03 6:22 AM
+ISPN-5994,It must follow the *Test naming convention to be executed.,2015/11/29 7:04 PM
+ISPN-5951,"Similar to ISPN-5855, the reaper is enabled by default.",2015/11/12 2:39 AM
+ISPN-5889,"Hot Rod server does not deal with merge views, so when members return back to the cluster, the view is not updated. The Hot Rod server view change listener currently only deals with nodes leaving or crashing. This problem is not a big one since it just means that until the next view change happens, clients will work with a reduced view, working in a suboptimal way, but it won't have correctness impact.",2015/10/27 9:35 AM
+ISPN-5879,"When reusing a HotRod client with several threads, site can be accidentally switched multiple times by threads invoking TcpTransportFactory.trySwitchCluster. This occurs when the threads attain 'maxRetries' limit at the same time, each of them being able to invoke TcpTransportFactory..updateServers with different 'clusterAddresses' parameter. This can lead to unpredictable result (e.g. switching back to failed cluster, while the other one (backup) is up and running).",2015/10/21 4:27 AM
+ISPN-5867,"{quote}
+Execution error: java.lang.ClassCastException: org.infinispan.query.remote.impl.indexing.ProtobufValueWrapper cannot be cast to [B
+    at org.infinispan.objectfilter.impl.predicateindex.ProtobufMatcherEvalContext.<init>(ProtobufMatcherEvalContext.java:37)
+    at org.infinispan.objectfilter.impl.ProtobufMatcher.startMultiTypeContext(ProtobufMatcher.java:40)
+    at org.infinispan.objectfilter.impl.ProtobufMatcher.startMultiTypeContext(ProtobufMatcher.java:21)
+    at org.infinispan.objectfilter.impl.BaseMatcher.match(BaseMatcher.java:61)
+    at org.infinispan.query.dsl.embedded.impl.JPAFilterIndexingServiceProvider$FilteringListenerInvocation.invoke(JPAFilterIndexingServiceProvider.java:302)
+    at org.infinispan.notifications.cachelistener.CacheNotifierImpl.notifyCacheEntryVisited(CacheNotifierImpl.java:395)
+    at org.infinispan.interceptors.CallInterceptor.notifyCacheEntryVisit(CallInterceptor.java:117)
+    at org.infinispan.interceptors.CallInterceptor.visitGetCacheEntryCommand(CallInterceptor.java:89)
+    at org.infinispan.commands.read.GetCacheEntryCommand.acceptVisitor(GetCacheEntryCommand.java:39)
+    at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:99)
+    at org.infinispan.interceptors.EntryWrappingInterceptor.visitDataReadCommand(EntryWrappingInterceptor.java:133)
+    at org.infinispan.interceptors.EntryWrappingInterceptor.visitGetCacheEntryCommand(EntryWrappingInterceptor.java:127)
+    at org.infinispan.commands.read.GetCacheEntryCommand.acceptVisitor(GetCacheEntryCommand.java:39)
+    at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:99)
+    at org.infinispan.interceptors.base.CommandInterceptor.handleDefault(CommandInterceptor.java:113)
+    at org.infinispan.commands.AbstractVisitor.visitGetCacheEntryCommand(AbstractVisitor.java:90)
+    at org.infinispan.commands.read.GetCacheEntryCommand.acceptVisitor(GetCacheEntryCommand.java:39)
+    at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:99)
+    at org.infinispan.interceptors.base.CommandInterceptor.handleDefault(CommandInterceptor.java:113)
+    at org.infinispan.commands.AbstractVisitor.visitGetCacheEntryCommand(AbstractVisitor.java:90)
+    at org.infinispan.commands.read.GetCacheEntryCommand.acceptVisitor(GetCacheEntryCommand.java:39)
+    at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:99)
+    at org.infinispan.interceptors.locking.NonTransactionalLockingInterceptor.visitDataReadCommand(NonTransactionalLockingInterceptor.java:31)
+    at org.infinispan.interceptors.locking.AbstractLockingInterceptor.visitGetCacheEntryCommand(AbstractLockingInterceptor.java:81)
+    at org.infinispan.commands.read.GetCacheEntryCommand.acceptVisitor(GetCacheEntryCommand.java:39)
+    at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:99)
+    at org.infinispan.interceptors.CacheMgmtInterceptor.visitDataReadCommand(CacheMgmtInterceptor.java:103)
+    at org.infinispan.interceptors.CacheMgmtInterceptor.visitGetCacheEntryCommand(CacheMgmtInterceptor.java:95)
+    at org.infinispan.commands.read.GetCacheEntryCommand.acceptVisitor(GetCacheEntryCommand.java:39)
+    at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:99)
+    at org.infinispan.interceptors.compat.BaseTypeConverterInterceptor.visitGetCacheEntryCommand(BaseTypeConverterInterceptor.java:135)
+    at org.infinispan.commands.read.GetCacheEntryCommand.acceptVisitor(GetCacheEntryCommand.java:39)
+    at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:99)
+    at org.infinispan.interceptors.InvocationContextInterceptor.handleAll(InvocationContextInterceptor.java:102)
+    at org.infinispan.interceptors.InvocationContextInterceptor.handleDefault(InvocationContextInterceptor.java:71)
+    at org.infinispan.commands.AbstractVisitor.visitGetCacheEntryCommand(AbstractVisitor.java:90)
+    at org.infinispan.commands.read.GetCacheEntryCommand.acceptVisitor(GetCacheEntryCommand.java:39)
+    at org.infinispan.interceptors.InterceptorChain.invoke(InterceptorChain.java:336)
+    at org.infinispan.cache.impl.CacheImpl.getCacheEntry(CacheImpl.java:418)
+    at org.infinispan.cache.impl.DecoratedCache.getCacheEntry(DecoratedCache.java:562)
+    at org.infinispan.cache.impl.AbstractDelegatingAdvancedCache.getCacheEntry(AbstractDelegatingAdvancedCache.java:212)
+    at org.infinispan.server.hotrod.CacheDecodeContext.get(CacheDecodeContext.scala:176)
+    at org.infinispan.server.hotrod.HotRodDecoder.org$infinispan$server$hotrod$HotRodDecoder$$decodeKey(HotRodDecoder.scala:98)
+    at org.infinispan.server.hotrod.HotRodDecoder$$anonfun$decode$1.apply$mcV$sp(HotRodDecoder.scala:48)
+    at org.infinispan.server.hotrod.HotRodDecoder.wrapSecurity(HotRodDecoder.scala:206)
+    at org.infinispan.server.hotrod.HotRodDecoder.decode(HotRodDecoder.scala:45)
+    at io.netty.handler.codec.ReplayingDecoder.callDecode(ReplayingDecoder.java:370)
+    at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:168)
+    at org.infinispan.server.hotrod.HotRodDecoder.org$infinispan$server$core$transport$StatsChannelHandler$$super$channelRead(HotRodDecoder.scala:31)
+    at org.infinispan.server.core.transport.StatsChannelHandler$class.channelRead(StatsChannelHandler.scala:32)
+    at org.infinispan.server.hotrod.HotRodDecoder.channelRead(HotRodDecoder.scala:31)
+    at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:308)
+    at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:294)
+    at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:846)
+    at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:130)
+    at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:511)
+    at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:468)
+    at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:382)
+    at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:354)
+    at io.netty.util.concurrent.SingleThreadEventExecutor$2.run(SingleThreadEventExecutor.java:116)
+    at io.netty.util.concurrent.DefaultThreadFactory$DefaultRunnableDecorator.run(DefaultThreadFactory.java:137)
+    at java.lang.Thread.run(Thread.java:745)
+{quote}",2015/10/15 10:33 AM
+ISPN-5787,"I found 2 problems, not sure if they have a common cause:
+
+1.
+This query
+{code}
+Query q = qf.from(getModelFactory().getTransactionImplClass())
+      .select(""date"")
+      .having(""date"").between(makeDate(""2013-02-15""), makeDate(""2013-03-15"")).toBuilder()
+      .groupBy(""date"")
+      .build();
+List<Object[]> list = q.list();
+{code}
+fails with 
+{code}
+org.hibernate.hql.ParsingException: HQL000002: The query SELECT _gen0.date FROM org.infinispan.query.dsl.embedded.testdomain.hsearch.TransactionHS _gen0  WHERE (date >= Fri Feb 15 01:00:00 CET 2013) AND (date <= Fri Mar 15 01:00:00 CET 2013) is not valid; Parser error messages: [[statement, statementElement, selectStatement, queryExpression, querySpec, whereClause, logicalExpression, expression, logicalOrExpression, logicalAndExpression, negatedExpression, equalityExpression, relationalExpression, concatenation, additiveExpression, multiplyExpression, unaryExpression, atom]: line 1:116 mismatched token: [@35,116:118='Feb',<75>,1:116]; expecting type RIGHT_PAREN].
+{code}
+The query works after removing the groupBy. It also partially works in remote mode (running in RemoteQueryDslConditionsTest) - the query is parsed, but still doesn't return the result as a Date object.
+
+2.
+This query
+{code}
+Query q = qf.from(getModelFactory().getTransactionImplClass())
+      .select(Expression.count(""date""), Expression.min(""date""))
+      .having(""description"").eq(""Hotel"").toBuilder()
+      .groupBy(""id"")
+      .build();
+List<Object[]> list = q.list();
+{code}
+returns in the 2nd column the internal representation of the Date (i.e. 20130227000000000) instead of an object. Selecting only the minimum, select(Expression.min(""date"")), the query returns a Date object.
+
+Both queries are supposed to be run inside the QueryDslConditionsTest test class.",2015/09/23 5:13 AM
+ISPN-5780,"Currently it just preserves the type of the field, which can easily lead to overflow. The JPA spec tries to avoid it by widening the numeric type,  see 10.2.7.4. JPQL Aggregate Functions of JPA spec here: http://docs.oracle.com/cd/E12839_01/apirefs.1111/e13946/ejb3_langref.html",2015/09/17 11:18 AM
+ISPN-5758,"If a client put an object as byte[] into the cache, which is a self serialized class, the get will return the original class (if it is in the class path) instead of the byte[].
+This is incompatible to ISPN5 here the byte[] is returned in any case.
+
+It seems this in unintentional due to the smart 'compatibility' mode at client side
+https://github.com/infinispan/infinispan/blob/master/client/hotrod-client/src/main/java/org/infinispan/client/hotrod/marshall/MarshallerUtil.java#L35
+
+The client should be able to get the same class type back",2015/09/17 5:03 AM
+ISPN-5710,"Reproducer:
+
+{code}
+import java.util.List;
+
+import org.hibernate.search.annotations.Analyze;
+import org.hibernate.search.annotations.Field;
+import org.hibernate.search.annotations.Indexed;
+import org.hibernate.search.annotations.Store;
+import org.infinispan.Cache;
+import org.infinispan.configuration.cache.ConfigurationBuilder;
+import org.infinispan.configuration.cache.Index;
+import org.infinispan.manager.DefaultCacheManager;
+import org.infinispan.query.Search;
+import org.infinispan.query.dsl.Query;
+import org.infinispan.query.dsl.QueryFactory;
+
+public class Test {
+
+   public static void main(String[] args) {
+      ConfigurationBuilder builder = new ConfigurationBuilder();
+      builder.indexing().index(Index.ALL)
+              .addProperty(""default.directory_provider"", ""ram"")
+              .addProperty(""lucene_version"", ""LUCENE_CURRENT"");
+      // Construct a simple local cache manager with default configuration
+      DefaultCacheManager cacheManager = new DefaultCacheManager(builder.build());
+      // Obtain the default cache
+      Cache<String, Person> cache = cacheManager.getCache();
+      // Store some entries
+      cache.put(""person1"", new Person(""William"", ""Shakespeare""));
+      cache.put(""person2"", new Person(""William"", ""Wordsworth""));
+      cache.put(""person3"", new Person(""John"", ""Milton""));
+      // Obtain a query factory for the cache
+      QueryFactory<?> queryFactory = Search.getQueryFactory(cache);
+      // Construct a query
+      Query query = queryFactory.from(Person.class).having(""name"").eq(""William"").toBuilder().build();
+      // Execute the query
+      List<Person> matches = query.list();
+      matches.forEach(person -> System.out.printf(""Match: %s"", person));
+      // Stop the cache manager and release all resources
+      cacheManager.stop();
+   }
+
+   @Indexed
+    static class Person {
+      @Field(store = Store.YES, analyze = Analyze.NO)
+      String name;
+
+      @Field(store = Store.YES, analyze = Analyze.NO, indexNullAs = Field.DEFAULT_NULL_TOKEN)
+      String surname;
+
+      public Person(String name, String surname) {
+         this.name = name;
+         this.surname = surname;
+      }
+
+      @Override
+      public String toString() {
+         return ""Person2 [name="" + name + "", surname="" + surname + ""]"";
+      }
+   }
+
+}
+{code}
+
+Stack Trace:
+
+{code}
+Exception in thread ""main"" java.lang.IllegalStateException: Unknown entity name com.gustavonalle.infinispan.perf.config.Test.Person
+	at org.infinispan.objectfilter.impl.hql.FilterQueryResolverDelegate.registerPersisterSpace(FilterQueryResolverDelegate.java:52)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.entityName(GeneratedHQLResolver.java:12784)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.persisterSpaceRoot(GeneratedHQLResolver.java:3064)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.persisterSpace(GeneratedHQLResolver.java:2956)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.persisterSpaces(GeneratedHQLResolver.java:2893)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.fromClause(GeneratedHQLResolver.java:2803)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.selectFrom(GeneratedHQLResolver.java:2704)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.querySpec(GeneratedHQLResolver.java:2182)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.queryExpression(GeneratedHQLResolver.java:2106)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.queryStatement(GeneratedHQLResolver.java:1745)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.queryStatementSet(GeneratedHQLResolver.java:1658)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.statement(GeneratedHQLResolver.java:654)
+	at org.hibernate.hql.ast.spi.QueryResolverProcessor.process(QueryResolverProcessor.java:52)
+	at org.hibernate.hql.QueryParser.parseQuery(QueryParser.java:82)
+	at org.infinispan.objectfilter.impl.BaseMatcher.parse(BaseMatcher.java:115)
+	at org.infinispan.query.dsl.embedded.impl.QueryEngine.parse(QueryEngine.java:377)
+	at org.infinispan.query.dsl.embedded.impl.QueryEngine.buildQuery(QueryEngine.java:81)
+	at org.infinispan.query.dsl.embedded.impl.EmbeddedQueryBuilder.build(EmbeddedQueryBuilder.java:30)
+	at com.gustavonalle.infinispan.perf.config.Test.main(Test.java:35)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:497)
+	at com.intellij.rt.execution.application.AppMain.main(AppMain.java:140)
+{code}",2015/08/28 9:08 AM
+ISPN-5705,"The hibrid query, mentioned below produces wrong results, upon execution.
+
+
+SELECT p.ID, p.NAME FROM com.testapp.Person p WHERE p.IS_ACTIVE=1 AND (p.CITY='city1' OR p.CITY='city2') AND p.ID>1000
+
+
+for the Data:
+
+ID | NAME | CITY | IS_ACTIVE
+-------------------
+2001 person1 city1 1
+2002 person1 city1 1
+2003 person1 city1 1 
+2004 person1 city1 0
+2005 person1 city2 1
+2006 person1 city2 1
+2007 person1 city3 0
+2008 person1 city3 1
+
+Indexed fields: ID, NAME, CITY
+Non-indexed fields: IS_ACTIVE
+
+
+Query execution returned 0 number of rows, whereas expected result count is 5.
+
+After some analysis root cause for the problem has been found, and the details are as follows,
+
+As a part of separating the query that depends on indexed fields, using boole shannon algorithm, it has first extraced out the condition 'IS_ACTIVE=1' (as it deals with non-indexed fields).
+Assuming four boolean conditions as c1, c2, c3, c4, where c1 represents the condition 'IS_ACTIVE=1'
+f(c1,c2,c3,c4) = c1.f(1, c2, c3, c4) + c1`.f`(0, c2, c3, c4)
+
+consider
+e1=f(1, c2, c3, c4)
+e2=f`(0, c2, c3, c4)
+which have to be used for constructing the lucene query, for further transformation.
+
+After splitting as per the above logic, it is trying to optimize the resultant subconditions(e1, e2), so as to reduce the number of conditions to be evaluated. One such optimization that has been found is that when there is a conjuction operation between two comparison predicates dealing with same lvalues(here, same fields), but with the different rvalues(here, constants), it has been optimized to replace it with a contradiction(constant false boolean expression). As we know, this optimization is applicable only for conjuction. But, the same is applied even for the disjuction, which is causing the above mentioned problem.
+
+For example,
+condition p.CITY='city1' AND p.CITY='city2'
+can be replaced with CONTRADICTION(BooleanConst.FALSE)
+But, the same cannot be done, for
+condition p.CITY='city1' OR p.CITY='city2'
+
+
+Following change may correct the problem.
+
+File: infinispan-8.0.0.Beta3/object-filter/src/main/java/org/infinispan/objectfilter/impl/syntax/BooleShannonExpansion.java:155
+
+diff:
+
+
+@@ -152,7 +152,7 @@
+                }
+             }
+          }
+-         PredicateOptimisations.optimizePredicates(newChildren, true);
++         PredicateOptimisations.optimizePredicates(newChildren, false);
+          if (newChildren.size() == 1) {
+             return newChildren.get(0);
+          }
+
+
+",2015/08/26 12:33 PM
+ISPN-5698,"Missing currentTopologyId in:
+
+{code}
+if (trace) log.tracef(""Retrying command because of topology change, current topology is %d: %s"", command);
+{code}",2015/08/25 3:42 AM
+ISPN-5692,"{quote}
+org.infinispan.client.hotrod.exceptions.HotRodClientException:Request for messageId=7 returned server error (status=0x85): org.infinispan.remoting.RemoteException: ISPN000217: Received exception from RemoteListenerWithDslFilterTest-NodeC-8427, see cause for remote stack trace
+java.lang.ClassCastException: org.infinispan.query.remote.indexing.ProtobufValueWrapper cannot be cast to [B
+	at org.infinispan.client.hotrod.impl.protocol.Codec20.checkForErrorsInResponseStatus(Codec20.java:336)
+	at org.infinispan.client.hotrod.impl.protocol.Codec20.readPartialHeader(Codec20.java:126)
+	at org.infinispan.client.hotrod.impl.protocol.Codec20.readHeaderOrEvent(Codec20.java:208)
+	at org.infinispan.client.hotrod.impl.operations.AddClientListenerOperation.executeOperation(AddClientListenerOperation.java:92)
+	at org.infinispan.client.hotrod.impl.operations.AddClientListenerOperation.executeOperation(AddClientListenerOperation.java:25)
+	at org.infinispan.client.hotrod.impl.operations.RetryOnFailureOperation.execute(RetryOnFailureOperation.java:52)
+	at org.infinispan.client.hotrod.impl.RemoteCacheImpl.addClientListener(RemoteCacheImpl.java:575)
+	at org.infinispan.client.hotrod.event.ClientEvents.addClientQueryListener(ClientEvents.java:65)
+	at org.infinispan.client.hotrod.event.RemoteListenerWithDslFilterTest.testEventFilter(RemoteListenerWithDslFilterTest.java:144)
+{quote}",2015/08/21 10:57 AM
+ISPN-5685,"The following query
+{code}
+public void testGroupBy() {
+      QueryFactory qf = getQueryFactory();
+      Query q = qf.from(getModelFactory().getTransactionImplClass())
+            .select(Expression.property(""accountId""), Expression.sum(""amount""))
+            .groupBy(""accountId"")
+            .having(Expression.sum(""amount"")).gt(3324)
+            .toBuilder().build();
+}
+{code}
+in the context of QueryDslConditionsTest test class fails with:
+{code}
+java.lang.ClassCastException: java.lang.Integer cannot be cast to java.lang.Double
+	at java.lang.Double.compareTo(Double.java:49)
+	at org.infinispan.objectfilter.impl.util.Interval.contains(Interval.java:92)
+	at org.infinispan.objectfilter.impl.predicateindex.IntervalCondition.match(IntervalCondition.java:19)
+	at org.infinispan.objectfilter.impl.predicateindex.IntervalCondition.match(IntervalCondition.java:9)
+	at org.infinispan.objectfilter.impl.predicateindex.Predicate.match(Predicate.java:37)
+	at org.infinispan.objectfilter.impl.predicateindex.Predicates.notifyMatchingSubscribers(Predicates.java:118)
+	at org.infinispan.objectfilter.impl.predicateindex.AttributeNode.processValue(AttributeNode.java:112)
+	at org.infinispan.objectfilter.impl.predicateindex.RowMatcherEvalContext.processAttributes(RowMatcherEvalContext.java:30)
+	at org.infinispan.objectfilter.impl.predicateindex.MatcherEvalContext.process(MatcherEvalContext.java:120)
+	at org.infinispan.objectfilter.impl.ObjectFilterImpl.filter(ObjectFilterImpl.java:73)
+	at org.infinispan.query.dsl.embedded.impl.HybridQuery$1.update(HybridQuery.java:75)
+	at org.infinispan.query.dsl.embedded.impl.HybridQuery$1.hasNext(HybridQuery.java:56)
+	at org.infinispan.query.dsl.embedded.impl.BaseEmbeddedQuery.listInternal(BaseEmbeddedQuery.java:72)
+	at org.infinispan.query.dsl.embedded.impl.BaseEmbeddedQuery.list(BaseEmbeddedQuery.java:63)
+	at org.infinispan.query.dsl.embedded.QueryDslConditionsTest.testGroupBy(QueryDslConditionsTest.java:1811)
+...
+{code}",2015/08/18 7:37 AM
+ISPN-5684,"If a distributed cache configuration contains less owner than current nodes are within the cluster a HotRod client fail if the copatible mode is enabled.
+The getAll(...) must include keys of different owners to fail constant.
+
+The ERROR is as followed:
+19:04:08,991 ERROR [org.infinispan.interceptors.InvocationContextInterceptor] (HotRodServerWorker-9-1) ISPN000136: Execution error: org.infinispan.util.concurrent.TimeoutException: Timed out waiting for topology 3
+	at org.infinispan.statetransfer.StateTransferLockImpl.waitForTopology(StateTransferLockImpl.java:144)
+	at org.infinispan.interceptors.base.BaseStateTransferInterceptor.waitForTopology(BaseStateTransferInterceptor.java:100)
+	at org.infinispan.statetransfer.StateTransferInterceptor.visitGetAllCommand(StateTransferInterceptor.java:177)
+	at org.infinispan.commands.read.GetAllCommand.acceptVisitor(GetAllCommand.java:59)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:99)
+	at org.infinispan.interceptors.CacheMgmtInterceptor.visitGetAllCommand(CacheMgmtInterceptor.java:127)
+	at org.infinispan.commands.read.GetAllCommand.acceptVisitor(GetAllCommand.java:59)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:99)
+	at org.infinispan.interceptors.compat.BaseTypeConverterInterceptor.visitGetAllCommand(BaseTypeConverterInterceptor.java:166)
+	at org.infinispan.commands.read.GetAllCommand.acceptVisitor(GetAllCommand.java:59)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:99)
+	at org.infinispan.interceptors.InvocationContextInterceptor.handleAll(InvocationContextInterceptor.java:102)
+	at org.infinispan.interceptors.InvocationContextInterceptor.handleDefault(InvocationContextInterceptor.java:71)
+	at org.infinispan.commands.AbstractVisitor.visitGetAllCommand(AbstractVisitor.java:95)
+	at org.infinispan.commands.read.GetAllCommand.acceptVisitor(GetAllCommand.java:59)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:99)
+	at org.infinispan.interceptors.base.CommandInterceptor.handleDefault(CommandInterceptor.java:113)
+	at org.infinispan.commands.AbstractVisitor.visitGetAllCommand(AbstractVisitor.java:95)
+	at org.infinispan.commands.read.GetAllCommand.acceptVisitor(GetAllCommand.java:59)
+	at org.infinispan.interceptors.InterceptorChain.invoke(InterceptorChain.java:336)
+	at org.infinispan.cache.impl.CacheImpl.getAll(CacheImpl.java:443)
+	at org.infinispan.cache.impl.DecoratedCache.getAll(DecoratedCache.java:442)
+	at org.infinispan.cache.impl.AbstractDelegatingAdvancedCache.getAll(AbstractDelegatingAdvancedCache.java:207)
+	at org.infinispan.server.hotrod.Decoder2x$.customReadValue(Decoder2x.scala:482)
+	at org.infinispan.server.hotrod.HotRodDecoder.customDecodeValue(HotRodDecoder.scala:197)
+	at org.infinispan.server.hotrod.HotRodDecoder.org$infinispan$server$hotrod$HotRodDecoder$$decodeValue(HotRodDecoder.scala:136)
+	at org.infinispan.server.hotrod.HotRodDecoder$$anonfun$decode$1.apply$mcV$sp(HotRodDecoder.scala:50)
+	at org.infinispan.server.hotrod.HotRodDecoder.wrapSecurity(HotRodDecoder.scala:206)
+	at org.infinispan.server.hotrod.HotRodDecoder.decode(HotRodDecoder.scala:45)
+	at io.netty.handler.codec.ReplayingDecoder.callDecode(ReplayingDecoder.java:370)
+	at io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:168)
+	at org.infinispan.server.hotrod.HotRodDecoder.org$infinispan$server$core$transport$StatsChannelHandler$$super$channelRead(HotRodDecoder.scala:31)
+	at org.infinispan.server.core.transport.StatsChannelHandler$class.channelRead(StatsChannelHandler.scala:32)
+	at org.infinispan.server.hotrod.HotRodDecoder.channelRead(HotRodDecoder.scala:31)
+	at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:308)
+	at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:294)
+	at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:846)
+	at io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:130)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:511)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:468)
+	at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:382)
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:354)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$2.run(SingleThreadEventExecutor.java:116)
+	at io.netty.util.concurrent.DefaultThreadFactory$DefaultRunnableDecorator.run(DefaultThreadFactory.java:137)
+	at java.lang.Thread.run(Thread.java:745)
+
+",2015/08/17 1:12 PM
+ISPN-5682,"This query
+{code}
+   public void testGroupBy7() {
+      QueryFactory qf = getQueryFactory();
+      Query q = qf.from(getModelFactory().getUserImplClass())
+            .select(Expression.min(""addresses.street""))
+            .having(""name"").eq(""Spider"").toBuilder()
+            .build();
+
+      List<Object[]> list = q.list();
+      assertEquals(list.get(0)[0], ""Bond Street"");
+}
+{code}
+returns in the context of QueryDslConditionsTest test class (https://github.com/infinispan/infinispan/blob/7634c0996cb3a174d2a379f20961ddd35e376a15/query/src/test/java/org/infinispan/query/dsl/embedded/QueryDslConditionsTest.java) the street ""Old Street"", while ""Bond Street"" is expected.",2015/08/17 7:48 AM
+ISPN-5677,"given the following HR client code
+
+NotifyingFuture<String> f1 = cache.withFlags(Flag.FORCE_RETURN_VALUE).putIfAbsentAsync(key, ""1"");
+		System.out.println(f1.get(10,TimeUnit.MINUTES));
+		NotifyingFuture<String> f2 = cache.withFlags(Flag.FORCE_RETURN_VALUE).putIfAbsentAsync(key, ""2"");
+		System.out.println(f2.get(10,TimeUnit.MINUTES));
+
+both prints print null, where the second one should print ""1""
+
+
+only when props.put(""infinispan.client.hotrod.force_return_values"",""true"")   is set specifically when building the CM then the calls work",2015/08/12 12:17 PM
+ISPN-5629,The handling should be similar to java.util.DoubleSummaryStatistics ,2015/07/23 11:19 AM
+ISPN-5576,"Encoder implementation allocates buffers but does not release them in case of exception before the encoded buffer is added to the response list. As a result, if encoding faces exceptions, it could leak byte buffers and show messages like this:
+
+{code}
+[io.netty.util.ResourceLeakDetector] LEAK: ByteBuf.release() was not called before it's garbage-collected. 
+Enable advanced leak reporting to find out where the leak occurred. To enable advanced leak reporting, 
+specify the JVM option '-Dio.netty.leakDetectionLevel=advanced' or call ResourceLeakDetector.setLevel()
+
+LEAK: ByteBuf.release() was not called before it's garbage-collected.
+Recent access records: 0
+Created at:
+	io.netty.buffer.PooledByteBufAllocator.newDirectBuffer(PooledByteBufAllocator.java:259)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:155)
+	io.netty.buffer.AbstractByteBufAllocator.directBuffer(AbstractByteBufAllocator.java:141)
+	io.netty.buffer.AbstractByteBufAllocator.buffer(AbstractByteBufAllocator.java:75)
+	org.infinispan.server.hotrod.HotRodEncoder.encode(HotRodEncoder.scala:29)
+	io.netty.handler.codec.MessageToMessageEncoder.write(MessageToMessageEncoder.java:89)
+	io.netty.channel.AbstractChannelHandlerContext.invokeWrite(AbstractChannelHandlerContext.java:633)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:691)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:626)
+	io.netty.handler.timeout.IdleStateHandler.write(IdleStateHandler.java:266)
+	io.netty.channel.AbstractChannelHandlerContext.invokeWrite(AbstractChannelHandlerContext.java:633)
+	io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:691)
+	io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:681)
+	io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:716)
+	io.netty.channel.DefaultChannelPipeline.writeAndFlush(DefaultChannelPipeline.java:954)
+	io.netty.channel.AbstractChannel.writeAndFlush(AbstractChannel.java:243)
+	org.infinispan.server.core.AbstractProtocolDecoder.writeResponse(AbstractProtocolDecoder.scala:220)
+	org.infinispan.server.hotrod.HotRodDecoder.customDecodeHeader(HotRodDecoder.scala:153)
+	org.infinispan.server.core.AbstractProtocolDecoder.org$infinispan$server$core$AbstractProtocolDecoder$$decodeHeader(AbstractProtocolDecoder.scala:137)
+	org.infinispan.server.core.AbstractProtocolDecoder$$anon$2.run(AbstractProtocolDecoder.scala:98)
+	org.infinispan.server.core.AbstractProtocolDecoder$$anon$2.run(AbstractProtocolDecoder.scala:95)
+	org.infinispan.security.Security.doAs(Security.java:143)
+	org.infinispan.server.core.AbstractProtocolDecoder.secureDecodeDispatch(AbstractProtocolDecoder.scala:95)
+	org.infinispan.server.core.AbstractProtocolDecoder.decode(AbstractProtocolDecoder.scala:59)
+	io.netty.handler.codec.ReplayingDecoder.callDecode(ReplayingDecoder.java:370)
+	io.netty.handler.codec.ByteToMessageDecoder.channelRead(ByteToMessageDecoder.java:168)
+	org.infinispan.server.core.AbstractProtocolDecoder.channelRead(AbstractProtocolDecoder.scala:459)
+	io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:308)
+	io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:294)
+	io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:846)
+	io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:130)
+	io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:511)
+	io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:468)
+	io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:382)
+	io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:354)
+	io.netty.util.concurrent.SingleThreadEventExecutor$2.run(SingleThreadEventExecutor.java:116)
+	java.lang.Thread.run(Thread.java:745)
+{code}
+
+Also, encoder implementation does not log exceptions reported at encoding time, so exceptions like this can only be noticed via instrumentation.",2015/06/25 1:17 AM
+ISPN-5502,Some of the changes cherry-picked from master pull requests used Java 8 features and the 7.2.x branch doesn't build with Java 7 any more.,2015/05/22 9:31 AM
+ISPN-5472,"Sometimes the surefire plugin has problems with the master-fork communication during the LevelDB test suite and stops the entire reactor:
+
+{noformat}
+[11:17:10]W:	 [Step 2/4] [ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.17:test (default-test) on project infinispan-cachestore-leveldb: Execution default-test of goal org.apache.maven.plugins:maven-surefire-plugin:2.17:test failed: java.lang.RuntimeException: 1,org.infinispan.persistence.leveldb.LevelDBStoreTest,testStoreAndRemove(org.infinispan.persistence.leveldb.LevelDBStoreTest),unit,null,null: NoSuchElementException -> [Help 1]
+[11:17:10] :	 [Step 2/4] org.apache.maven.lifecycle.LifecycleExecutionException: Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:2.17:test (default-test) on project infinispan-cachestore-leveldb: Execution default-test of goal org.apache.maven.plugins:maven-surefire-plugin:2.17:test failed: java.lang.RuntimeException: 1,org.infinispan.persistence.leveldb.LevelDBStoreTest,testStoreAndRemove(org.infinispan.persistence.leveldb.LevelDBStoreTest),unit,null,null
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.lifecycle.internal.MojoExecutor.execute(MojoExecutor.java:224)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.lifecycle.internal.MojoExecutor.execute(MojoExecutor.java:153)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.lifecycle.internal.MojoExecutor.execute(MojoExecutor.java:145)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.lifecycle.internal.LifecycleModuleBuilder.buildProject(LifecycleModuleBuilder.java:116)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.lifecycle.internal.LifecycleModuleBuilder.buildProject(LifecycleModuleBuilder.java:80)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.lifecycle.internal.builder.singlethreaded.SingleThreadedBuilder.build(SingleThreadedBuilder.java:51)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.lifecycle.internal.LifecycleStarter.execute(LifecycleStarter.java:120)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.DefaultMaven.doExecute(DefaultMaven.java:347)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.DefaultMaven.execute(DefaultMaven.java:154)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.cli.MavenCli.execute(MavenCli.java:582)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.cli.MavenCli.doMain(MavenCli.java:214)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.cli.MavenCli.main(MavenCli.java:158)
+[11:17:10] :	 [Step 2/4] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+[11:17:10] :	 [Step 2/4] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+[11:17:10] :	 [Step 2/4] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+[11:17:10] :	 [Step 2/4] 	at java.lang.reflect.Method.invoke(Method.java:483)
+[11:17:10] :	 [Step 2/4] 	at org.codehaus.plexus.classworlds.launcher.Launcher.launchEnhanced(Launcher.java:289)
+[11:17:10] :	 [Step 2/4] 	at org.codehaus.plexus.classworlds.launcher.Launcher.launch(Launcher.java:229)
+[11:17:10] :	 [Step 2/4] 	at org.codehaus.plexus.classworlds.launcher.Launcher.mainWithExitCode(Launcher.java:415)
+[11:17:10] :	 [Step 2/4] 	at org.codehaus.plexus.classworlds.launcher.Launcher.main(Launcher.java:356)
+[11:17:10] :	 [Step 2/4] Caused by: org.apache.maven.plugin.PluginExecutionException: Execution default-test of goal org.apache.maven.plugins:maven-surefire-plugin:2.17:test failed: java.lang.RuntimeException: 1,org.infinispan.persistence.leveldb.LevelDBStoreTest,testStoreAndRemove(org.infinispan.persistence.leveldb.LevelDBStoreTest),unit,null,null
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.DefaultBuildPluginManager.executeMojo(DefaultBuildPluginManager.java:143)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.lifecycle.internal.MojoExecutor.execute(MojoExecutor.java:208)
+[11:17:10] :	 [Step 2/4] 	... 19 more
+[11:17:10] :	 [Step 2/4] Caused by: java.lang.RuntimeException: java.lang.RuntimeException: 1,org.infinispan.persistence.leveldb.LevelDBStoreTest,testStoreAndRemove(org.infinispan.persistence.leveldb.LevelDBStoreTest),unit,null,null
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.surefire.booterclient.output.ThreadedStreamConsumer.close(ThreadedStreamConsumer.java:123)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.surefire.booterclient.ForkStarter.fork(ForkStarter.java:463)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.surefire.booterclient.ForkStarter.fork(ForkStarter.java:352)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.surefire.booterclient.ForkStarter.run(ForkStarter.java:158)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.surefire.AbstractSurefireMojo.executeProvider(AbstractSurefireMojo.java:967)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.surefire.AbstractSurefireMojo.executeAfterPreconditionsChecked(AbstractSurefireMojo.java:831)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.surefire.AbstractSurefireMojo.execute(AbstractSurefireMojo.java:729)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.DefaultBuildPluginManager.executeMojo(DefaultBuildPluginManager.java:132)
+[11:17:10] :	 [Step 2/4] 	... 20 more
+[11:17:10] :	 [Step 2/4] Caused by: java.lang.RuntimeException: 1,org.infinispan.persistence.leveldb.LevelDBStoreTest,testStoreAndRemove(org.infinispan.persistence.leveldb.LevelDBStoreTest),unit,null,null
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.surefire.booterclient.output.ForkClient.createReportEntry(ForkClient.java:209)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.surefire.booterclient.output.ForkClient.consumeLine(ForkClient.java:110)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.surefire.booterclient.output.ThreadedStreamConsumer$Pumper.run(ThreadedStreamConsumer.java:67)
+[11:17:10] :	 [Step 2/4] 	at java.lang.Thread.run(Thread.java:745)
+[11:17:10] :	 [Step 2/4] Caused by: java.util.NoSuchElementException
+[11:17:10] :	 [Step 2/4] 	at java.util.StringTokenizer.nextToken(StringTokenizer.java:349)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.surefire.booterclient.output.ForkClient.deserializeStackStraceWriter(ForkClient.java:217)
+[11:17:10] :	 [Step 2/4] 	at org.apache.maven.plugin.surefire.booterclient.output.ForkClient.createReportEntry(ForkClient.java:202)
+[11:17:10] :	 [Step 2/4] 	... 3 more
+{noformat}
+
+http://ci.infinispan.org/viewLog.html?buildId=26311&buildTypeId=bt9&tab=buildResultsDiv
+
+I have created a bug in Surefire: https://issues.apache.org/jira/browse/SUREFIRE-1157",2015/05/16 7:52 AM
+ISPN-5450,"QueryFacadeImpl fails when checking if cache config has indexing enabled. Queries should normally require BULK_READ permission, not ADMIN.",2015/05/08 8:49 AM
+ISPN-5444,"If a user deploys a filter/converter into server, and the cache contains custom classes, the default behaviour of unmarshalling custom classes for the filter/converter will generate CNFEs, e.g.
+
+{code}
+Caused by: java.lang.ClassNotFoundException: ValueAddedEvent from [Module
+""org.infinispan.commons:main"" from local module loader @4b7504fb
+(finder: local module finder @6f9a2170 (roots:
+/opt/infinispan/modules,/opt/infinispan/modules/system/layers/base))]
+[..]
+   at
+org.infinispan.commons.marshall.AbstractMarshaller.objectFromByteBuffer(AbstractMarshaller.java:82)
+[infinispan-commons-7.2.0-SNAPSHOT.jar:7.2.0-SNAPSHOT]
+   at
+org.infinispan.server.hotrod.ClientListenerRegistry$UnmarshallConverter.convert(ClientListenerRegistry.scala:383)
+[infinispan-server-hotrod-7.2.0-SNAPSHOT.jar:7.2.0-SNAPSHOT]
+{code}
+
+Even if the classes are deployed along with the filter/converter, these won't be found. Currently, the only way to workaround it is to add those classes into a module and get the infinispan-commons module to depend on it to locate them.
+
+A better solution is needed here...",2015/05/07 11:39 AM
+ISPN-5429,"This was spotted by Pierre Sutra from University of Neuchatel:
+
+When a CacheEventFilterConverter is registered with remote event listeners, and running in a cluster, once the CacheEventFilterConverter instance is replicated, the notion that its both a filter AND converter is lost because BaseCacheEntryListenerInvocation's constructor determines that {{filterAndConvert}} is false.
+
+The reason this happens is because after clustering it, the ClusterListenerReplicateCallable.call() wraps the {{filter}} into an {{AbstractCacheEventFilterConverter}} implementation, which does not keep the referential equality that BaseCacheEntryListenerInvocation's constructor checks.
+
+A simple way to avoid this is to implement {{equals}} in the AbstractCacheEventFilterConverter implementation and use referential equality. Then, switching BaseCacheEntryListenerInvocation's constructors referential equality by a call to {{equals}} is enough to solve the issue.
+
+The reason this bug was detected is because without a fix for it, the filter + converter gets two callbacks instead of one. I've added tests to verify that the number callbacks expected is the correct one.",2015/05/01 7:13 AM
+ISPN-5407,There was a typo that is preventing the eviction algorithm from being passed in properly to the actual concurrent map underneath.,2015/04/23 3:17 PM
+ISPN-5394,"With the introduction of {{__script_cache}}, the assumptions in the tests are wrong",2015/04/20 1:07 PM
+ISPN-5392,The value returned for Type.GREATER should be LESS_OR_EQUAL but it wrongly returns LESS.,2015/04/20 7:05 AM
+ISPN-5232,NoData,2015/02/23 11:45 AM
+ISPN-5181,Similar to ISPN-5121,2015/01/27 4:10 AM
+ISPN-5139,"Line 63 of org.infinispan.interceptors.ClusteredCacheLoaderInterceptor
+
+log.tracef(""Skip load for command %s? %s"", skip);
+
+throws
+
+java.util.MissingFormatArgumentException: Format specifier 's'",2015/01/09 3:50 PM
+ISPN-5028,"{noformat}
+01:40:35,536 ERROR (testng-LocalEntryRetrieverEvictionTest:) [UnitTestTestNGListener] Test testExpiredEntryNotReturned(org.infinispan.iteration.LocalEntryRetrieverEvictionTest) failed.
+java.lang.AssertionError: expected:<{0=0 stay in cache, 1=1 stay in cache, 2=2 stay in cache, 3=3 stay in cache, 4=4 stay in cache}> but was:<{0=0 stay in cache, 1=1 stay in cache, 2=2 stay in cache, expired=this shouldn't be returned, 3=3 stay in cache, 4=4 stay in cache}>
+	at org.testng.AssertJUnit.fail(AssertJUnit.java:59)
+	at org.testng.AssertJUnit.failNotEquals(AssertJUnit.java:364)
+	at org.testng.AssertJUnit.assertEquals(AssertJUnit.java:80)
+	at org.testng.AssertJUnit.assertEquals(AssertJUnit.java:88)
+	at org.infinispan.iteration.BaseEntryRetrieverEvictionTest.testExpiredEntryNotReturned(BaseEntryRetrieverEvictionTest.java:56)
+{noformat}
+
+The problem is that the test measures the time expired since _before_ inserting the value, it should measure the time since _after_ inserting the value (actually {{Thread.sleep()}} would suffice). Computing the time since before the insert is only useful when check that the entry didn't expire too soon.
+
+I have seen a failure in {{LocalEntryRetrieverEvictionTest}} on my machine, but only failures in {{ReplicatedEntryRetrieverEvictionTest}} and {{DistributedEntryRetrieverEvictionTest}} in CI:
+
+http://ci.infinispan.org/viewLog.html?buildId=14438&tab=buildResultsDiv&buildTypeId=Infinispan_MasterHotspotJdk7Fast#testNameId-666977883968506102
+
+http://ci.infinispan.org/viewLog.html?buildId=14568&tab=buildResultsDiv&buildTypeId=Infinispan_MasterHotspotJdk8#testNameId-8216937438846476729",2014/11/27 4:37 AM
+ISPN-5023,"Example: http://ci.infinispan.org/viewLog.html?buildId=14526&tab=buildResultsDiv&buildTypeId=bt8#testNameId4372805828079769285
+
+{noformat}
+org.infinispan.manager.EmbeddedCacheManagerStartupException: org.infinispan.commons.CacheException: Unable to invoke method public void org.infinispan.remoting.transport.jgroups.JGroupsTransport.start() on object of type JGroupsTransport
+    at org.infinispan.factories.GlobalComponentRegistry.start(GlobalComponentRegistry.java:243)
+    at org.infinispan.manager.DefaultCacheManager.wireAndStartCache(DefaultCacheManager.java:573)
+    at org.infinispan.manager.DefaultCacheManager.createCache(DefaultCacheManager.java:539)
+    at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:416)
+    at org.infinispan.spring.support.embedded.InfinispanEmbeddedCacheManagerFactoryBeanTest$2.call(InfinispanEmbeddedCacheManagerFactoryBeanTest.java:82)
+    at org.infinispan.test.TestingUtil.withCacheManager(TestingUtil.java:1321)
+    at org.infinispan.spring.support.embedded.InfinispanEmbeddedCacheManagerFactoryBeanTest.infinispanEmbeddedCacheManagerFactoryBeanShouldCreateACustomizedCacheManagerIfGivenADefaultConfigurationLocation(InfinispanEmbeddedCacheManagerFactoryBeanTest.java:75)
+    at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+    at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+    at java.lang.reflect.Method.invoke(Method.java:606)
+    at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:84)
+    at org.testng.internal.Invoker.invokeMethod(Invoker.java:714)
+    at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:901)
+    at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1231)
+    at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
+    at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
+    at org.testng.TestRunner.privateRun(TestRunner.java:767)
+    at org.testng.TestRunner.run(TestRunner.java:617)
+    at org.testng.SuiteRunner.runTest(SuiteRunner.java:348)
+    at org.testng.SuiteRunner.access$000(SuiteRunner.java:38)
+    at org.testng.SuiteRunner$SuiteWorker.run(SuiteRunner.java:382)
+    at org.testng.internal.thread.ThreadUtil$2.call(ThreadUtil.java:64)
+    at java.util.concurrent.FutureTask.run(FutureTask.java:262)
+    at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+    at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615)
+    at java.lang.Thread.run(Thread.java:745)
+Caused by: org.infinispan.commons.CacheException: Unable to invoke method public void org.infinispan.remoting.transport.jgroups.JGroupsTransport.start() on object of type JGroupsTransport
+    at org.infinispan.commons.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:170)
+    at org.infinispan.factories.AbstractComponentRegistry$PrioritizedMethod.invoke(AbstractComponentRegistry.java:869)
+    at org.infinispan.factories.AbstractComponentRegistry.invokeStartMethods(AbstractComponentRegistry.java:638)
+    at org.infinispan.factories.AbstractComponentRegistry.internalStart(AbstractComponentRegistry.java:627)
+    at org.infinispan.factories.AbstractComponentRegistry.start(AbstractComponentRegistry.java:530)
+    at org.infinispan.factories.GlobalComponentRegistry.start(GlobalComponentRegistry.java:221)    ... 26 more
+Caused by: org.infinispan.commons.CacheException: Channel connected, but unable to register MBeans
+    at org.infinispan.remoting.transport.jgroups.JGroupsTransport.startJGroupsChannelIfNeeded(JGroupsTransport.java:216)
+    at org.infinispan.remoting.transport.jgroups.JGroupsTransport.start(JGroupsTransport.java:190)
+    at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+    at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+    at java.lang.reflect.Method.invoke(Method.java:606)
+    at org.infinispan.commons.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:168)    ... 31 more
+Caused by: javax.management.MBeanRegistrationException: The @MBean objectName is not unique
+    at org.jgroups.jmx.JmxConfigurator.internalRegister(JmxConfigurator.java:178)
+    at org.jgroups.jmx.JmxConfigurator.register(JmxConfigurator.java:116)
+    at org.jgroups.jmx.JmxConfigurator.registerChannel(JmxConfigurator.java:53)
+    at org.infinispan.remoting.transport.jgroups.JGroupsTransport.startJGroupsChannelIfNeeded(JGroupsTransport.java:213)    ... 37 more
+Caused by: javax.management.InstanceAlreadyExistsException: org.infinispan:type=protocol,cluster=""infinispan-cluster"",protocol=TCP
+    at com.sun.jmx.mbeanserver.Repository.addMBean(Repository.java:437)
+    at com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.registerWithRepository(DefaultMBeanServerInterceptor.java:1898)
+    at com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.registerDynamicMBean(DefaultMBeanServerInterceptor.java:966)
+    at com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.registerObject(DefaultMBeanServerInterceptor.java:900)
+    at com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.registerMBean(DefaultMBeanServerInterceptor.java:324)
+    at com.sun.jmx.mbeanserver.JmxMBeanServer.registerMBean(JmxMBeanServer.java:522)
+    at org.jgroups.jmx.JmxConfigurator.internalRegister(JmxConfigurator.java:175)    ... 40 more
+{noformat}",2014/11/26 7:01 AM
+ISPN-5011,"The situation can be reproduced in a simple test:
+
+{code}
+@Test
+public void testStartAndStopWithoutIndexing() {
+      EmbeddedCacheManager cacheManager = ... // With indexing enabled, using infinispan directory
+      cacheManager.getCache();
+      cacheManager.stop();
+
+      assertEquals(ComponentStatus.TERMINATED, cacheManager.getStatus());
+   }
+{code}
+
+The issue is that query related caches are lazily created, and the stop( ) method fails with NPE",2014/11/24 10:18 AM
+ISPN-4823,"Test is wrongly marked as unstable but it fails every time.
+
+{code}
+Transport protocol stack used = tcp
+java.lang.AssertionError: 
+Expected :4
+Actual   :1
+ <Click to see difference>
+
+	at org.testng.Assert.fail(Assert.java:94)
+	at org.testng.Assert.failNotEquals(Assert.java:494)
+	at org.testng.Assert.assertEquals(Assert.java:123)
+	at org.testng.Assert.assertEquals(Assert.java:370)
+	at org.testng.Assert.assertEquals(Assert.java:380)
+	at org.infinispan.query.distributed.ClusteredQueryMassIndexingTest.verifyFindsCar(ClusteredQueryMassIndexingTest.java:30)
+	at org.infinispan.query.distributed.DistributedMassIndexingTest.verifyFindsCar(DistributedMassIndexingTest.java:82)
+	at org.infinispan.query.distributed.DistributedMassIndexingTest.testReindexing(DistributedMassIndexingTest.java:51)
+{code}",2014/10/10 6:50 AM
+ISPN-4822,"The MassIndexer assumes a cluster-wide shared index, and thus calls 
+wipeExistingIndexes() only once in the node where it is invoked, the same apply for flush operation after the all mappers and reducers run. 
+When using Clustered Queries, indexes are locally scoped and independent , and need to be wiped and flushed on every node.",2014/10/10 6:47 AM
+ISPN-4821,"UploadProtoFileOperationHandler cannot correctly guess the file path from the given URL, so it would be better to add an another parameter for the name, similar to the way RegisterProtoSchemasOperationHandler works.",2014/10/09 3:32 PM
+ISPN-4804,"{noformat}
+java.util.ConcurrentModificationException
+    at java.util.HashMap$HashIterator.nextEntry(HashMap.java:922)
+    at java.util.HashMap$KeyIterator.next(HashMap.java:956)
+    at org.infinispan.lucene.impl.DeltaReplicationTest.assertOnlyDeltasWereSent(DeltaReplicationTest.java:71)
+    at org.infinispan.lucene.impl.DeltaReplicationTest.testDeltasAreSent(DeltaReplicationTest.java:66)
+{noformat}
+
+Could be because the `InboundInvocationHandlerDecorator.writeCommands` set is accessed from multiple threads without synchronization.
+
+http://ci.infinispan.org/viewLog.html?buildId=12730&buildTypeId=bt9",2014/10/03 11:04 AM
+ISPN-4801,"Since ISPN-4692 that made FileListCacheValue DeltaAware, the following is happening when running {{org.infinispan.lucene.profiling.PerformanceCompareStressTest}}:
+
+{code}
+java.util.ConcurrentModificationException
+	at java.util.HashMap$HashIterator.nextEntry(HashMap.java:922)
+	at java.util.HashMap$KeyIterator.next(HashMap.java:956)
+	at java.util.AbstractCollection.toArray(AbstractCollection.java:195)
+	at org.infinispan.lucene.impl.FileListCacheValue.toArray(FileListCacheValue.java:109)
+	at org.infinispan.lucene.impl.FileListOperations.listFilenames(FileListOperations.java:101)
+	at org.infinispan.lucene.impl.DirectoryImplementor.list(DirectoryImplementor.java:56)
+	at org.infinispan.lucene.impl.DirectoryLuceneV4.listAll(DirectoryLuceneV4.java:123)
+	at org.apache.lucene.index.SegmentInfos$FindSegmentsFile.run(SegmentInfos.java:759)
+{code}
+
+The problem is that the deltas are not being applied in a thread safe manner",2014/10/02 4:13 PM
+ISPN-4725,"INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:2.0.2:testCompile (default-testCompile) on project infinispan-embedded-it: Compilation failure: Compilation failure:
+[ERROR] /home/adrian/work/infinispan22222/infinispan/integrationtests/all-embedded-it/src/test/java/org/infinispan/all/embedded/EmbeddedAllTest.java:[3,7] error: static import declarations are not supported in -source 1.3
+[ERROR]
+[ERROR] (use -source 5 or higher to enable static import declarations)
+[ERROR] /home/adrian/work/infinispan22222/infinispan/integrationtests/all-embedded-it/src/test/java/org/infinispan/all/embedded/EmbeddedAllTest.java:[9,1] error: annotations are not supported in -source 1.3
+[ERROR]
+[ERROR] (use -source 5 or higher to enable annotations)
+[ERROR] /home/adrian/work/infinispan22222/infinispan/integrationtests/all-embedded-it/src/test/java/org/infinispan/all/embedded/EmbeddedAllTest.java:[14,11] error: generics are not supported in -source 1.3
+[ERROR] -> [Help 1]
+[ERROR]
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR]
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+[ERROR]
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR] mvn <goals> -rf :infinispan-embedded-it",2014/09/15 4:03 AM
+ISPN-4719,"{noformat}07:48:54,189 DEBUG [org.infinispan.interceptors.InterceptorChain] (Stressor-2) Interceptor chain size: 6
+07:48:54,189 DEBUG [org.infinispan.interceptors.InterceptorChain] (Stressor-2) Interceptor chain is: 
+        >> org.infinispan.interceptors.InvocationContextInterceptor
+        >> org.infinispan.interceptors.CacheMgmtInterceptor
+        >> org.infinispan.interceptors.NotificationInterceptor
+        >> org.infinispan.interceptors.locking.NonTransactionalLockingInterceptor
+        >> org.infinispan.interceptors.EntryWrappingInterceptor
+        >> org.infinispan.interceptors.CallInterceptor
+07:48:54,206 DEBUG [org.infinispan.jmx.JmxUtil] (Stressor-2) Object name org.infinispan:type=Cache,name=""__query_cache__(local)"",manager=""DefaultCacheManager"",component=Cache already registered
+07:48:54,207 DEBUG [org.infinispan.CacheImpl] (Stressor-2) Started cache __query_cache__ on edg-perf10-33989
+07:48:54,208 ERROR [org.radargun.stages.test.Stressor] (Stressor-8) Unexpected error in stressor!
+java.lang.NullPointerException
+        at org.infinispan.query.dsl.embedded.impl.QueryCache.get(QueryCache.java:58)
+        at org.infinispan.query.dsl.embedded.impl.EmbeddedLuceneQueryBuilder.build(EmbeddedLuceneQueryBuilder.java:50)
+        at org.infinispan.query.dsl.embedded.impl.EmbeddedLuceneQueryBuilder.build(EmbeddedLuceneQueryBuilder.java:20)
+        at org.radargun.service.AbstractInfinispanQueryable$QueryBuilderImpl.build(AbstractInfinispanQueryable.java:169)
+        at org.radargun.stages.cache.test.QueryStage$Logic.run(QueryStage.java:153)
+        at org.radargun.stages.test.Stressor.runInternal(Stressor.java:75)
+        at org.radargun.stages.test.Stressor.run(Stressor.java:53){noformat}",2014/09/11 8:10 AM
+ISPN-4667,"When using the as modules and an application that depends on those modules, the following code:
+
+{code}
+Cache cache = ...
+Query query = Search.getQueryFactory(cache).from(Book.class).having(""field"").contains(""value"").toBuilder().build();
+List<Object> results = query.list();
+{code} 
+
+fails with 
+
+{code}
+java.lang.IllegalStateException: Unknown entity name org.infinispan.test.integration.as.query.Book
+	at org.hibernate.hql.lucene.internal.ClassBasedLuceneQueryResolverDelegate.registerPersisterSpace(ClassBasedLuceneQueryResolverDelegate.java:104)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.entityName(GeneratedHQLResolver.java:12729)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.persisterSpaceRoot(GeneratedHQLResolver.java:3064)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.persisterSpace(GeneratedHQLResolver.java:2956)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.persisterSpaces(GeneratedHQLResolver.java:2893)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.fromClause(GeneratedHQLResolver.java:2803)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.selectFrom(GeneratedHQLResolver.java:2704)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.querySpec(GeneratedHQLResolver.java:2182)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.queryExpression(GeneratedHQLResolver.java:2106)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.queryStatement(GeneratedHQLResolver.java:1745)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.queryStatementSet(GeneratedHQLResolver.java:1658)
+	at org.hibernate.hql.ast.origin.hql.resolve.GeneratedHQLResolver.statement(GeneratedHQLResolver.java:654)
+	at org.hibernate.hql.ast.spi.QueryResolverProcessor.process(QueryResolverProcessor.java:52)
+	at org.hibernate.hql.QueryParser.parseQuery(QueryParser.java:82)
+	at org.infinispan.query.dsl.embedded.impl.EmbeddedLuceneQueryBuilder.build(EmbeddedLuceneQueryBuilder.java:43)
+	at org.infinispan.query.dsl.embedded.impl.EmbeddedLuceneQueryBuilder.build(EmbeddedLuceneQueryBuilder.java:19)
+
+
+{code}",2014/08/26 12:11 PM
+ISPN-4654,"Check this in QueryDslConditionsTest:
+{code}
+   public void testAnd5() throws Exception {
+      QueryFactory qf = getQueryFactory();
+
+      // range queries use different code
+      Query q = qf.from(getModelFactory().getUserImplClass())
+            .having(""id"").lt(1000)
+            .and().having(""age"").lt(1000)
+            .toBuilder().build();
+
+      List<User> list = q.list();
+      assertEquals(3, list.size());
+   }
+{code}
+
+The problem is that some subscription gets suspended and the second LT does not fire the second predicate update (and then neither the AND reevaluation).",2014/08/20 10:57 AM
+ISPN-4643,We should make sure that the entry iterator doesn't return entries that have expired.  Since entries can sit in the data container while expired we need to make sure to ignore those.,2014/08/14 12:41 PM
+ISPN-4605,"Some components in the Lucene Directory are highly concurrent, when these are marshalled we need to ensure a consistent snapshot is written to the byte stream.",2014/08/05 12:41 PM
+ISPN-4599,"Given the following configuration:
+{code:xml}
+<cache-container name=""store"" default-cache=""default"" statistics=""true"">
+        <transport cluster=""Infinispan-Query-Cluster""/>
+        <!-- *************************************** -->
+        <!--  Default Cache, with indexing enabled.  -->
+        <!-- *************************************** -->
+        <replicated-cache name=""passivation"" mode=""SYNC"" remote-timeout=""20000"" statistics=""true"">
+            <indexing index=""LOCAL"">
+                <property name=""hibernate.search.default.indexmanager"">
+                    org.infinispan.query.indexmanager.InfinispanIndexManager
+                </property>
+                <property name=""hibernate.search.default.directory_provider"">infinispan</property>
+            </indexing>
+        </replicated-cache>
+
+        <replicated-cache name=""LuceneIndexesMetadata"" mode=""SYNC"" remote-timeout=""25000"">
+            <indexing index=""NONE""/>
+        </replicated-cache>
+
+        <distributed-cache name=""LuceneIndexesData"" mode=""SYNC"" remote-timeout=""25000"">
+            <indexing index=""NONE""/>
+        </distributed-cache>
+        <replicated-cache name=""LuceneIndexesLocking"" mode=""SYNC"" remote-timeout=""25000"">
+            <indexing index=""NONE""/>
+        </replicated-cache>
+    </cache-container>
+{code}
+
+Scenario:
+- Start Node 1
+- Insert a few @Indexed objects in the cache
+- Start Node 2
+- Insert a few @Indexed objects in the cache
+
+Node 2 cannot acquire the locks to write and throws errors:
+{code}
+org.hibernate.search.backend.impl.lucene.LuceneBackendQueueTask applyUpdates
+ERROR: HSEARCH000072: Couldn't open the IndexWriter because of previous error: operation skipped, index ouf of sync!
+Aug 01, 2014 4:48:23 PM org.hibernate.search.exception.impl.LogErrorHandler handleException
+ERROR: HSEARCH000058: Exception occurred org.apache.lucene.store.LockObtainFailedException: Lock obtain timed out: org.infinispan.lucene.locking.BaseLuceneLock@2c1e889f
+{code}
+
+During the insertion on Node1, the InfinispanCommandsBackend  elects Node 1 as the primary node (since it's the only one) and acquires the lock on the LuceneIndexesLocking.
+When node 2 joins and the topology changes, the InfinispanCommandsBackend elects Node 2 as the primary node, but it fails to acquire the lock (held by Node 1)",2014/08/01 11:54 AM
+ISPN-9475,"Tests with undeclared params will not have the test name properly generated, so AbstractInfinispanTest will see all tests created by a factory as having the same name and will try to mark them as failed. Unfortunately the exception thrown in the method interceptor does not fail the test, it just manages to get it ignored.",2018/08/31 6:37 AM
+ISPN-9357,NoData,2018/07/10 5:00 AM
+ISPN-9336,"When an entities jar is deployed in the server using the <modules> configuration under the cache manager, if a certain operation required converting from JSON/XML to java Objects, for example, when storage is application/x-java-object and json is sent, the JSONTranscoder cannot find the deployed classes since it does not use the cache manager's aggregated classloader",2018/06/29 3:24 AM
+ISPN-9076,"Can't save to cache with indexing where key is not primitive.
+
+I take exception:
+________________
+
+2018-04-13 15:28:02,053 ERROR [org.infinispan.interceptors.impl.InvocationContextInterceptor] (HotRod-ServerHandler-6-101) ISPN000136: Error executing command PutKeyValueCommand, writing keys [WrappedByteArray{bytes=[B0x82012572752E6265..[58], hashCode=-1231863705}]: org
+.hibernate.search.exception.SearchException: Unable to perform work. Entity Class is not @Indexed nor hosts @ContainedIn: [B
+        at org.hibernate.search.backend.impl.PerTransactionWorker.performWork(PerTransactionWorker.java:63)
+        at org.infinispan.query.backend.QueryInterceptor.performSearchWorks(QueryInterceptor.java:387)
+        at org.infinispan.query.backend.QueryInterceptor.removeFromIndexes(QueryInterceptor.java:341)
+        at org.infinispan.query.backend.QueryInterceptor.processChange(QueryInterceptor.java:453)
+        at org.infinispan.query.backend.QueryInterceptor.lambda$handleDataWriteCommand$0(QueryInterceptor.java:188)
+        at org.infinispan.interceptors.BaseAsyncInterceptor.invokeNextThenAccept(BaseAsyncInterceptor.java:105)
+        at org.infinispan.query.backend.QueryInterceptor.handleDataWriteCommand(QueryInterceptor.java:181)
+        at org.infinispan.query.backend.QueryInterceptor.visitPutKeyValueCommand(QueryInterceptor.java:248)
+        at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:67)
+        at org.infinispan.interceptors.BaseAsyncInterceptor.invokeNext(BaseAsyncInterceptor.java:54)
+        at org.infinispan.interceptors.impl.CacheLoaderInterceptor.visitDataCommand(CacheLoaderInterceptor.java:200)
+        at org.infinispan.interceptors.impl.CacheLoaderInterceptor.visitPutKeyValueCommand(CacheLoaderInterceptor.java:127)
+        at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:67)
+        at org.infinispan.interceptors.BaseAsyncInterceptor.invokeNextThenAccept(BaseAsyncInterceptor.java:98)
+        at org.infinispan.interceptors.impl.EntryWrappingInterceptor.setSkipRemoteGetsAndInvokeNextForDataCommand(EntryWrappingInterceptor.java:657)
+        at org.infinispan.interceptors.impl.EntryWrappingInterceptor.visitPutKeyValueCommand(EntryWrappingInterceptor.java:299)
+        at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:67)
+        at org.infinispan.interceptors.BaseAsyncInterceptor.invokeNextThenApply(BaseAsyncInterceptor.java:74)
+        at org.infinispan.interceptors.distribution.L1LastChanceInterceptor.visitDataWriteCommand(L1LastChanceInterceptor.java:136)
+        at org.infinispan.interceptors.distribution.L1LastChanceInterceptor.visitPutKeyValueCommand(L1LastChanceInterceptor.java:72)
+        at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:67)
+        at org.infinispan.interceptors.BaseAsyncInterceptor.invokeNextAndFinally(BaseAsyncInterceptor.java:150)
+        at org.infinispan.interceptors.locking.AbstractLockingInterceptor.lambda$nonTxLockAndInvokeNext$1(AbstractLockingInterceptor.java:285)
+        at org.infinispan.interceptors.SyncInvocationStage.addCallback(SyncInvocationStage.java:42)
+        at org.infinispan.interceptors.InvocationStage.andHandle(InvocationStage.java:44)
+        at org.infinispan.interceptors.locking.AbstractLockingInterceptor.nonTxLockAndInvokeNext(AbstractLockingInterceptor.java:280)
+        at org.infinispan.interceptors.locking.AbstractLockingInterceptor.visitNonTxDataWriteCommand(AbstractLockingInterceptor.java:127)
+        at org.infinispan.interceptors.locking.NonTransactionalLockingInterceptor.visitDataWriteCommand(NonTransactionalLockingInterceptor.java:40)
+        at org.infinispan.interceptors.locking.AbstractLockingInterceptor.visitPutKeyValueCommand(AbstractLockingInterceptor.java:82)
+        at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:67)
+        at org.infinispan.interceptors.BaseAsyncInterceptor.invokeNextAndHandle(BaseAsyncInterceptor.java:183)
+        at org.infinispan.statetransfer.StateTransferInterceptor.handleNonTxWriteCommand(StateTransferInterceptor.java:309)
+        at org.infinispan.statetransfer.StateTransferInterceptor.handleWriteCommand(StateTransferInterceptor.java:252)
+        at org.infinispan.statetransfer.StateTransferInterceptor.visitPutKeyValueCommand(StateTransferInterceptor.java:96)
+        at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:67)
+        at org.infinispan.interceptors.BaseAsyncInterceptor.invokeNextAndFinally(BaseAsyncInterceptor.java:150)
+        at org.infinispan.interceptors.impl.CacheMgmtInterceptor.updateStoreStatistics(CacheMgmtInterceptor.java:209)
+        at org.infinispan.interceptors.impl.CacheMgmtInterceptor.visitPutKeyValueCommand(CacheMgmtInterceptor.java:171)
+        at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:67)
+        at org.infinispan.interceptors.BaseAsyncInterceptor.invokeNextAndExceptionally(BaseAsyncInterceptor.java:123)
+        at org.infinispan.interceptors.impl.InvocationContextInterceptor.visitCommand(InvocationContextInterceptor.java:90)
+        at org.infinispan.interceptors.BaseAsyncInterceptor.invokeNext(BaseAsyncInterceptor.java:56)
+        at org.infinispan.interceptors.DDAsyncInterceptor.handleDefault(DDAsyncInterceptor.java:54)
+        at org.infinispan.interceptors.DDAsyncInterceptor.visitPutKeyValueCommand(DDAsyncInterceptor.java:60)
+        at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:67)
+        at org.infinispan.interceptors.DDAsyncInterceptor.visitCommand(DDAsyncInterceptor.java:50)
+        at org.infinispan.interceptors.impl.AsyncInterceptorChainImpl.invokeAsync(AsyncInterceptorChainImpl.java:234)
+        at org.infinispan.cache.impl.CacheImpl.executeCommandAndCommitIfNeededAsync(CacheImpl.java:1741)
+_____
+
+Proto schema, Java classes of model, and client code is attached.",2018/04/13 8:40 AM
+ISPN-8898,"JSON entities stored using REST with protobuf schema are not indexed and therefore querying using REST doesn't work.
+
+Possible issue found is in class {{InternalCacheFactory}} on line 93 where {{DataConversion}} instance is created with {{ByteArrayWrapper}} wrapper. When the value type is {{application/x-protostream}} the wrapper should be {{ProtostreamWrapper}}.",2018/03/01 9:19 AM
+ISPN-8870,JBoss Logging generates a lot of methods. Using inheritance for the loggers just to reuse one or two methods from the parent logger generates a lot of waste in class metadata. We should drop inheritance and duplicate methods instead,2018/02/22 11:10 AM
+ISPN-8671,"The InternalCacheRegistry is using a bounded cache to store its internal caches. There is no reason for this to be bounded, and actually could cause confusion if an internal cache was removed and no one was aware of that.",2018/01/10 10:41 AM
+ISPN-8326,"The following methods are executed when running the test suite even though the SkipOnOs annotations is used and is active:
+
+JniLevelDBCacheStoreTest#testWriteAndDeleteBatch
+JniLevelDBStoreFunctionalTest#testPutAllBatch",2017/09/21 2:27 AM
+ISPN-7757,NoData,2017/04/24 4:47 AM
+ISPN-7405,"Start an infinispan server and run the following CLI command:
+
+./bin/ispn-cli.sh -c '/subsystem=datagrid-infinispan/cache-container=local:register-proto-schemas(file-names=[myFileWithSyntaxErrors.proto], file-contents=[kaboom])'
+
+since the file has syntax errors it should still be placed in the ___protobuf_metadata cache and a myFileWithSyntaxErrors.proto.errors key should also be created. No exception should be thrown. Currently no key is written in cache and the NPE from the attached log happens.
+
+When registering a proper file without syntax errors this works correctly.
+
+The problem disappears if I disable global state persistence, so the cachestore seems to play a role in this.",2017/01/26 11:40 AM
+ISPN-7011,"Very much like ISPN-7003, TestNG's {{TestMethodWorker.invokeAfterClassMethods}} never sees an empty list of methods in {{m_classMethodMap}}. That happens because {{m_classMethodMap}} is populated before our {{ChainMethodInterceptor}} had a chance to filter the methods (e.g. when a test method has an {{@InTransactionMode}} annotation).
+
+Normally this is not a problem because each test has a different name, and the test suite tolerates some leaked managers. But when you run a test like {{PutForExternalReadTest}} with {{-Dtest.infinispan.shortTestName=true}}, you get this failure:
+
+{noformat}
+java.lang.IllegalStateException: Two tests with the same name running in parallel: test
+
+	at org.infinispan.test.fwk.TestResourceTracker.testStarted(TestResourceTracker.java:88)
+	at org.infinispan.test.AbstractInfinispanTest.testClassStarted(AbstractInfinispanTest.java:115)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:84)
+	at org.testng.internal.Invoker.invokeConfigurationMethod(Invoker.java:564)
+	at org.testng.internal.Invoker.invokeConfigurations(Invoker.java:213)
+	at org.testng.internal.Invoker.invokeConfigurations(Invoker.java:138)
+	at org.testng.internal.TestMethodWorker.invokeBeforeClassMethods(TestMethodWorker.java:175)
+	at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:107)
+{noformat}",2016/09/12 1:51 PM
+ISPN-12357,"When the base config has indexing enabled and the child config disables it we just need to whipe out all inherited indexing properties, transformers, indexed entities because they conflict with the enabled=false flag.",2020/09/26 5:27 AM
+ISPN-12286,"ISPN-11985 was enforcing the declaration of indexed entities in the cache, but the migration to Hibernate Search 6 undid the efforts and the cache starts normally without the entities, causing plenty of errors when doing search operations.
+
+Also, remote query is not checking if the configured entity is indexed or not",2020/09/04 9:11 AM
+ISPN-11964,"A special MediaType ''application/unknown"" is used when the cache hasn't an <encoding> configuration and its encoding cannot be guessed.
+
+For 11.0.0.Final, this should result in a WARNING since conversions with unknown format depends on the default marshaller that is not the same across versions.",2020/06/04 2:33 AM
+ISPN-11891,NoData,2020/05/22 5:00 AM
+ISPN-10544,Some Infinispan morning fitness to shed off java beans module,2019/08/30 1:03 PM
+ISPN-10533,"These were deprecated with replacement by ISPN-4830 about 5 years ago so should be ready to go.
+",2019/08/29 4:20 AM
+ISPN-10483,"Happens 95% of the time when trying to run a test from the REST module on Intellij, for example {{org.infinispan.rest.Http2Test}}:
+
+{noformat}
+Error:java: @AutoProtoSchemaBuilder processor threw a fatal exception: java.lang.RuntimeException: Type not found : long
+  	at org.infinispan.protostream.annotations.impl.processor.types.MirrorClassFactory$MirrorClass.isAssignableTo(MirrorClassFactory.java:541)
+  	at org.infinispan.protostream.annotations.impl.ProtoMessageTypeMetadata.scanMemberAnnotations(ProtoMessageTypeMetadata.java:212)
+  	at org.infinispan.protostream.annotations.impl.BaseProtoSchemaGenerator.generateAndRegister(BaseProtoSchemaGenerator.java:116)
+  	at org.infinispan.protostream.annotations.impl.processor.AutoProtoSchemaBuilderAnnotationProcessor.processClass(AutoProtoSchemaBuilderAnnotationProcessor.java:287)
+  	at org.infinispan.protostream.annotations.impl.processor.AutoProtoSchemaBuilderAnnotationProcessor.processElement(AutoProtoSchemaBuilderAnnotationProcessor.java:218)
+  	at org.infinispan.protostream.annotations.impl.processor.AutoProtoSchemaBuilderAnnotationProcessor.processDependencies(AutoProtoSchemaBuilderAnnotationProcessor.java:344)
+  	at org.infinispan.protostream.annotations.impl.processor.AutoProtoSchemaBuilderAnnotationProcessor.processClass(AutoProtoSchemaBuilderAnnotationProcessor.java:279)
+  	at org.infinispan.protostream.annotations.impl.processor.AutoProtoSchemaBuilderAnnotationProcessor.processElement(AutoProtoSchemaBuilderAnnotationProcessor.java:218)
+  	at org.infinispan.protostream.annotations.impl.processor.AutoProtoSchemaBuilderAnnotationProcessor.process(AutoProtoSchemaBuilderAnnotationProcessor.java:171)
+  	at com.sun.tools.javac.processing.JavacProcessingEnvironment.callProcessor(JavacProcessingEnvironment.java:794)
+  	at com.sun.tools.javac.processing.JavacProcessingEnvironment.discoverAndRunProcs(JavacProcessingEnvironment.java:705)
+  	at com.sun.tools.javac.processing.JavacProcessingEnvironment.access$1800(JavacProcessingEnvironment.java:91)
+  	at com.sun.tools.javac.processing.JavacProcessingEnvironment$Round.run(JavacProcessingEnvironment.java:1035)
+  	at com.sun.tools.javac.processing.JavacProcessingEnvironment.doProcessing(JavacProcessingEnvironment.java:1176)
+  	at com.sun.tools.javac.main.JavaCompiler.processAnnotations(JavaCompiler.java:1170)
+  	at com.sun.tools.javac.main.JavaCompiler.compile(JavaCompiler.java:856)
+  	at com.sun.tools.javac.main.Main.compile(Main.java:523)
+  	at com.sun.tools.javac.api.JavacTaskImpl.doCall(JavacTaskImpl.java:129)
+  	at com.sun.tools.javac.api.JavacTaskImpl.call(JavacTaskImpl.java:138)
+  	at org.jetbrains.jps.javac.JavacMain.compile(JavacMain.java:195)
+  	at org.jetbrains.jps.incremental.java.JavaBuilder.compileJava(JavaBuilder.java:460)
+  	at org.jetbrains.jps.incremental.java.JavaBuilder.compile(JavaBuilder.java:330)
+  	at org.jetbrains.jps.incremental.java.JavaBuilder.doBuild(JavaBuilder.java:255)
+  	at org.jetbrains.jps.incremental.java.JavaBuilder.build(JavaBuilder.java:213)
+  	at org.jetbrains.jps.incremental.IncProjectBuilder.runModuleLevelBuilders(IncProjectBuilder.java:1324)
+  	at org.jetbrains.jps.incremental.IncProjectBuilder.runBuildersForChunk(IncProjectBuilder.java:1004)
+  	at org.jetbrains.jps.incremental.IncProjectBuilder.buildTargetsChunk(IncProjectBuilder.java:1071)
+  	at org.jetbrains.jps.incremental.IncProjectBuilder.buildChunkIfAffected(IncProjectBuilder.java:965)
+  	at org.jetbrains.jps.incremental.IncProjectBuilder.buildChunks(IncProjectBuilder.java:794)
+  	at org.jetbrains.jps.incremental.IncProjectBuilder.runBuild(IncProjectBuilder.java:376)
+  	at org.jetbrains.jps.incremental.IncProjectBuilder.build(IncProjectBuilder.java:178)
+  	at org.jetbrains.jps.cmdline.BuildRunner.runBuild(BuildRunner.java:139)
+  	at org.jetbrains.jps.cmdline.BuildSession.runBuild(BuildSession.java:288)
+  	at org.jetbrains.jps.cmdline.BuildSession.run(BuildSession.java:121)
+  	at org.jetbrains.jps.cmdline.BuildMain$MyMessageHandler.lambda$channelRead0$0(BuildMain.java:228)
+  	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+  	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+  	at java.lang.Thread.run(Thread.java:748)
+{noformat}",2019/08/19 3:41 AM

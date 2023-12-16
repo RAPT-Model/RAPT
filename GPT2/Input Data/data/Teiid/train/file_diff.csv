@@ -1,0 +1,3884 @@
+file_diff,commit_time,file_diff_id
+"@@ -43,6 +43,7 @@ <H2><A NAME=""Highlights""></A>Highlights</H2>
+ 	<LI><B>Dependent Join Improvements</B> - dependent join analysis and costing in general was improved to consider dependent joins earlier in planning.
+ 	<LI><B>Memory Management Improvements</B> - maxReserveBatchColumns and maxProcessingBatchesColumns will be default be determined automatically and will more reliably prevent memory issues.  See the admin guide for more.
+ 	<LI><B>Subquery optimization control</B> - added the MJ and NO_UNNEST hints and the org.teiid.subqueryUnnestDefault system property to control the optimization of subqueries to traditional joins or to a merge join implemenation of a semijoin or antijoin.
++	<LI><B>Local connection threads </B> - local connection calling threads will be used to process work rather than using an engine thread.  This helps decouple the configuration of maxThreads.
+ </UL>
+ 
+ <h2><a name=""Compatibility"">Compatibility Issues</a></h2>",2011-03-28T04:17:50Z,45
+"@@ -0,0 +1,122 @@
++/*
++ * JBoss, Home of Professional Open Source.
++ * See the COPYRIGHT.txt file distributed with this work for information
++ * regarding copyright ownership.  Some portions may be licensed
++ * to Red Hat, Inc. under one or more contributor license agreements.
++ * 
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ * 
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ * 
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
++ * 02110-1301 USA.
++ */
++
++package org.teiid.jdbc;
++
++import java.util.TreeSet;
++import java.util.concurrent.atomic.AtomicInteger;
++
++import org.jboss.logging.Logger;
++
++/**
++ * Specialized timer that actively purges tasks in lg(n) time
++ */
++public class CancellationTimer {
++	
++	private static AtomicInteger id = new AtomicInteger();
++	
++	static abstract class CancelTask implements Runnable, Comparable<CancelTask> {
++		long endTime;
++		int seqId = id.get();
++		
++		public CancelTask(long delay) {
++			this.endTime = System.currentTimeMillis() + delay;
++		}
++		
++		@Override
++		public int compareTo(CancelTask o) {
++			int result = Long.signum(this.endTime = o.endTime);
++			if (result == 0) {
++				return seqId = o.seqId;
++			}
++			return result;
++		}
++		@Override
++		public boolean equals(Object obj) {
++			if (obj == this) {
++				return true;
++			}
++			if (!(obj instanceof CancelTask)) {
++				return false;
++			}
++			return this.compareTo((CancelTask)obj) == 0;
++		}
++	}
++	
++	private TreeSet<CancelTask> cancelQueue = new TreeSet<CancelTask>();
++	private Thread thread;
++	
++	public CancellationTimer(String name) {
++		thread = new Thread(new Runnable() {
++			
++			@Override
++			public void run() {
++				while (true) {
++					try {
++						doCancellations();
++					} catch (InterruptedException e) {
++						break;
++					}
++				}
++			}
++		}, name);
++		thread.setDaemon(true);
++		thread.start();
++	}
++
++	private void doCancellations() throws InterruptedException {
++		CancelTask task = null;
++		synchronized (this) {
++			if (cancelQueue.isEmpty()) {
++				this.wait();
++				return;
++			}
++			task = cancelQueue.first();
++			long toWait = task.endTime - System.currentTimeMillis();
++			if (toWait > 0) {
++				this.wait(toWait);
++				return;
++			}
++			cancelQueue.pollFirst();
++		}
++		try {
++			task.run();
++		} catch (Throwable t) {
++			Logger.getLogger(CancellationTimer.class).error(""Unexpected exception running task"", t); //$NON-NLS-1$
++		}
++	}
++	
++	public void add(CancelTask task) {
++		synchronized (this) {
++			this.cancelQueue.add(task);
++			this.notifyAll();
++		}
++	}
++	
++	public void remove(CancelTask task) {
++		synchronized (this) {
++			this.cancelQueue.remove(task);
++			this.notifyAll();
++		}
++	}
++
++}",2011-03-28T04:17:50Z,26
+"@@ -86,7 +86,8 @@ public class ConnectionImpl extends WrapperImpl implements TeiidConnection {
+     // status of connection object
+     private boolean closed = false;
+     // determines if a statement executed should be immediately committed.
+-    private boolean autoCommitFlag = true;
++    private boolean autoCommitFlag = true;
++    private boolean inLocalTxn;
+ 
+     // collection of all open statements on this connection
+     private Collection<StatementImpl> statements = new ArrayList<StatementImpl>();
+@@ -125,7 +126,11 @@ public ConnectionImpl(ServerConnection serverConn, Properties info, String url)
+         
+         this.disableLocalTransactions = Boolean.valueOf(this.propInfo.getProperty(ExecutionProperties.DISABLE_LOCAL_TRANSACTIONS)).booleanValue();
+     }
+-
++    
++    boolean isInLocalTxn() {
++		return inLocalTxn;
++	}
++    
+ 	private void setExecutionProperties(Properties info) {
+ 		this.propInfo = new Properties();
+         
+@@ -346,39 +351,37 @@ public void commit() throws SQLException {
+             try {
+                 directCommit();
+             } finally {
+-                beginLocalTxn(); 
++                inLocalTxn = false; 
+             }
+         }
+     }
+ 
+-    private void directCommit() throws SQLException {
+-        try {
+-			ResultsFuture<?> future = this.dqp.commit();
+-			future.get();
+-		} catch (Exception e) {
+-			throw TeiidSQLException.create(e);
+-		}
+-        logger.fine(JDBCPlugin.Util.getString(""MMConnection.Commit_success"")); //$NON-NLS-1$
++    private void directCommit() throws SQLException {
++    	if (inLocalTxn) {
++	        try {
++				ResultsFuture<?> future = this.dqp.commit();
++				future.get();
++			} catch (Exception e) {
++				throw TeiidSQLException.create(e);
++			}
++	        logger.fine(JDBCPlugin.Util.getString(""MMConnection.Commit_success"")); //$NON-NLS-1$
++    	}
+     }
+ 
+-    private void beginLocalTxn() throws SQLException {
+-        if (this.transactionXid == null) {
+-        	if (disableLocalTransactions) {
+-        		this.autoCommitFlag = true;
+-        		return;
+-        	}
+-            boolean txnStarted = false;
+-            try {
+-            	try {
+-            		this.dqp.begin();
+-        		} catch (XATransactionException e) {
+-        			throw TeiidSQLException.create(e);
+-        		} 
+-                txnStarted = true;
+-            } finally {
+-                if (!txnStarted) {
+-                    autoCommitFlag = true;
+-                }
++    void beginLocalTxnIfNeeded() throws SQLException {
++        if (this.transactionXid != null || inLocalTxn || this.autoCommitFlag || disableLocalTransactions) {
++        	return;
++        }
++        try {
++        	try {
++        		this.dqp.begin();
++    		} catch (XATransactionException e) {
++    			throw TeiidSQLException.create(e);
++    		} 
++            inLocalTxn = true;
++        } finally {
++            if (!inLocalTxn) {
++                autoCommitFlag = true;
+             }
+         }
+     }
+@@ -654,17 +657,20 @@ public void rollback(boolean startTxn) throws SQLException {
+         //Check to see the connection is open
+         checkConnection();
+         if (!autoCommitFlag) {
+-            try {
+-            	try {
+-            		ResultsFuture<?> future = this.dqp.rollback();
+-            		future.get();
+-        		} catch (Exception e) {
+-        			throw TeiidSQLException.create(e);
+-        		}
+-                logger.fine(JDBCPlugin.Util.getString(""MMConnection.Rollback_success"")); //$NON-NLS-1$
++            try {
++            	if (this.inLocalTxn) {
++            		this.inLocalTxn = false;
++	            	try {
++	            		ResultsFuture<?> future = this.dqp.rollback();
++	            		future.get();
++	        		} catch (Exception e) {
++	        			throw TeiidSQLException.create(e);
++	        		}
++	                logger.fine(JDBCPlugin.Util.getString(""MMConnection.Rollback_success"")); //$NON-NLS-1$
++            	}
+             } finally {
+                 if (startTxn) {
+-                    beginLocalTxn();
++                    this.inLocalTxn = false;
+                 }
+                 else {
+                     this.autoCommitFlag = true;
+@@ -705,9 +711,9 @@ public void setAutoCommit(boolean autoCommit) throws SQLException {
+ 
+         if (autoCommit) {
+             directCommit();   
+-        } else {
+-            beginLocalTxn();
+-        }        
++        } else {
++        	inLocalTxn = false;
++        }
+     }
+ 
+     /**",2011-03-28T04:17:50Z,46
+"@@ -34,8 +34,8 @@
+ import org.teiid.net.ServerConnection;
+ 
+ 
+-final class EmbeddedProfile implements ConnectionProfile {
+-    
++public class EmbeddedProfile implements ConnectionProfile {
++	
+     /**
+      * This method tries to make a connection to the given URL. This class
+      * will return a null if this is not the right driver to connect to the given URL.
+@@ -46,7 +46,7 @@ final class EmbeddedProfile implements ConnectionProfile {
+     public ConnectionImpl connect(String url, Properties info) 
+         throws TeiidSQLException {
+         try {
+-        	ServerConnection sc = (ServerConnection)ReflectionHelper.create(""org.teiid.transport.LocalServerConnection"", Arrays.asList(info), Thread.currentThread().getContextClassLoader()); //$NON-NLS-1$
++        	ServerConnection sc = createServerConnection(info);
+ 			return new ConnectionImpl(sc, info, url);
+ 		} catch (TeiidRuntimeException e) {
+ 			throw TeiidSQLException.create(e);
+@@ -58,5 +58,10 @@ public ConnectionImpl connect(String url, Properties info)
+ 			throw TeiidSQLException.create(e);
+ 		}
+     }
++
++	protected ServerConnection createServerConnection(Properties info)
++			throws TeiidException {
++		return (ServerConnection)ReflectionHelper.create(""org.teiid.transport.LocalServerConnection"", Arrays.asList(info, true), Thread.currentThread().getContextClassLoader()); //$NON-NLS-1$
++	}
+     
+ }",2011-03-28T04:17:50Z,13
+"@@ -23,6 +23,7 @@
+ package org.teiid.jdbc;
+ 
+ import java.io.Serializable;
++import java.lang.ref.WeakReference;
+ import java.sql.ResultSet;
+ import java.sql.ResultSetMetaData;
+ import java.sql.SQLException;
+@@ -64,14 +65,36 @@
+ import org.teiid.core.types.SQLXMLImpl;
+ import org.teiid.core.util.SqlUtil;
+ import org.teiid.core.util.StringUtil;
++import org.teiid.jdbc.CancellationTimer.CancelTask;
+ 
+ 
+ public class StatementImpl extends WrapperImpl implements TeiidStatement {
+ 	private static Logger logger = Logger.getLogger(""org.teiid.jdbc""); //$NON-NLS-1$
++	
++	static CancellationTimer cancellationTimer = new CancellationTimer(""Teiid Statement Timeout""); //$NON-NLS-1$
++	
++	private static final class QueryTimeoutCancelTask extends CancelTask {
++		private WeakReference<StatementImpl> ref;
++		private QueryTimeoutCancelTask(long delay, StatementImpl stmt) {
++			super(delay);
++			this.ref = new WeakReference<StatementImpl>(stmt);
++		}
+ 
+-    // State constants
+-    protected static final int TIMED_OUT = 4;
+-    protected static final int CANCELLED = 3;
++		@Override
++		public void run() {
++			StatementImpl stmt = ref.get();
++			if (stmt != null) {
++				stmt.timeoutOccurred();
++			}
++		}
++	}
++
++	enum State {
++		RUNNING,
++		DONE,
++		TIMED_OUT,
++		CANCELLED
++	}
+     protected static final int NO_TIMEOUT = 0;
+ 
+     // integer indicating no maximum limit - used in some metadata-ish methods.
+@@ -97,10 +120,10 @@ public class StatementImpl extends WrapperImpl implements TeiidStatement {
+     private boolean isClosed = false;
+ 
+     // Differentiate timeout from cancel in blocking asynch operation
+-    protected int commandStatus = -1;
++    protected volatile State commandStatus = State.RUNNING;
+ 
+     // number of seconds for the query to timeout.
+-    protected int queryTimeout = NO_TIMEOUT;
++    protected long queryTimeoutMS = NO_TIMEOUT;
+ 
+     //########## Per-execution state ########
+ 
+@@ -136,12 +159,6 @@ public class StatementImpl extends WrapperImpl implements TeiidStatement {
+     private int maxRows = NO_LIMIT;
+     private int maxFieldSize = NO_LIMIT;
+     
+-    /** SPIN_TIMEOUT determines how responsive asynch operations will be to
+-     *  statement cancellation, closure, or execution timeouts.  
+-     *  1/2 second was chosen as default.
+-     */
+-    private static int SPIN_TIMEOUT = 500;
+-    
+     //Map<out/inout/return param index --> index in results>
+     protected Map outParamIndexMap = new HashMap();
+     
+@@ -241,7 +258,7 @@ public void cancel() throws SQLException {
+          * the statement.executeQuery() call throwing the server's exception instead of the
+          * one generated by the conditionalWait() method.
+          */
+-        commandStatus = CANCELLED;
++        commandStatus = State.CANCELLED;
+         cancelRequest();
+     }
+ 
+@@ -421,6 +438,7 @@ protected ResultsFuture<Boolean> executeSql(String[] commands, boolean isBatched
+         		String command = match.group(1);
+         		Boolean commit = null;
+         		if (StringUtil.startsWithIgnoreCase(command, ""start"")) { //$NON-NLS-1$
++        			//TODO: this should force a start and through an exception if we're already in a txn
+         			this.getConnection().setAutoCommit(false);
+         		} else if (command.equalsIgnoreCase(""commit"")) { //$NON-NLS-1$
+         			commit = true;
+@@ -507,20 +525,70 @@ public void onCompletion(ResultsFuture future) {
+         }
+         
+         final RequestMessage reqMessage = createRequestMessage(commands, isBatchedCommand, resultsMode);
+-    	ResultsFuture<ResultsMessage> pendingResult = this.sendRequestMessage(reqMessage);
+-    	
++    	ResultsFuture<Boolean> result = execute(reqMessage);
+     	if (synch) {
+-	    	ResultsMessage resultsMsg = getResults(reqMessage, pendingResult);
+-	        postReceiveResults(reqMessage, resultsMsg);
+-	        return booleanFuture(hasResultSet());
++    		try {
++    			if (queryTimeoutMS > 0) {
++    				result.get(queryTimeoutMS, TimeUnit.MILLISECONDS);
++    			} else {
++    				result.get();
++    			}
++    			return result;
++    		} catch (ExecutionException e) {
++    			throw TeiidSQLException.create(e);
++    		} catch (InterruptedException e) {
++    			timeoutOccurred();
++    		} catch (TimeoutException e) {
++    			timeoutOccurred();
++			}
++    		throw new TeiidSQLException(JDBCPlugin.Util.getString(""MMStatement.Timeout_before_complete"")); //$NON-NLS-1$
+     	}
+-    	
++    	return result;
++    }
++
++	private ResultsFuture<Boolean> execute(final RequestMessage reqMsg) throws SQLException,
++			TeiidSQLException {
++		this.getConnection().beginLocalTxnIfNeeded();
++        this.currentRequestID = this.driverConnection.nextRequestID();
++        // Create a request message
++        reqMsg.setExecutionPayload(this.payload);        
++        reqMsg.setCursorType(this.resultSetType);
++        reqMsg.setFetchSize(this.fetchSize);
++        reqMsg.setRowLimit(this.maxRows);
++        reqMsg.setTransactionIsolation(this.driverConnection.getTransactionIsolation());
++
++        // Get connection properties and set them onto request message
++        copyPropertiesToRequest(reqMsg);
++
++        reqMsg.setExecutionId(this.currentRequestID);
++        
++        ResultsFuture.CompletionListener<ResultsMessage> compeletionListener = null;
++		if (queryTimeoutMS > 0) {
++			final CancelTask c = new QueryTimeoutCancelTask(queryTimeoutMS, this);
++			cancellationTimer.add(c);
++			compeletionListener = new ResultsFuture.CompletionListener<ResultsMessage>() {
++				@Override
++				public void onCompletion(ResultsFuture<ResultsMessage> future) {
++					cancellationTimer.remove(c);
++				}
++			};
++		} 
++        
++    	ResultsFuture<ResultsMessage> pendingResult = null;
++		try {
++			pendingResult = this.getDQP().executeRequest(this.currentRequestID, reqMsg);
++		} catch (TeiidException e) {
++			throw TeiidSQLException.create(e);
++		}
++		if (compeletionListener != null) {
++			pendingResult.addCompletionListener(compeletionListener);
++		}
+     	final ResultsFuture<Boolean> result = new ResultsFuture<Boolean>();
+     	pendingResult.addCompletionListener(new ResultsFuture.CompletionListener<ResultsMessage>() {
+     		@Override
+     		public void onCompletion(ResultsFuture<ResultsMessage> future) {
+     			try {
+-					postReceiveResults(reqMessage, future.get());
++					postReceiveResults(reqMsg, future.get());
+ 					result.getResultsReceiver().receiveResults(hasResultSet());
+ 				} catch (Throwable t) {
+ 					result.getResultsReceiver().exceptionOccurred(t);
+@@ -535,47 +603,10 @@ public static ResultsFuture<Boolean> booleanFuture(boolean isTrue) {
+ 		rs.getResultsReceiver().receiveResults(isTrue);
+ 		return rs;
+ 	}
+-
+-	private ResultsMessage getResults(RequestMessage reqMessage,
+-			ResultsFuture<ResultsMessage> pendingResult)
+-			throws TeiidSQLException {
+-		try {
+-    		long timeoutMillis = queryTimeout * 1000;
+-            long endTime = System.currentTimeMillis() + timeoutMillis;
+-            ResultsMessage result = null;        
+-            while (result == null) {
+-
+-            	if (timeoutMillis > 0 && endTime <= System.currentTimeMillis() && commandStatus != TIMED_OUT && commandStatus != CANCELLED) {
+-    	            timeoutOccurred();
+-            	}
+-            	
+-                checkStatement();
+-    			try {
+-    				result = pendingResult.get(SPIN_TIMEOUT, TimeUnit.MILLISECONDS);
+-    			} catch (ExecutionException e) {
+-    				throw TeiidSQLException.create(e);
+-    			} catch (TimeoutException e) {
+-    				continue;
+-    			}
+-            }
+-            
+-        	if (commandStatus == CANCELLED) {
+-                throw new TeiidSQLException(JDBCPlugin.Util.getString(""MMStatement.Cancel_before_execute"")); //$NON-NLS-1$
+-            }
+-        	 
+-        	if (commandStatus == TIMED_OUT) {
+-                throw new TeiidSQLException(JDBCPlugin.Util.getString(""MMStatement.Timeout_before_complete"")); //$NON-NLS-1$
+-            }    	
+-            return result;
+-        } catch ( Throwable ex ) {
+-        	String msg = JDBCPlugin.Util.getString(""MMStatement.Error_executing_stmt"", reqMessage.getCommandString()); //$NON-NLS-1$ 
+-            logger.log(ex instanceof SQLException?Level.WARNING:Level.SEVERE, msg, ex);
+-            throw TeiidSQLException.create(ex, msg);
+-        }
+-	}
+-
++	
+ 	private void postReceiveResults(RequestMessage reqMessage,
+ 			ResultsMessage resultsMsg) throws TeiidSQLException, SQLException {
++		commandStatus = State.DONE;
+ 		// warnings thrown
+         List resultsWarning = resultsMsg.getWarnings();
+ 
+@@ -726,7 +757,7 @@ public boolean getMoreResults(int current) throws SQLException {
+     public int getQueryTimeout() throws SQLException {
+         //Check to see the statement is closed and throw an exception
+         checkStatement();
+-        return this.queryTimeout;
++        return (int)this.queryTimeoutMS/1000;
+     }
+ 
+     /**
+@@ -858,12 +889,16 @@ public void setQueryTimeout(int seconds) throws SQLException {
+         //Check to see the statement is closed and throw an exception
+         checkStatement();
+         if (seconds >= 0) {
+-            queryTimeout = seconds;
++            queryTimeoutMS = seconds*1000;
+         }
+         else {
+             throw new TeiidSQLException(JDBCPlugin.Util.getString(""MMStatement.Bad_timeout_value"")); //$NON-NLS-1$
+         }
+     }
++    
++    void setQueryTimeoutMS(int queryTimeoutMS) {
++		this.queryTimeoutMS = queryTimeoutMS;
++	}
+ 
+     /**
+      * Helper method for copy the connection properties to request message.
+@@ -920,11 +955,14 @@ protected void copyPropertiesToRequest(RequestMessage res) throws TeiidSQLExcept
+      * Ends the command and sets the status to TIMED_OUT.
+      */
+     protected void timeoutOccurred() {
++    	if (this.commandStatus != State.RUNNING) {
++    		return;
++    	}
+         logger.warning(JDBCPlugin.Util.getString(""MMStatement.Timeout_ocurred_in_Statement."")); //$NON-NLS-1$
+         try {
+         	cancel();        
+-            commandStatus = TIMED_OUT;
+-            queryTimeout = NO_TIMEOUT;
++            commandStatus = State.TIMED_OUT;
++            queryTimeoutMS = NO_TIMEOUT;
+             currentRequestID = -1;
+             if (this.resultSet != null) {
+                 this.resultSet.close();
+@@ -972,31 +1010,6 @@ public String getExecutionProperty(String name) {
+         return this.execProps.getProperty(name);
+     }
+ 
+-    /**
+-     * Send out request message with necessary states.
+-     */
+-    protected ResultsFuture<ResultsMessage> sendRequestMessage(RequestMessage reqMsg)
+-        throws SQLException {
+-        this.currentRequestID = this.driverConnection.nextRequestID();
+-        // Create a request message
+-        reqMsg.setExecutionPayload(this.payload);        
+-        reqMsg.setCursorType(this.resultSetType);
+-        reqMsg.setFetchSize(this.fetchSize);
+-        reqMsg.setRowLimit(this.maxRows);
+-        reqMsg.setTransactionIsolation(this.driverConnection.getTransactionIsolation());
+-
+-        // Get connection properties and set them onto request message
+-        copyPropertiesToRequest(reqMsg);
+-
+-        reqMsg.setExecutionId(this.currentRequestID);
+-    	
+-		try {
+-			return this.getDQP().executeRequest(this.currentRequestID, reqMsg);
+-		} catch (TeiidException e) {
+-			throw TeiidSQLException.create(e);
+-		}
+-    }
+-
+     long getCurrentRequestID() {
+         return this.currentRequestID;
+     }",2011-03-28T04:17:50Z,47
+"@@ -38,7 +38,6 @@ MMPreparedStatement.Invalid_param_index=The index of a parameter must be a posit
+ MMResultSet.Cant_call_closed_resultset=Error trying to operate on a closed ResultSet object.
+ MMResultSet.cannot_convert_to_binary_stream=Cannot convert to binary stream
+ MMStatement.Error_executing_stmt=Error trying to execute a statement {0}.
+-MMStatement.Cancel_before_execute=Request was canceled before it could finish executing.
+ MMStatement.Invalid_fetch_size=Fetch size should always be a value of 0 <= fetch size <= max rows.
+ MMStatement.Timeout_before_complete=Operation timed out before completion.
+ MMResultsImpl.Col_doesnt_exist=Column name ""{0}"" does not exist.",2011-03-28T04:17:50Z,48
+"@@ -36,7 +36,7 @@
+ import org.teiid.client.ResultsMessage;
+ import org.teiid.client.util.ResultsFuture;
+ 
+-
++@SuppressWarnings(""nls"")
+ public class TestStatement {
+ 
+ 	@Test public void testBatchExecution() throws Exception {
+@@ -106,4 +106,17 @@ public class TestStatement {
+ 		Mockito.verify(conn).submitSetAutoCommitTrue(false);
+ 	}
+ 	
++	@Test public void testAsynchTimeout() throws Exception {
++		ConnectionImpl conn = Mockito.mock(ConnectionImpl.class);
++		StatementImpl statement = new StatementImpl(conn, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
++		statement.setQueryTimeoutMS(1);
++		DQP dqp = Mockito.mock(DQP.class);
++		Mockito.stub(statement.getDQP()).toReturn(dqp);
++		ResultsFuture<ResultsMessage> future = new ResultsFuture<ResultsMessage>();
++		Mockito.stub(dqp.executeRequest(Mockito.anyLong(), (RequestMessage) Mockito.anyObject())).toReturn(future);
++		statement.submitExecute(""select 'hello world'"");
++		Thread.sleep(100);
++		Mockito.verify(dqp).cancelRequest(0);
++	}
++	
+ }",2011-03-28T04:17:50Z,35
+"@@ -450,6 +450,7 @@
+            there is a way to make connections that by-pass making a socket based JDBC connection.
+            You can use slightly modified data source configuration to make a ""local"" connection, where the JDBC API will lookup a local Teiid runtime in the same VM.</para>
+            <warning><para>Since DataSources start before before Teiid VDBs are deployed, leave the min pool size of local connections as the default of 0.  Otherwise errors will occur on the startup of the Teiid DataSource.</para></warning>
++           <note><para>Local connections use their calling thread to perform processing operations rather than using an engine thread while the calling thread is blocked.</para></note>
+            <example>
+            <title>Local data source</title>
+            <programlisting><![CDATA[<datasources>",2011-03-28T04:17:50Z,49
+"@@ -13,8 +13,7 @@
+     <section id=""default_security"">
+         <title>Default Security</title>
+         
+-        <para>If you are always using a 
+-        <link linkend=""local_connection"">local connection</link>, then you do need to secure a channels.</para>
++        <para>If you are using a socket connection, then you may need to secure the channel more completely.</para>
+     
+         <para>By default all sensitive (non-data) messages between client and server 
+         are encrypted using a <ulink url=""http://en.wikipedia.org/wiki/Diffie-Hellman_key_exchange"">Diffy-Hellman</ulink> ",2011-03-28T04:17:50Z,50
+"@@ -26,6 +26,7 @@
+ import javax.resource.spi.work.WorkEvent;
+ import javax.resource.spi.work.WorkListener;
+ 
++import org.teiid.core.TeiidRuntimeException;
+ import org.teiid.logging.LogManager;
+ 
+ 
+@@ -42,14 +43,23 @@ enum ThreadState {
+     
+     private ThreadState threadState = ThreadState.MORE_WORK;
+     private volatile boolean isProcessing;
++    private boolean useCallingThread;
++    
++    public AbstractWorkItem(boolean useCallingThread) {
++    	this.useCallingThread = useCallingThread;
++    }
+     
+     public void run() {
+-		startProcessing();
+-		try {
+-			process();
+-		} finally {
+-			endProcessing();
+-		}
++    	do {
++			startProcessing();
++			try {
++				process();
++			} finally {
++				if (!endProcessing()) {
++					break;
++				}
++			}
++    	} while (!isDoneProcessing());
+     }
+     
+     synchronized ThreadState getThreadState() {
+@@ -69,7 +79,10 @@ private synchronized void startProcessing() {
+     	this.threadState = ThreadState.WORKING;
+ 	}
+     
+-    private synchronized void endProcessing() {
++    /**
++     * @return true if processing should be continued
++     */
++    final private synchronized boolean endProcessing() {
+     	isProcessing = false;
+     	logTrace(""end processing""); //$NON-NLS-1$
+     	switch (this.threadState) {
+@@ -79,20 +92,21 @@ private synchronized void endProcessing() {
+ 	        		this.threadState = ThreadState.DONE;
+ 	        	} else {
+ 		    		this.threadState = ThreadState.IDLE;
+-		    		pauseProcessing();
++		    		return pauseProcessing();
+ 	        	}
+ 	    		break;
+ 	    	case MORE_WORK:
+ 	    		if (isDoneProcessing()) {
+ 	    			logTrace(""done processing - ignoring more""); //$NON-NLS-1$
+ 	        		this.threadState = ThreadState.DONE;
+-	        	} else {
+-	        		resumeProcessing();
++	        	} else if (!this.useCallingThread) {
++        			resumeProcessing();
+ 	        	}
+ 	    		break;
+     		default:
+     			throw new IllegalStateException(""Should not END on "" + this.threadState); //$NON-NLS-1$
+     	}
++    	return useCallingThread;
+     }
+     
+     protected boolean isIdle() {
+@@ -103,7 +117,7 @@ public void moreWork() {
+     	moreWork(true);
+     }
+     
+-    protected synchronized void moreWork(boolean ignoreDone) {
++    final protected synchronized void moreWork(boolean ignoreDone) {
+     	logTrace(""more work""); //$NON-NLS-1$
+     	switch (this.threadState) {
+ 	    	case WORKING:
+@@ -113,7 +127,15 @@ protected synchronized void moreWork(boolean ignoreDone) {
+ 	    		break;
+ 	    	case IDLE:
+ 	    		this.threadState = ThreadState.MORE_WORK;
+-	    		resumeProcessing();
++        		if (this.useCallingThread) {
++        			if (isProcessing) {
++        				this.notifyAll(); //notify the waiting caller
++        			} else {
++        				run(); //restart with the calling thread
++        			}
++        		} else {
++        			resumeProcessing();
++        		}
+ 	    		break;
+ 			default:
+ 				if (!ignoreDone) {
+@@ -129,7 +151,32 @@ private void logTrace(String msg) {
+     
+     protected abstract void process();
+ 
+-	protected void pauseProcessing() {
++	protected boolean pauseProcessing() {
++		if (useCallingThread && !shouldPause()) {
++			return false;
++		}
++		while (useCallingThread && this.getThreadState() == ThreadState.IDLE) {
++			try {
++				this.wait(); //the lock should already be held
++			} catch (InterruptedException e) {
++				interrupted(e);
++			}
++		}
++		return useCallingThread;
++	}
++	
++	/**
++	 * only called for synch processing
++	 */
++	protected boolean shouldPause() {
++		return false;
++	}
++
++	/**
++	 * only called for synch processing
++	 */
++	protected void interrupted(InterruptedException e) {
++		throw new TeiidRuntimeException(e);
+ 	}
+     
+     protected abstract void resumeProcessing();",2011-03-28T04:17:50Z,29
+"@@ -358,8 +358,13 @@ void addRequest(RequestID requestID, RequestWorkItem workItem, ClientState state
+ 
+ 	private void startActivePlan(RequestWorkItem workItem) {
+ 		workItem.active = true;
+-		this.addWork(workItem);
+-		this.currentlyActivePlans++;
++		if (workItem.getDqpWorkContext().useCallingThread()) {
++			this.currentlyActivePlans++;
++			workItem.run();
++		} else {
++			this.addWork(workItem);
++			this.currentlyActivePlans++;
++		}
+ 	}
+ 	
+     void finishProcessing(final RequestWorkItem workItem) {
+@@ -791,7 +796,7 @@ public Integer call() throws Exception {
+ 		return addWork(processor, 10);
+ 	}
+ 
+-	<T> ResultsFuture<T> addWork(final Callable<T> processor, int priority) {
++	private <T> ResultsFuture<T> addWork(final Callable<T> processor, int priority) {
+ 		final ResultsFuture<T> result = new ResultsFuture<T>();
+ 		final ResultsReceiver<T> receiver = result.getResultsReceiver();
+ 		Runnable r = new Runnable() {
+@@ -806,7 +811,11 @@ public void run() {
+ 			}
+ 		};
+ 		FutureWork<T> work = new FutureWork<T>(r, null, priority);
+-		this.addWork(work);
++		if (DQPWorkContext.getWorkContext().useCallingThread()) {
++			work.run();
++		} else {
++			this.addWork(work);
++		}
+ 		return result;
+ 	}
+ 	",2011-03-28T04:17:50Z,36
+"@@ -71,9 +71,18 @@ public static void releaseWorkContext() {
+     private String clientHostname;
+     private SecurityHelper securityHelper;
+     private HashMap<String, DataPolicy> policies;
++    private boolean useCallingThread;
+     
+     public DQPWorkContext() {
+ 	}
++
++    public boolean useCallingThread() {
++		return useCallingThread;
++	}
++    
++    public void setUseCallingThread(boolean useCallingThread) {
++		this.useCallingThread = useCallingThread;
++	}
+     
+     public SessionMetadata getSession() {
+ 		return session;",2011-03-28T04:17:50Z,10
+"@@ -46,6 +46,7 @@
+ import org.teiid.core.TeiidComponentException;
+ import org.teiid.core.TeiidException;
+ import org.teiid.core.TeiidProcessingException;
++import org.teiid.core.TeiidRuntimeException;
+ import org.teiid.core.types.DataTypeManager;
+ import org.teiid.dqp.internal.process.DQPCore.CompletionListener;
+ import org.teiid.dqp.internal.process.DQPCore.FutureWork;
+@@ -160,6 +161,7 @@ private enum TransactionState {NONE, ACTIVE, DONE}
+     private long processingTimestamp = System.currentTimeMillis();
+     
+     public RequestWorkItem(DQPCore dqpCore, RequestMessage requestMsg, Request request, ResultsReceiver<ResultsMessage> receiver, RequestID requestID, DQPWorkContext workContext) {
++    	super(workContext.useCallingThread());
+         this.requestMsg = requestMsg;
+         this.requestID = requestID;
+         this.processorTimeslice = dqpCore.getProcessorTimeSlice();
+@@ -202,6 +204,16 @@ protected void resumeProcessing() {
+ 		}
+ 	}
+ 	
++	@Override
++	protected void interrupted(InterruptedException e) {
++		try {
++			this.requestCancel();
++		} catch (TeiidComponentException e1) {
++			throw new TeiidRuntimeException(e1);
++		}
++		super.interrupted(e);
++	}
++	
+ 	@Override
+ 	protected void process() {
+         LogManager.logDetail(LogConstants.CTX_DQP, ""Request Thread"", requestID, ""with state"", state); //$NON-NLS-1$ //$NON-NLS-2$
+@@ -600,8 +612,11 @@ private void setAnalysisRecords(ResultsMessage response) {
+ 	}
+ 
+     private void sendError() {
++    	ResultsReceiver<ResultsMessage> receiver = null;
+     	synchronized (this) {
+-    		if (this.resultsReceiver == null) {
++    		receiver = this.resultsReceiver;
++    		this.resultsReceiver = null;
++    		if (receiver == null) {
+     			LogManager.logDetail(LogConstants.CTX_DQP, processingException, ""Unable to send error to client as results were already sent."", requestID); //$NON-NLS-1$
+     			return;
+     		}
+@@ -610,7 +625,13 @@ private void sendError() {
+         ResultsMessage response = new ResultsMessage(requestMsg);
+         response.setException(processingException);
+         setAnalysisRecords(response);
+-        resultsReceiver.receiveResults(response);
++        receiver.receiveResults(response);
++    }
++    
++    @Override
++    protected boolean shouldPause() {
++    	//if we are waiting on results it's ok to pause
++    	return this.resultsReceiver != null;
+     }
+ 
+     private static List<ParameterInfo> getParameterInfo(StoredProcedure procedure) {
+@@ -634,7 +655,11 @@ public void processLobChunkRequest(String id, int streamRequestId, ResultsReceiv
+             }
+ 		}
+     	workItem.setResultsReceiver(chunckReceiver);
+-        dqpCore.addWork(workItem);
++    	if (this.dqpWorkContext.useCallingThread()) {
++    		workItem.run();
++    	} else {
++    		dqpCore.addWork(workItem);
++    	}
+     }
+     
+     public void removeLobStream(int streamRequestId) {",2011-03-28T04:17:50Z,2
+"@@ -22,11 +22,12 @@
+ 
+ package org.teiid.dqp.internal.process;
+ 
+-import org.teiid.dqp.internal.process.AbstractWorkItem;
++import static org.junit.Assert.*;
+ 
+-import junit.framework.TestCase;
++import org.junit.Test;
+ 
+-public class TestWorkItemState extends TestCase {
++
++public class TestWorkItemState {
+ 	
+ 	private class TestWorkItem extends AbstractWorkItem {
+ 
+@@ -39,6 +40,7 @@ private TestWorkItem() {
+ 		}
+ 		
+ 		private TestWorkItem(boolean done, boolean callMoreWork) {
++			super(false);
+ 			this.isDone = done;
+ 			this.callMoreWork = callMoreWork;
+ 		}
+@@ -86,52 +88,48 @@ private void assertDoneState() {
+ 	        checkState(ThreadState.DONE);
+ 	    }
+ 	}
+-	
+-    public TestWorkItemState(String name) {
+-        super(name);
+-    }
+ 
+-    public void testInitialState() {
++    @Test public void testInitialState() {
+         TestWorkItem item = new TestWorkItem();
+         item.assertMoreWorkState();
+     }
+     
+-    public void testGotoIdleState() {
++    @Test public void testGotoIdleState() {
+         TestWorkItem item = new TestWorkItem();
+         item.run();
+         item.assertIdleState();
+     }
+     
+-    public void testGotoMoreWorkState() {
++    @Test public void testGotoMoreWorkState() {
+     	TestWorkItem item = new TestWorkItem();
+         item.run();
+         item.moreWork();
+         item.assertMoreWorkState();
+     }
+     
+-    public void testGotoWorkingState() {
++    @Test public void testGotoWorkingState() {
+     	TestWorkItem item = new TestWorkItem();
+     	item.run();
+     	item.moreWork();
+     	item.run();
+     }
+     
+-    public void testResume() {
++    @Test public void testResume() {
+     	TestWorkItem item = new TestWorkItem();
+     	item.run();
+     	assertFalse(item.resumed);
+     	item.moreWork();
+     	assertTrue(item.resumed);
+     }
+     
+-    public void testResumeDuringWorking() {
++    @Test public void testResumeDuringWorking() {
+     	TestWorkItem item = new TestWorkItem(false, true);
+     	assertFalse(item.resumed);
+     	item.run();
+     	assertTrue(item.resumed);
+     }
+     
+-    public void testRunAfterDone() {
++    @Test public void testRunAfterDone() {
+     	TestWorkItem item = new TestWorkItem(true, false);
+     	item.run();
+     	item.assertDoneState();
+@@ -143,7 +141,7 @@ public void testRunAfterDone() {
+     	}
+     }
+     
+-    public void testRunDuringIdle() {
++    @Test public void testRunDuringIdle() {
+     	TestWorkItem item = new TestWorkItem();
+     	item.run();
+     	item.assertIdleState();",2011-03-28T04:17:50Z,24
+"@@ -58,10 +58,11 @@ public class LocalServerConnection implements ServerConnection {
+     private Properties connectionProperties;
+     private boolean passthrough;
+ 
+-	public LocalServerConnection(Properties connectionProperties) throws CommunicationException, ConnectionException{
++	public LocalServerConnection(Properties connectionProperties, boolean useCallingThread) throws CommunicationException, ConnectionException{
+ 		this.connectionProperties = connectionProperties;
+ 		this.csr = getClientServiceRegistry();
+ 		workContext.setSecurityHelper(csr.getSecurityHelper());
++		workContext.setUseCallingThread(useCallingThread);
+ 		authenticate();
+ 		passthrough = Boolean.valueOf(connectionProperties.getProperty(TeiidURL.CONNECTION.PASSTHROUGH_AUTHENTICATION, ""false"")); //$NON-NLS-1$
+ 	}",2011-03-28T04:17:50Z,23
+"@@ -21,25 +21,39 @@
+  */
+ package org.teiid.transport;
+ 
++import java.util.Properties;
++
+ import javax.net.ssl.SSLEngine;
+ 
+ import org.jboss.netty.channel.ChannelPipeline;
+ import org.jboss.netty.channel.DefaultChannelPipeline;
+ import org.jboss.netty.handler.ssl.SslHandler;
+ import org.teiid.common.buffer.StorageManager;
++import org.teiid.core.TeiidException;
++import org.teiid.jdbc.EmbeddedProfile;
+ import org.teiid.jdbc.TeiidDriver;
++import org.teiid.net.ServerConnection;
+ import org.teiid.net.socket.ObjectChannel;
+ import org.teiid.odbc.ODBCServerRemote;
+ 
+ public class ODBCSocketListener extends SocketListener {
+ 	private ODBCServerRemote.AuthenticationType authType = ODBCServerRemote.AuthenticationType.CLEARTEXT;
+ 	private int maxLobSize;
+-	private TeiidDriver driver = TeiidDriver.getInstance();
++	private TeiidDriver driver;
+ 	
+ 	public ODBCSocketListener(SocketConfiguration config, StorageManager storageManager, int portOffset, int maxLobSize) {
+ 		//the clientserviceregistry isn't actually used by ODBC 
+ 		super(config, new ClientServiceRegistryImpl(ClientServiceRegistry.Type.ODBC), storageManager, portOffset);
+ 		this.maxLobSize = maxLobSize;
++		this.driver = new TeiidDriver();
++		this.driver.setEmbeddedProfile(new EmbeddedProfile() {
++			@Override
++			protected ServerConnection createServerConnection(Properties info)
++					throws TeiidException {
++				//When using the non-blocking api, we don't want to use the calling thread
++				return new LocalServerConnection(info, false);
++			}
++		});
+ 	}
+ 	
+ 	public void setDriver(TeiidDriver driver) {",2011-03-28T04:17:50Z,51
+"@@ -68,6 +68,7 @@ public class FakeServer extends ClientServiceRegistryImpl implements ConnectionP
+ 	DQPCore dqp = new DQPCore();
+ 	VDBRepository repo = new VDBRepository();
+ 	private ConnectorManagerRepository cmr;
++	private boolean useCallingThread = true;
+ 	
+ 	public FakeServer() {
+ 		this.logon = new LogonImpl(sessionService, null);
+@@ -100,6 +101,10 @@ public SourceCapabilities getCapabilities() {
+         registerClientService(DQP.class, dqp, null);
+ 	}
+ 	
++	public void setUseCallingThread(boolean useCallingThread) {
++		this.useCallingThread = useCallingThread;
++	}
++	
+ 	public void deployVDB(String vdbName, String vdbPath) throws Exception {
+ 		
+ 		IndexMetadataFactory imf = VDBMetadataFactory.loadMetadata(new File(vdbPath).toURI().toURL());
+@@ -171,7 +176,7 @@ public ConnectionImpl connect(String url, Properties info)
+ 			throws TeiidSQLException {
+ 		LocalServerConnection conn;
+ 		try {
+-			conn = new LocalServerConnection(info) {
++			conn = new LocalServerConnection(info, useCallingThread) {
+ 				@Override
+ 				protected ClientServiceRegistry getClientServiceRegistry() {
+ 					return FakeServer.this;",2011-03-28T04:17:50Z,52
+"@@ -58,6 +58,7 @@ public class TestODBCSocketTransport {
+ 		odbcTransport = new ODBCSocketListener(config, BufferManagerFactory.getStandaloneBufferManager(), 0, 100000);
+ 		
+ 		FakeServer server = new FakeServer();
++		server.setUseCallingThread(false);
+ 		server.deployVDB(""parts"", UnitTestUtil.getTestDataPath() + ""/PartsSupplier.vdb"");
+ 		
+ 		TeiidDriver driver = new TeiidDriver();",2011-03-28T04:17:50Z,53
+"@@ -0,0 +1,33 @@
++/*
++ * JBoss, Home of Professional Open Source.
++ * See the COPYRIGHT.txt file distributed with this work for information
++ * regarding copyright ownership.  Some portions may be licensed
++ * to Red Hat, Inc. under one or more contributor license agreements.
++ * 
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ * 
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ * 
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
++ * 02110-1301 USA.
++ */
++
++package org.teiid.jdbc;
++
++public class AsynchPositioningException extends TeiidSQLException {
++
++	private static final long serialVersionUID = 4965087364648306848L;
++	
++	public AsynchPositioningException() {
++		super(JDBCPlugin.Util.gs(JDBCPlugin.Event.TEIID20030));
++	}
++
++}",2012-09-21T19:08:02Z,54
+"@@ -58,6 +58,7 @@ public static enum Event implements BundleUtil.Event {
+ 		TEIID20023,
+ 		TEIID20027,
+ 		TEIID20028,
+-		TEIID20029
++		TEIID20029, 
++		TEIID20030
+ 	}	
+ }",2012-09-21T19:08:02Z,31
+"@@ -27,6 +27,7 @@
+ import java.util.logging.Logger;
+ 
+ import org.teiid.client.util.ResultsFuture;
++import org.teiid.core.TeiidRuntimeException;
+ 
+ /**
+  * Handles the future processing logic and makes the appropriate calls to the callback
+@@ -52,6 +53,7 @@ public void onCompletion(ResultsFuture<Boolean> future) {
+ 				return;
+ 			}
+ 			final ResultSetImpl resultSet = stmt.getResultSet();
++			resultSet.asynch = true;
+ 			Runnable rowProcessor = new Runnable() {
+ 				@Override
+ 				public void run() {
+@@ -109,14 +111,17 @@ boolean processRow(ResultsFuture<Boolean> hasNext) {
+ 		} catch (Exception e) {
+ 			onException(e);
+ 			return false;
++		} catch (Throwable t) {
++			onException(new TeiidRuntimeException(t));
++			return false;	
+ 		}
+ 	}
+ 
+ 	private void onException(Exception e) {
+ 		if (e instanceof ExecutionException) {
+ 			ExecutionException ee = (ExecutionException)e;
+ 			if (ee.getCause() instanceof Exception) {
+-				e = (Exception)ee.getCause();
++				e = (Exception) ee.getCause();
+ 			}
+ 		}
+ 		try {",2012-09-21T19:08:02Z,55
+"@@ -0,0 +1,40 @@
++/*
++ * JBoss, Home of Professional Open Source.
++ * See the COPYRIGHT.txt file distributed with this work for information
++ * regarding copyright ownership.  Some portions may be licensed
++ * to Red Hat, Inc. under one or more contributor license agreements.
++ * 
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ * 
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ * 
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
++ * 02110-1301 USA.
++ */
++
++package org.teiid.jdbc;
++
++import java.sql.ResultSet;
++import java.sql.SQLException;
++
++public interface TeiidResultSet extends ResultSet {
++	
++    /**
++     * Returns an estimate of the minimum number of rows that can be read (after the current) 
++     * without blocking or the end of the ResultSet is reached.  
++     *
++     * @return     an estimate of the minimum number of rows that can be read (after the current) 
++     *             without blocking or the end of the ResultSet is reached.
++     * @exception  SQLException if the statement is closed or another error condition occurs.
++     */
++	int available() throws SQLException;
++
++}",2012-09-21T19:08:02Z,56
+"@@ -173,4 +173,5 @@ TEIID20028=data length too big: {0} > max of {1}.  You may need to adjust the ma
+ unexpected_element=Unexpected Element {0} encountered, expecting one of {1}
+ ambigious_gss_selection=Either configure ""java.security.krb5.conf"" property or combination of ""java.security.krb5.realm"" and ""java.security.krb5.kdc"" properties. Not both.
+ no_gss_selection=No KRB5 configuration found. Either configure ""java.security.krb5.conf"" property or combination of ""java.security.krb5.realm"" and ""java.security.krb5.kdc"" properties.
+-TEIID20029={0} value outside of 32-bit value range.  Please set the system property org.teiid.longDatesTimes to true to avoid this error.
+\ No newline at end of file
++TEIID20029={0} value outside of 32-bit value range.  Please set the system property org.teiid.longDatesTimes to true to avoid this error.
++TEIID20030=The position cannot be set by a blocking call in asynch mode as the results have not yet been formed. 
+\ No newline at end of file",2012-09-21T19:08:02Z,48
+"@@ -35,8 +35,6 @@
+ import java.util.Calendar;
+ import java.util.List;
+ import java.util.TimeZone;
+-import java.util.concurrent.ExecutionException;
+-import java.util.concurrent.TimeoutException;
+ 
+ import org.junit.Test;
+ import org.mockito.Mockito;
+@@ -50,7 +48,9 @@
+ @SuppressWarnings(""nls"")
+ public class TestResultSet {
+ 
+-    /** test next() without walking through */
++    private static final int BATCH_SIZE = 400;
++
++	/** test next() without walking through */
+     @Test public void testNext1() throws SQLException {  
+         ResultSet cs =  helpExecuteQuery();
+         assertEquals("" Actual doesn't match with expected. "", new Integer(0), new Integer(cs.getRow())); //$NON-NLS-1$
+@@ -59,12 +59,13 @@ public class TestResultSet {
+     
+     /** test next() with walking through all the rows and compare records */
+     @Test public void testNext2() throws SQLException {  
+-        List[] expected = TestAllResultsImpl.exampleResults1(1000);
++        List<?>[] expected = TestAllResultsImpl.exampleResults1(1000);
+         ResultSetImpl cs =  helpExecuteQuery();
+ 
+         int i=0;
+         while(cs.next()) { 
+            assertEquals("" Actual doesn't match with expected. "", expected[i], cs.getCurrentRecord()); //$NON-NLS-1$
++           assertEquals((i < 800?BATCH_SIZE:200) - (i%BATCH_SIZE) - 1, cs.available());
+            i++;
+         }
+ 
+@@ -204,7 +205,7 @@ public void helpTestNextBeyondResultSet(int fetchSize, int numRows) throws Excep
+     /** walk all way through from the end back to first row */
+     @Test public void testPrevious1() throws SQLException {  
+         ResultSetImpl cs = helpExecuteQuery();
+-        List[] expected = TestAllResultsImpl.exampleResults1(1000);
++        List<?>[] expected = TestAllResultsImpl.exampleResults1(1000);
+         while(cs.next()) {
+             //System.out.println("" rs.next == "" + cs.getCurrentRecord());
+         }
+@@ -236,7 +237,7 @@ public void helpTestNextBeyondResultSet(int fetchSize, int numRows) throws Excep
+     @Test public void testPrevious3() throws Exception {  
+         //large batch size
+         ResultSetImpl cs = helpExecuteQuery(600, 10000, ResultSet.TYPE_SCROLL_INSENSITIVE);
+-        List[] expected = TestAllResultsImpl.exampleResults1(10000);
++        List<?>[] expected = TestAllResultsImpl.exampleResults1(10000);
+         while(cs.next()) {
+         }
+         // cursor is after the last row. getRow() should return 0 when not on a valid row
+@@ -256,7 +257,7 @@ public void helpTestNextBeyondResultSet(int fetchSize, int numRows) throws Excep
+     @Test public void testPrevious4() throws Exception {  
+         //small batch size
+         ResultSetImpl cs = helpExecuteQuery(50, 1000, ResultSet.TYPE_SCROLL_INSENSITIVE);
+-        List[] expected = TestAllResultsImpl.exampleResults1(1000);
++        List<?>[] expected = TestAllResultsImpl.exampleResults1(1000);
+         while(cs.next()) {
+             //System.out.println("" rs.next == "" + cs.getCurrentRecord());
+         }
+@@ -578,9 +579,9 @@ public void helpTestNextBeyondResultSet(int fetchSize, int numRows) throws Excep
+         
+         // check result set metadata
+         // expected column info.
+-        List columnName = getBQTRSMetaData1a();
+-        List columnType = getBQTRSMetaData1b();
+-        List columnTypeName = getBQTRSMetaData1c();
++        List<String> columnName = getBQTRSMetaData1a();
++        List<Integer> columnType = getBQTRSMetaData1b();
++        List<String> columnTypeName = getBQTRSMetaData1c();
+ 
+         ResultSetMetaData rm = cs.getMetaData();
+         assertNotNull(rm);
+@@ -731,13 +732,13 @@ public void helpTestNextBeyondResultSet(int fetchSize, int numRows) throws Excep
+ 
+     private ResultSetImpl helpExecuteQuery() {
+         try {
+-			return helpExecuteQuery(400, 1000, ResultSet.TYPE_SCROLL_INSENSITIVE);
++			return helpExecuteQuery(BATCH_SIZE, 1000, ResultSet.TYPE_SCROLL_INSENSITIVE);
+ 		} catch (Exception e) {
+ 			throw new RuntimeException(e);
+ 		}
+     }
+     
+-    private ResultSetImpl helpExecuteQuery(int fetchSize, int totalResults, int cursorType) throws SQLException, TeiidProcessingException, InterruptedException, ExecutionException, TimeoutException {
++    private ResultSetImpl helpExecuteQuery(int fetchSize, int totalResults, int cursorType) throws SQLException, TeiidProcessingException {
+         StatementImpl statement = createMockStatement(cursorType);
+ 		return TestAllResultsImpl.helpTestBatching(statement, fetchSize, Math.min(fetchSize, totalResults), totalResults);
+     }
+@@ -755,22 +756,22 @@ static StatementImpl createMockStatement(int cursorType) throws SQLException {
+ 
+     ////////////////////////Expected Results////////////////
+     /** column name */
+-    private List getBQTRSMetaData1a() {
+-        List results = new ArrayList();
++    private List<String> getBQTRSMetaData1a() {
++        List<String> results = new ArrayList<String>();
+         results.add(""IntKey""); //$NON-NLS-1$
+         return results;   
+     }
+ 
+     /** column type */
+-    private List getBQTRSMetaData1b() {
+-        List results = new ArrayList();
+-        results.add(new Integer(Types.INTEGER));
++    private List<Integer> getBQTRSMetaData1b() {
++        List<Integer> results = new ArrayList<Integer>();
++        results.add(Types.INTEGER);
+         return results;   
+     }
+ 
+     /** column type name*/
+-    private List getBQTRSMetaData1c() {
+-        List results = new ArrayList();
++    private List<String> getBQTRSMetaData1c() {
++        List<String> results = new ArrayList<String>();
+         results.add(""integer""); //$NON-NLS-1$
+         return results;   
+     }               ",2012-09-21T19:08:02Z,39
+"@@ -39,9 +39,11 @@
+ import org.teiid.client.util.ResultsFuture;
+ import org.teiid.core.util.UnitTestUtil;
+ import org.teiid.jdbc.AbstractMMQueryTestCase;
++import org.teiid.jdbc.AsynchPositioningException;
+ import org.teiid.jdbc.FakeServer;
+ import org.teiid.jdbc.RequestOptions;
+ import org.teiid.jdbc.StatementCallback;
++import org.teiid.jdbc.TeiidResultSet;
+ import org.teiid.jdbc.TeiidStatement;
+ import org.teiid.jdbc.TestMMDatabaseMetaData;
+ 
+@@ -161,11 +163,24 @@ protected void checkResult(String testName, String query) throws Exception {
+ 		Statement stmt = this.internalConnection.createStatement();
+ 		TeiidStatement ts = stmt.unwrap(TeiidStatement.class);
+ 		final ResultsFuture<Integer> result = new ResultsFuture<Integer>(); 
+-		ts.submitExecute(""select * from SYS.Schemas"", new StatementCallback() {
++		ts.submitExecute(""select * from SYS.columns a, sys.tables b"", new StatementCallback() {
+ 			int rowCount;
+ 			@Override
+ 			public void onRow(Statement s, ResultSet rs) {
+ 				rowCount++;
++				try {
++					if (!rs.isLast()) {
++						assertTrue(rs.unwrap(TeiidResultSet.class).available() > 0);
++					}
++				} catch (AsynchPositioningException e) {
++					try {
++						assertEquals(0, rs.unwrap(TeiidResultSet.class).available());
++					} catch (SQLException e1) {
++						result.getResultsReceiver().exceptionOccurred(e1);
++					}
++				} catch (SQLException e) {
++					result.getResultsReceiver().exceptionOccurred(e);
++				}
+ 			}
+ 			
+ 			@Override
+@@ -178,7 +193,7 @@ public void onComplete(Statement s) {
+ 				result.getResultsReceiver().receiveResults(rowCount);
+ 			}
+ 		}, new RequestOptions());
+-		assertEquals(4, result.get().intValue());
++		assertEquals(7905, result.get().intValue());
+ 	}
+ 	
+ 	@Test public void testAsynchContinuous() throws Exception {",2012-09-21T19:08:02Z,32
+"@@ -166,6 +166,71 @@
+                     </execution>
+                 </executions>
+             </plugin>
++            <plugin>
++                <groupId>org.apache.maven.plugins</groupId>
++                <artifactId>maven-dependency-plugin</artifactId>
++                <executions>
++                    <execution>
++                        <id>jboss-eap-dist</id>
++                        <phase>package</phase>
++                        <goals>
++                            <goal>unpack</goal>
++                        </goals>
++                        <configuration>
++                            <artifactItems>
++                                <artifactItem>
++                                    <groupId>org.jboss.as</groupId>
++                                    <artifactId>jboss-as-dist</artifactId>
++                                    <version>${version.org.jboss.as}</version>
++                                    <type>zip</type>
++                                    <overWrite>false</overWrite>
++                                    <outputDirectory>${project.build.directory}/uberzip</outputDirectory>
++                                </artifactItem>
++                            </artifactItems>
++                        </configuration>
++                    </execution>
++                    <execution>
++                        <id>teiid-dist</id>
++                        <phase>package</phase>
++                        <goals>
++                            <goal>unpack</goal>
++                        </goals>
++                        <configuration>
++                            <artifactItems>
++                                <artifactItem>
++                                    <groupId>org.jboss.teiid</groupId>
++                                    <artifactId>teiid</artifactId>
++                                    <version>${project.version}</version>
++                                    <classifier>jboss-dist</classifier>
++                                    <type>zip</type>
++                                    <overWrite>false</overWrite>
++                                    <outputDirectory>${project.build.directory}/uberzip/jboss-eap-6.3</outputDirectory>
++                                </artifactItem>
++                            </artifactItems>
++                        </configuration>
++                    </execution>
++                    <execution>
++                        <id>console-dist</id>
++                        <phase>package</phase>
++                        <goals>
++                            <goal>unpack</goal>
++                        </goals>
++                        <configuration>
++                            <artifactItems>
++                                <artifactItem>
++                                    <groupId>org.jboss.teiid.web-console</groupId>
++                                    <artifactId>teiid-console-dist</artifactId>
++                                    <version>1.2.0</version>
++                                    <classifier>jboss-as7</classifier>
++                                    <type>zip</type>
++                                    <overWrite>false</overWrite>
++                                    <outputDirectory>${project.build.directory}/uberzip/jboss-eap-6.3</outputDirectory>
++                                </artifactItem>
++                            </artifactItems>
++                        </configuration>
++                    </execution>
++                </executions>
++            </plugin>
+         </plugins>
+     </build>
+     ",2014-10-24T21:40:27Z,83
+"@@ -30,6 +30,9 @@
+                 <include>**/wsdl4j-*</include>
+                 <include>**/neethi-*</include>
+                 <include>**/xmlschema-*</include>
++                <include>**/spring-core-*</include>
++                <include>**/spring-context-*</include>
++                <include>**/spring-beans-*</include>
+             </includes>           
+         </fileSet>        
+     </fileSets>",2014-10-24T21:40:27Z,84
+"@@ -42,6 +42,15 @@
+             <includes>
+                 <include>javax.ws.rs:javax.ws.rs-api</include>
+             </includes>
+-        </dependencySet>        
++        </dependencySet> 
++        <dependencySet>
++            <outputDirectory>${jbossas-module-root}/org/springframework/spring/main</outputDirectory>
++            <useTransitiveDependencies>false</useTransitiveDependencies>
++            <includes>
++                <include>org.springframework:spring-beans</include>
++                <include>org.springframework:spring-context</include>
++                <include>org.springframework:spring-core</include>
++            </includes>
++        </dependencySet>               
+     </dependencySets>
+ </assembly>",2014-10-24T21:40:27Z,85
+"@@ -0,0 +1,16 @@
++<module xmlns=""urn:jboss:module:1.1"" name=""org.springframework.spring"">
++  <resources>
++    <resource-root path=""spring-beans-${version.org.springframework}.jar""/>
++    <resource-root path=""spring-context-${version.org.springframework}.jar""/>    
++    <resource-root path=""spring-core-${version.org.springframework}.jar""/>
++    <!-- 
++    <resource-root path=""spring-asm.jar""/>
++    <resource-root path=""spring-aop.jar""/>    
++    <resource-root path=""spring-expression.jar""/>
++    <resource-root path=""spring-tx.jar""/>
++     -->    
++  </resources>
++  <dependencies>
++    <module name=""javax.api""/>
++  </dependencies>
++</module>",2014-10-24T21:40:27Z,86
+"@@ -70,7 +70,19 @@
+         <dependency>
+             <groupId>javax.ws.rs</groupId>
+             <artifactId>javax.ws.rs-api</artifactId>
+-        </dependency>        
++        </dependency>
++        <dependency>
++            <groupId>org.springframework</groupId>
++            <artifactId>spring-beans</artifactId>
++        </dependency>
++        <dependency>
++            <groupId>org.springframework</groupId>
++            <artifactId>spring-context</artifactId>
++        </dependency>
++        <dependency>
++            <groupId>org.springframework</groupId>
++            <artifactId>spring-core</artifactId>
++        </dependency>
+     </dependencies>
+     <build>
+         <plugins>",2014-10-24T21:40:27Z,87
+"@@ -10,11 +10,7 @@
+   <name>Gogole API</name>
+   <description>The java API for connecting Google services</description>
+   <packaging>bundle</packaging>
+-
+-  <properties>
+-    <version.com.google.guava>16.0.1</version.com.google.guava>
+-  </properties>
+-      
++  
+   <dependencies>     
+         <dependency>
+             <groupId>javax.resource</groupId>
+@@ -24,6 +20,7 @@
+         <dependency>
+ 		  <groupId>com.google.guava</groupId>
+ 		  <artifactId>guava</artifactId>
++		  <scope>provided</scope>
+ 		</dependency>
+ 		<dependency>
+ 		  <groupId>org.apache.httpcomponents</groupId>",2014-10-24T21:40:27Z,88
+"@@ -10,17 +10,13 @@ TEIID_DIST=teiid-${TEIID_VERSION}-jboss-dist.zip
+ 
+ SOURCES=(
+     ""jboss-eap.zip""
+-    ""resteasy-jaxrs.zip""
+     ""teiid-console-dist.zip""
+ )
+ 
+ declare -A SOURCE_URL SOURCE_SHA1
+ 
+-SOURCE_URL[""jboss-eap.zip""]=""http://download.jboss.org/jbosseap/6/jboss-eap-6.1.0.Alpha/jboss-eap-6.1.0.Alpha.zip""
+-SOURCE_SHA1[""jboss-eap.zip""]=""630d81f83b851077e3ad129924502bbdf0c1552a""
+-
+-SOURCE_URL[""resteasy-jaxrs.zip""]=""http://sourceforge.net/projects/resteasy/files/Resteasy%20JAX-RS/2.3.6.Final/resteasy-jaxrs-2.3.6.Final-all.zip""
+-SOURCE_SHA1[""resteasy-jaxrs.zip""]=""cfcb2aaa60cd954d04e73cc7e99509ec38b5538a""
++SOURCE_URL[""jboss-eap.zip""]=""http://maven.repository.redhat.com/techpreview/eap6/6.3.0.Alpha/maven-repository/org/jboss/as/jboss-as-dist/7.4.0.Final-redhat-4/jboss-as-dist-7.4.0.Final-redhat-4.zip""
++SOURCE_SHA1[""jboss-eap.zip""]=""15978363d25acee751afa35af582548dace95480""
+ 
+ SOURCE_URL[""teiid-console-dist.zip""]=""http://sourceforge.net/projects/teiid/files/webconsole/1.2/Final/teiid-console-dist-1.2.0.Final-jboss-as7.zip""
+ SOURCE_SHA1[""teiid-console-dist.zip""]=""7b57b77520f2894b0f48a385f7dcff03898bb514""
+@@ -81,25 +77,17 @@ echo ""Unpacking JBoss...""
+ unzip -q ../jboss-eap.zip
+ echo
+ 
+-## Patch JAX-RS.
+-echo ""Patching JAX-RS module...""
+-rm -rf jboss-eap-6.1/modules/system/layers/base/org/jboss/resteasy/resteasy-jaxrs
+-unzip -qo ../resteasy-jaxrs.zip
+-unzip -q resteasy-jaxrs-*/resteasy-jboss-modules-*.zip
+-mv -f org/jboss/resteasy/resteasy-jaxrs jboss-eap-6.1/modules/system/layers/base/org/jboss/resteasy/resteasy-jaxrs
+-echo
+-
+ ## Install Teiid.
+ echo ""Installing Teiid...""
+-cd jboss-eap-6.1
++cd jboss-eap-6.3
+ unzip -q -o ../../teiid-console-dist.zip
+ unzip -q -o ../../$TEIID_DIST
+ cd ..
+ echo
+ 
+ ## Package server.
+ echo ""Zipping up install...""
+-mv -f jboss-eap-6.1 teiid-${TEIID_VERSION}
++mv -f jboss-eap-6.3 teiid-${TEIID_VERSION}
+ rm -f ../teiid-${TEIID_VERSION}.zip
+ zip -r -q ../teiid-${TEIID_VERSION}.zip teiid-${TEIID_VERSION}
+ cd ..",2014-10-24T21:40:27Z,89
+"@@ -25,6 +25,7 @@
+         <version.org.hibernate.search>4.4.0.Final</version.org.hibernate.search> <!-- versions required by infinispan 6.1 --> 
+         <version.jaxen>1.1.4</version.jaxen> <!-- NOTE changing to use bom version of 1.1.3 will cause a build issue in teiid-engine -->
+         <version.org.mongodb.mongo-java-driver>2.12.3</version.org.mongodb.mongo-java-driver>
++        <version.org.jboss.as>7.4.0.Final-redhat-4</version.org.jboss.as>
+         
+         <!-- Not in integration BOM; Need to check these jboss-parent BOM-->
+         <version.org.jboss.jboss-vfs>3.2.2.Final-redhat-1</version.org.jboss.jboss-vfs>
+@@ -1365,7 +1366,22 @@
+                 <groupId>javax.ws.rs</groupId>
+                 <artifactId>javax.ws.rs-api</artifactId>
+                 <version>${version.javax.ws.rs}</version>
+-            </dependency>        
++            </dependency>
++            <dependency>
++                <groupId>org.springframework</groupId>
++                <artifactId>spring-beans</artifactId>
++                <version>${version.org.springframework}</version>
++            </dependency>
++            <dependency>
++                <groupId>org.springframework</groupId>
++                <artifactId>spring-context</artifactId>
++                <version>${version.org.springframework}</version>
++            </dependency>
++            <dependency>
++                <groupId>org.springframework</groupId>
++                <artifactId>spring-core</artifactId>
++                <version>${version.org.springframework}</version>
++            </dependency>
+         </dependencies>
+ 	</dependencyManagement>
+ 	<modules>",2014-10-24T21:40:27Z,90
+"@@ -62,8 +62,8 @@ http://maven.apache.org/xsd/settings-1.0.0.xsd"">
+       <repositories>
+         <repository>
+           <id>jboss-eap-alpha</id>
+-          <name>JBoss EAP6.1 Alpha</name>
+-          <url>http://maven.repository.redhat.com/techpreview/eap6/6.1.0.Alpha1/maven-repository/</url>
++          <name>JBoss EAP 6.3.0.Alpha</name>
++          <url>http://maven.repository.redhat.com/techpreview/eap6/6.3.0.Alpha/maven-repository/</url>
+           <layout>default</layout>
+           <releases>
+             <enabled>true</enabled>",2014-10-24T21:40:27Z,91
+"@@ -62,9 +62,6 @@
+     <profiles>
+     <profile>
+         <id>arquillian-tests</id>
+-       <activation>
+-            <activeByDefault>true</activeByDefault>
+-        </activation>        
+         <dependencies>
+             <dependency>
+                 <groupId>org.jboss.spec</groupId>",2014-10-24T21:40:27Z,92
+"@@ -52,13 +52,13 @@
+ @Translator(name=""modeshape"")
+ public class ModeShapeExecutionFactory extends JDBCExecutionFactory {
+ 	
+-    private String version = ""2.0"";	
++    private String version = ""2.0"";	 //$NON-NLS-1$
+ 
+     @Override
+     public void start() throws TranslatorException {
+         super.start();
+         
+-        registerFunctionModifier(""PATH"", new FunctionModifier() {
++        registerFunctionModifier(""PATH"", new FunctionModifier() { //$NON-NLS-1$
+             
+             @Override
+             public List<?> translate(Function function) {
+@@ -137,14 +137,14 @@ public List<?> translate(LanguageObject obj, ExecutionContext context) {
+ 	    NamedTable nt = (NamedTable) obj;
+ 	    List<String> ntlist = new ArrayList<String>(1);
+ 
+-	    ntlist.add(""["" + nt.getMetadataObject().getNameInSource() + ""]"");
++	    ntlist.add(""["" + nt.getMetadataObject().getNameInSource() + ""]""); //$NON-NLS-1$ //$NON-NLS-2$
+ 	    return ntlist;
+ 	}
+ 
+ 	if (obj instanceof ColumnReference) {
+ 	    ColumnReference elem = (ColumnReference) obj;
+ 	    List<String> ntlist = new ArrayList<String>(1);
+-	    ntlist.add(""["" + elem.getMetadataObject().getNameInSource() + ""]"");
++	    ntlist.add(""["" + elem.getMetadataObject().getNameInSource() + ""]""); //$NON-NLS-1$ //$NON-NLS-2$
+ 	    return ntlist;
+ 
+ 	}",2010-06-18T14:27:29Z,97
+"@@ -272,4 +272,20 @@
+             <parameter class=""java.lang.String"">teradata</parameter>
+         </constructor>
+     </bean>
++    
++    <!-- MODESHAPE -->
++    <bean name=""translator-modeshape-template"" class=""org.teiid.templates.TranslatorDeploymentTemplate"">
++        <property name=""info""><inject bean=""translator-modeshape"" /> </property>
++        <property name=""managedObjectFactory""> <inject bean=""ManagedObjectFactory"" /> </property>
++    </bean>
++
++    <bean name=""translator-modeshape"" class=""org.teiid.templates.TranslatorTemplateInfo"">
++        <constructor factoryMethod=""createTemplateInfo"">
++            <factory bean=""TranslatorDeploymentTemplateInfoFactory"" />
++            <parameter class=""java.lang.Class"">org.teiid.templates.TranslatorTemplateInfo</parameter>
++            <parameter class=""java.lang.Class"">org.teiid.translator.jdbc.modeshape.ModeShapeExecutionFactory</parameter>
++            <parameter class=""java.lang.String"">translator-modeshape</parameter>
++            <parameter class=""java.lang.String"">Modeshape</parameter>
++        </constructor>
++    </bean>    
+ </deployment>
+\ No newline at end of file",2010-06-18T14:27:29Z,98
+"@@ -214,6 +214,7 @@ private Row nextRow() {
+      */
+     List<Object> projectRow(Row row) throws TranslatorException {
+         ArrayList output = new ArrayList();
++        boolean allNulls = true;
+         
+         int id = row.getRowNum()+1;
+         
+@@ -232,7 +233,7 @@ List<Object> projectRow(Row row) throws TranslatorException {
+         		output.add(null);
+         		continue;
+         	}
+-
++        	allNulls = false;
+         	switch (this.evaluator.evaluateInCell(cell).getCellType()) {
+                 case Cell.CELL_TYPE_NUMERIC:
+                     output.add(convertFromExcelType(cell.getNumericCellValue(), cell, this.expectedColumnTypes[i]));
+@@ -254,6 +255,10 @@ List<Object> projectRow(Row row) throws TranslatorException {
+             }   
+         }
+         
++        if (allNulls) {
++        	return null;
++        }
++        
+         return output;    
+     }
+ ",2014-08-18T15:15:37Z,99
+"@@ -234,7 +234,10 @@ public void visit(Literal obj) {
+ 	
+ 	@Override
+ 	public void visit(Limit obj) {
+-		this.firstDataRowNumber = new Integer(obj.getRowOffset()-1);
++		int offset = obj.getRowOffset();
++		if (offset != 0) {
++			this.firstDataRowNumber = offset + this.firstDataRowNumber;
++		}
+ 		this.filters.add(new CompareFilter(this.firstDataRowNumber, Operator.GE));
+ 		this.filters.add(new CompareFilter(this.firstDataRowNumber+obj.getRowLimit(), Operator.LT));
+ 	}	",2014-08-18T15:15:37Z,100
+"@@ -217,9 +217,18 @@ public void testExecutionLimit() throws Exception {
+     	FileConnection connection = Mockito.mock(FileConnection.class);
+     	Mockito.stub(connection.getFile(""names.xls"")).toReturn(UnitTestUtil.getTestDataFile(""names.xls""));
+ 
+-    	ArrayList results = helpExecute(commonDDL, connection, ""select FirstName from Sheet1 LIMIT 16,1"");
+-    	assertEquals(""[[Matt]]"", results.toString());
++    	ArrayList results = helpExecute(commonDDL, connection, ""select FirstName from Sheet1 LIMIT 3,1"");
++    	assertEquals(""[[Sarah]]"", results.toString());
+ 	}
++	
++	@Test
++	public void testExecutionLimit2() throws Exception {
++    	FileConnection connection = Mockito.mock(FileConnection.class);
++    	Mockito.stub(connection.getFile(""names.xls"")).toReturn(UnitTestUtil.getTestDataFile(""names.xls""));
++
++    	ArrayList results = helpExecute(commonDDL, connection, ""select FirstName from Sheet1 LIMIT 1"");
++    	assertEquals(""[[John]]"", results.toString());
++	}	
+ 
+ 	@Test
+ 	public void testExecutionAnd() throws Exception {",2014-08-18T15:15:37Z,101
+"@@ -1,9 +1,11 @@
+-connect
+-/extension=org.jboss.teiid:add(module=org.jboss.teiid)
++/server-group=main-server-group:write-attribute(name=profile, value=ha)
++/server-group=main-server-group:write-attribute(name=socket-binding-group,value=ha-sockets)
++
+ /socket-binding-group=ha-sockets/socket-binding=teiid-jdbc:add(port=31000)
+ /socket-binding-group=ha-sockets/socket-binding=teiid-odbc:add(port=35432)
+-/server-group=main-server-group:write-attribute(name=profile, value=ha)
+-/server-group=main-server-group:write-attribute(name=socket-binding-group, value=ha-sockets)
++
++/socket-binding-group=full-ha-sockets/socket-binding=teiid-jdbc:add(port=31000)
++/socket-binding-group=full-ha-sockets/socket-binding=teiid-odbc:add(port=35432)
+ 
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache:add(default-cache=resultset)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/transport=TRANSPORT:add(lock-timeout=60000)
+@@ -13,28 +15,59 @@ connect
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/replicated-cache=resultset-repl/eviction=EVICTION:add(max-entries=1024, strategy=LIRS)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/replicated-cache=resultset-repl/transaction=TRANSACTION:add(mode=NON_XA)
+ 
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache:add(default-cache=resultset)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/transport=TRANSPORT:add(lock-timeout=60000)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/replicated-cache=resultset-repl:add(mode=SYNC, batching=true)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/replicated-cache=resultset-repl/locking=LOCKING:add(isolation=READ_COMMITTED)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/replicated-cache=resultset-repl/expiration=EXPIRATION:add(lifespan=7200000)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/replicated-cache=resultset-repl/eviction=EVICTION:add(max-entries=1024, strategy=LIRS)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/replicated-cache=resultset-repl/transaction=TRANSACTION:add(mode=NON_XA)
++
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset:add(batching=true)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/locking=LOCKING:add(isolation=READ_COMMITTED)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/expiration=EXPIRATION:add(lifespan=7200000)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/eviction=EVICTION:add(max-entries=1024, strategy=LIRS)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/transaction=TRANSACTION:add(mode=NON_XA)
+ 
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset:add(batching=true)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/locking=LOCKING:add(isolation=READ_COMMITTED)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/expiration=EXPIRATION:add(lifespan=7200000)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/eviction=EVICTION:add(max-entries=1024, strategy=LIRS)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/transaction=TRANSACTION:add(mode=NON_XA)
++
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan:add(batching=true)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan/locking=LOCKING:add(isolation=READ_COMMITTED)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan/expiration=EXPIRATION:add(lifespan=28800)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan/eviction=EVICTION:add(max-entries=512, strategy=LIRS)
+ 
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan:add(batching=true)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan/locking=LOCKING:add(isolation=READ_COMMITTED)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan/expiration=EXPIRATION:add(lifespan=28800)
++/profile=full-ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan/eviction=EVICTION:add(max-entries=512, strategy=LIRS)
++
+ /profile=ha/subsystem=security/security-domain=teiid-security:add(cache-type=default)
+ /profile=ha/subsystem=security/security-domain=teiid-security/authentication=classic:add()
+ /profile=ha/subsystem=security/security-domain=teiid-security/authentication=classic/login-module=teiid:add(code=org.jboss.security.auth.spi.UsersRolesLoginModule, flag=required, module-options={usersProperties=""${jboss.domain.config.dir}/teiid-security-users.properties"", rolesProperties=""${jboss.domain.config.dir}/teiid-security-roles.properties""}) 
+ /profile=ha/subsystem=threads/unbounded-queue-thread-pool=teiid-async:add(max-threads=4)
+ 
++/profile=full-ha/subsystem=security/security-domain=teiid-security:add(cache-type=default)
++/profile=full-ha/subsystem=security/security-domain=teiid-security/authentication=classic:add()
++/profile=full-ha/subsystem=security/security-domain=teiid-security/authentication=classic/login-module=teiid:add(code=org.jboss.security.auth.spi.UsersRolesLoginModule, flag=required, module-options={usersProperties=""${jboss.domain.config.dir}/teiid-security-users.properties"", rolesProperties=""${jboss.domain.config.dir}/teiid-security-roles.properties""}) 
++/profile=full-ha/subsystem=threads/unbounded-queue-thread-pool=teiid-async:add(max-threads=4)
++
++
+ /profile=ha/subsystem=teiid:add(async-thread-pool=teiid-async, distributed-cache-jgroups-stack=udp, resultset-cache-infinispan-container=teiid-cache, preparedplan-cache-infinispan-container=teiid-cache, policy-decider-module=org.jboss.teiid)
+ /profile=ha/subsystem=teiid/transport=embedded:add()
+ /profile=ha/subsystem=teiid/transport=odata:add(authentication-security-domain=teiid-security)
+ /profile=ha/subsystem=teiid/transport=jdbc:add(protocol=teiid, socket-binding=teiid-jdbc, authentication-security-domain=teiid-security)
+ /profile=ha/subsystem=teiid/transport=odbc:add(protocol=pg, socket-binding=teiid-odbc, authentication-security-domain=teiid-security) 
+ 
++/profile=full-ha/subsystem=teiid:add(async-thread-pool=teiid-async, distributed-cache-jgroups-stack=udp, resultset-cache-infinispan-container=teiid-cache, preparedplan-cache-infinispan-container=teiid-cache, policy-decider-module=org.jboss.teiid)
++/profile=full-ha/subsystem=teiid/transport=embedded:add()
++/profile=full-ha/subsystem=teiid/transport=odata:add(authentication-security-domain=teiid-security)
++/profile=full-ha/subsystem=teiid/transport=jdbc:add(protocol=teiid, socket-binding=teiid-jdbc, authentication-security-domain=teiid-security)
++/profile=full-ha/subsystem=teiid/transport=odbc:add(protocol=pg, socket-binding=teiid-odbc, authentication-security-domain=teiid-security) 
++
+ /profile=ha/subsystem=teiid/translator=jdbc-simple:add(module=org.jboss.teiid.translator.jdbc)
+ /profile=ha/subsystem=teiid/translator=jdbc-ansi:add(module=org.jboss.teiid.translator.jdbc)
+ /profile=ha/subsystem=teiid/translator=access:add(module=org.jboss.teiid.translator.jdbc)
+@@ -77,9 +110,53 @@ connect
+ /profile=ha/subsystem=teiid/translator=impala:add(module=org.jboss.teiid.translator.hive)
+ 
+ 
++/profile=full-ha/subsystem=teiid/translator=jdbc-simple:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=jdbc-ansi:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=access:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=db2:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=derby:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=h2:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=hsql:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=informix:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=metamatrix:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=mysql:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=mysql5:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=oracle:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=postgresql:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=sqlserver:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=sybase:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=teiid:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=teradata:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=modeshape:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=ingres:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=ingres93:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=intersystems-cache:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=netezza:add(module=org.jboss.teiid.translator.jdbc)
++/profile=full-ha/subsystem=teiid/translator=file:add(module=org.jboss.teiid.translator.file)
++/profile=full-ha/subsystem=teiid/translator=ldap:add(module=org.jboss.teiid.translator.ldap)
++/profile=full-ha/subsystem=teiid/translator=loopback:add(module=org.jboss.teiid.translator.loopback)
++/profile=full-ha/subsystem=teiid/translator=olap:add(module=org.jboss.teiid.translator.olap)
++/profile=full-ha/subsystem=teiid/translator=ws:add(module=org.jboss.teiid.translator.ws)
++/profile=full-ha/subsystem=teiid/translator=salesforce:add(module=org.jboss.teiid.translator.salesforce)
++/profile=full-ha/subsystem=teiid/translator=hive:add(module=org.jboss.teiid.translator.hive)
++/profile=full-ha/subsystem=teiid/translator=infinispan-cache:add(module=org.jboss.teiid.translator.object)
++/profile=full-ha/subsystem=teiid/translator=map-cache:add(module=org.jboss.teiid.translator.object)
++/profile=full-ha/subsystem=teiid/translator=google-spreadsheet:add(module=org.jboss.teiid.translator.google)
++/profile=full-ha/subsystem=teiid/translator=odata:add(module=org.jboss.teiid.translator.odata)
++/profile=full-ha/subsystem=teiid/translator=sap-nw-gateway:add(module=org.jboss.teiid.translator.odata)
++/profile=full-ha/subsystem=teiid/translator=mongodb:add(module=org.jboss.teiid.translator.mongodb)
++/profile=full-ha/subsystem=teiid/translator=cassandra:add(module=org.jboss.teiid.translator.cassandra)
++/profile=full-ha/subsystem=teiid/translator=accumulo:add(module=org.jboss.teiid.translator.accumulo)
++/profile=full-ha/subsystem=teiid/translator=solr:add(module=org.jboss.teiid.translator.solr)
++/profile=full-ha/subsystem=teiid/translator=excel:add(module=org.jboss.teiid.translator.excel)
++/profile=full-ha/subsystem=teiid/translator=impala:add(module=org.jboss.teiid.translator.hive)
++
+ /profile=ha/subsystem=datasources/jdbc-driver=teiid:add(driver-name=teiid, driver-module-name=org.jboss.teiid.client, driver-class-name=org.teiid.jdbc.TeiidDriver, driver-xa-datasource-class-name=org.teiid.jdbc.TeiidDataSource)
+ /profile=ha/subsystem=datasources/jdbc-driver=teiid-local:add(driver-name=teiid-local, driver-module-name=org.jboss.teiid, driver-class-name=org.teiid.jdbc.TeiidDriver, driver-xa-datasource-class-name=org.teiid.jdbc.TeiidDataSource)
+ 
++/profile=full-ha/subsystem=datasources/jdbc-driver=teiid:add(driver-name=teiid, driver-module-name=org.jboss.teiid.client, driver-class-name=org.teiid.jdbc.TeiidDriver, driver-xa-datasource-class-name=org.teiid.jdbc.TeiidDataSource)
++/profile=full-ha/subsystem=datasources/jdbc-driver=teiid-local:add(driver-name=teiid-local, driver-module-name=org.jboss.teiid, driver-class-name=org.teiid.jdbc.TeiidDriver, driver-xa-datasource-class-name=org.teiid.jdbc.TeiidDataSource)
++
+ /profile=ha/subsystem=resource-adapters/resource-adapter=file:add(module=org.jboss.teiid.resource-adapter.file)
+ /profile=ha/subsystem=resource-adapters/resource-adapter=google:add(module=org.jboss.teiid.resource-adapter.google)
+ /profile=ha/subsystem=resource-adapters/resource-adapter=infinispan:add(module=org.jboss.teiid.resource-adapter.infinispan)
+@@ -90,4 +167,13 @@ connect
+ /profile=ha/subsystem=resource-adapters/resource-adapter=accumulo:add(module=org.jboss.teiid.resource-adapter.accumulo)
+ /profile=ha/subsystem=resource-adapters/resource-adapter=solr:add(module=org.jboss.teiid.resource-adapter.solr)
+ 
+-/host=master:reload(restart-servers=true)  
++
++/profile=full-ha/subsystem=resource-adapters/resource-adapter=file:add(module=org.jboss.teiid.resource-adapter.file)
++/profile=full-ha/subsystem=resource-adapters/resource-adapter=google:add(module=org.jboss.teiid.resource-adapter.google)
++/profile=full-ha/subsystem=resource-adapters/resource-adapter=infinispan:add(module=org.jboss.teiid.resource-adapter.infinispan)
++/profile=full-ha/subsystem=resource-adapters/resource-adapter=ldap:add(module=org.jboss.teiid.resource-adapter.ldap)
++/profile=full-ha/subsystem=resource-adapters/resource-adapter=salesforce:add(module=org.jboss.teiid.resource-adapter.salesforce)
++/profile=full-ha/subsystem=resource-adapters/resource-adapter=webservice:add(module=org.jboss.teiid.resource-adapter.webservice)
++/profile=full-ha/subsystem=resource-adapters/resource-adapter=mongodb:add(module=org.jboss.teiid.resource-adapter.mongodb)
++/profile=full-ha/subsystem=resource-adapters/resource-adapter=accumulo:add(module=org.jboss.teiid.resource-adapter.accumulo)
++/profile=full-ha/subsystem=resource-adapters/resource-adapter=solr:add(module=org.jboss.teiid.resource-adapter.solr)",2014-05-23T14:30:22Z,102
+"@@ -0,0 +1 @@
++/extension=org.jboss.teiid:add(module=org.jboss.teiid)",2014-05-23T14:30:22Z,103
+"@@ -1,5 +1,3 @@
+-connect
+-/extension=org.jboss.teiid:add(module=org.jboss.teiid)
+ /socket-binding-group=standard-sockets/socket-binding=teiid-jdbc:add(port=31000)
+ /socket-binding-group=standard-sockets/socket-binding=teiid-odbc:add(port=35432)
+ 
+@@ -84,5 +82,3 @@ connect
+ /subsystem=resource-adapters/resource-adapter=webservice:add(module=org.jboss.teiid.resource-adapter.webservice)
+ /subsystem=resource-adapters/resource-adapter=mongodb:add(module=org.jboss.teiid.resource-adapter.mongodb)
+ /subsystem=resource-adapters/resource-adapter=accumulo:add(module=org.jboss.teiid.resource-adapter.accumulo)
+-
+-/:reload
+\ No newline at end of file",2014-05-23T14:30:22Z,104
+"@@ -1,9 +1,9 @@
+ <?xml version=""1.0"" encoding=""UTF-8""?>
+ <module xmlns=""urn:jboss:module:1.0"" name=""org.apache.poi"">
+     <resources>
+-        <resource-root path=""poi-3.10-FINAL.jar"" />
+-        <resource-root path=""poi-ooxml-3.10-FINAL.jar"" />
+-        <resource-root path=""poi-ooxml-schemas-3.10-FINAL.jar"" />
++        <resource-root path=""poi-${version.org.apache.poi}.jar"" />
++        <resource-root path=""poi-ooxml-${version.org.apache.poi}.jar"" />
++        <resource-root path=""poi-ooxml-schemas-${version.org.apache.poi}.jar"" />
+         <!-- Insert resources here -->
+     </resources>
+ ",2014-05-23T14:30:22Z,105
+"@@ -23,14 +23,18 @@
+         <!--version.org.jboss.resteasy>2.3.6.Final</version.org.jboss.resteasy   2.3.7.Final -->
+         <!--version.org.hibernate>4.2.10.Final</version.org.hibernate    4.2.12.Final -->
+         <!--version.org.hibernate.search>4.2.0.Final</version.org.hibernate.search  4.3.0.Final -->
+-        <version.javax.ws.rs>1.1</version.javax.ws.rs> <!-- 1.1.1  -->
++        <!--version.javax.ws.rs>1.1</version.javax.ws.rs--> <!-- 1.1.1  -->
+  
+         <!-- version.org.infinispan>5.2.8.CR1</version.org.infinispan  5.2.9.Final -->
+         <!--version.org.apache.xmlbeans>2.4.0-redhat-2</version.org.apache.xmlbeans  2.4.0 -->
+         <!-- ersion.org.apache.lucene>3.6.2</version.org.apache.lucene--> <!--  same -->
+         <!--version.asm>3.3.1-redhat-5</version.asm--> <!--  3.3.1 -->
+         <!--version.org.apache.cxf>2.7.10.redhat-1</version.org.apache.cxf-->  <!-- 2.7.11 -->
+-        
++        <!--version.com.google.guava>13.0.1-redhat-1</version.com.google.guava-->
++        <!-- version.io.netty>3.6.7.Final-redhat-1</version.io.netty>   use from bom, as this is being updated -->
++        <!--version.commons-logging>1.1.3</version.commons-logging   -->
++        <!--version.wsdl4j>1.6.3</version.wsdl4j-->
++      
+ 	    
+         <version.org.jboss.logging.jboss-logging>${version.org.jboss.logging}</version.org.jboss.logging.jboss-logging>
+         <version.sun.jaxb>${version.com.sun.xml.bind.jaxb}</version.sun.jaxb>
+@@ -43,8 +47,6 @@
+ 	     
+ 	    <version.org.apache.cxf-jaxrs>${version.org.apache.cxf}</version.org.apache.cxf-jaxrs>
+ 
+-        <!-- version.io.netty>3.6.7.Final-redhat-1</version.io.netty>   use from bom, as this is being updated -->
+-        <!--version.commons-logging>1.1.3</version.commons-logging   -->
+ 
+ 		<!-- NOTE changing to use bom version of 1.1.3 will cause a build issue in teiid-engine -->
+         <version.jaxen>1.1.3.redhat-3</version.jaxen> <!--  1.1.3  -->
+@@ -54,15 +56,15 @@
+         <version.org.jboss.integration-platform>6.0.0.CR8</version.org.jboss.integration-platform>
+         <version.org.jboss.jboss-common-core>2.2.17.GA-redhat-2</version.org.jboss.jboss-common-core>
+         <version.org.jboss.as>7.4.0.Final-redhat-4</version.org.jboss.as>
+-        <version.wsdl4j>1.6.3</version.wsdl4j>
+         <version.org.jboss.jboss-dmr>1.2.0.Final-redhat-1</version.org.jboss.jboss-dmr>
+         <version.org.jboss.msc.jboss-msc>1.1.5.Final</version.org.jboss.msc.jboss-msc>
+         <version.org.jboss.jboss-vfs>3.2.2.Final-redhat-1</version.org.jboss.jboss-vfs>
+         <version.org.picketbox>4.0.19.SP4-redhat-1</version.org.picketbox>        
+        
+         <version.xom>1.2.7.redhat-4</version.xom>
+-        <version.com.google.guava>13.0.1-redhat-1</version.com.google.guava>
+         <version.dom4j>1.6.1.redhat-6</version.dom4j>
++        
++        <!-- NOTE using the CR8 bom version will cause the commons-integration-tests to fail -->
+         <version.com.h2database>1.3.152</version.com.h2database>
+                 
+         <!-- integration stack bom propererties -->
+@@ -83,7 +85,7 @@
+         <version.nux>1.6</version.nux>
+         <version.gdata-spreadsheet>3.0</version.gdata-spreadsheet>
+         <version.gdata-core>1.0</version.gdata-core>
+-        <version.org.infinispan.6>6.0.0.Final</version.org.infinispan.6>
++        <version.org.infinispan.6>6.0.1.Final</version.org.infinispan.6>
+         <version.olap4j>1.1.0</version.olap4j>
+         <version.accumulo>1.5.0</version.accumulo>
+         <version.hadoop-core>0.20.2</version.hadoop-core>",2014-05-23T14:30:22Z,90
+"@@ -77,6 +77,10 @@ public ODataProducer getContext(Class<?> arg0) {
+ 			vdbName = getInitParameters().getProperty(""allow-vdb""); //$NON-NLS-1$		
+ 		}
+ 		
++		if (vdbName == null) {
++		    throw new TeiidRuntimeException(ODataPlugin.Util.gs(ODataPlugin.Event.TEIID16008));
++		}
++		
+ 		int versionIdx = vdbName.indexOf('.');
+ 		if (versionIdx != -1) {
+ 			version = Integer.parseInt(vdbName.substring(versionIdx+1));",2015-03-20T15:06:37Z,122
+"@@ -21,9 +21,11 @@
+  */
+ package org.teiid.translator.odata;
+ 
+-import static org.teiid.language.visitor.SQLStringVisitor.getRecordName;
++import static org.teiid.language.visitor.SQLStringVisitor.*;
+ 
+ import java.util.ArrayList;
++import java.util.HashSet;
++import java.util.LinkedHashMap;
+ import java.util.List;
+ 
+ import org.odata4j.edm.*;
+@@ -120,7 +122,46 @@ static EdmEntityContainer.Builder findEntityContainer(List<Builder> edmSchemas,
+ 	public static void buildEntityTypes(Schema schema, List<EdmSchema.Builder> edmSchemas, boolean preserveEntityTypeName) {
+ 		List<EdmEntitySet.Builder> entitySets = new ArrayList<EdmEntitySet.Builder>();
+ 		List<EdmEntityType.Builder> entityTypes = new ArrayList<EdmEntityType.Builder>();
++		LinkedHashMap<String, EdmComplexType.Builder> complexTypes = new LinkedHashMap<String, EdmComplexType.Builder>();
+ 	    
++		//first pass, build complex types
++		for (Table table: schema.getTables().values()) {
++			// skip if the table does not have the PK or unique
++			KeyRecord primaryKey = table.getPrimaryKey();
++			List<KeyRecord> uniques = table.getUniqueKeys();
++			if (primaryKey == null && uniques.isEmpty()) {
++				LogManager.logDetail(LogConstants.CTX_ODATA, ODataPlugin.Util.gs(ODataPlugin.Event.TEIID17017, table.getFullName()));
++				continue;
++			}
++			
++			for (Column c : table.getColumns()) {
++				String name = c.getSourceName();
++				String complexType = c.getProperty(ODataMetadataProcessor.COMPLEX_TYPE, false);
++				if (complexType == null) {
++					continue;
++				}
++				EdmComplexType.Builder complexTypeBuilder = complexTypes.get(complexType);
++				if (complexTypeBuilder == null) {
++					complexTypeBuilder = EdmComplexType.newBuilder();
++					complexTypes.put(complexType, complexTypeBuilder); 
++					complexTypeBuilder.setName(complexType);
++					complexTypeBuilder.setNamespace(schema.getName());
++				} else if (complexTypeBuilder.findProperty(name) != null) {
++					continue; //already added
++				}
++				EdmProperty.Builder property = EdmProperty.newBuilder(c.getSourceName())
++						.setType(ODataTypeManager.odataType(c.getRuntimeType()))
++						.setNullable(isPartOfPrimaryKey(table, c.getName())?false:c.getNullType() == NullType.Nullable);
++				if (c.getRuntimeType().equals(DataTypeManager.DefaultDataTypes.STRING)) {
++					property.setFixedLength(c.isFixedLength())
++						.setMaxLength(c.getLength())
++						.setUnicode(true);
++				}
++				complexTypeBuilder.addProperties(property);
++			}
++		}
++		
++		//second pass, add all columns
+ 		for (Table table: schema.getTables().values()) {
+ 			
+ 			// skip if the table does not have the PK or unique
+@@ -150,10 +191,22 @@ public static void buildEntityTypes(Schema schema, List<EdmSchema.Builder> edmSc
+ 					entityType.addKeys(c.getName());
+ 				}
+ 	    	}
+-			
++	    	
++	    	HashSet<String> columnGroups = new HashSet<String>();
+ 			// adding properties
+ 			for (Column c : table.getColumns()) {
+-				EdmProperty.Builder property = EdmProperty.newBuilder(c.getName())
++				String complexType = c.getProperty(ODataMetadataProcessor.COMPLEX_TYPE, false);
++				if (complexType != null) {
++					String columnGroup = c.getProperty(ODataMetadataProcessor.COLUMN_GROUP, false);
++					if (!columnGroups.add(columnGroup)) {
++						continue;
++					}
++					EdmProperty.Builder property = EdmProperty.newBuilder(columnGroup)
++							.setType(complexTypes.get(complexType).build());
++					entityType.addProperties(property);
++					continue;
++				}
++				EdmProperty.Builder property = EdmProperty.newBuilder(c.getSourceName())
+ 						.setType(ODataTypeManager.odataType(c.getRuntimeType()))
+ 						.setNullable(isPartOfPrimaryKey(table, c.getName())?false:c.getNullType() == NullType.Nullable);
+ 				if (c.getRuntimeType().equals(DataTypeManager.DefaultDataTypes.STRING)) {
+@@ -186,7 +239,8 @@ public static void buildEntityTypes(Schema schema, List<EdmSchema.Builder> edmSc
+ 		EdmSchema.Builder modelSchema = EdmSchema.newBuilder()
+ 				.setNamespace(schema.getName())
+ 				.addEntityTypes(entityTypes)
+-				.addEntityContainers(entityContainer);
++				.addEntityContainers(entityContainer)
++				.addComplexTypes(complexTypes.values());
+ 		
+ 		edmSchemas.add(modelSchema);
+ 	}	",2015-06-18T00:36:50Z,12
+"@@ -178,7 +178,7 @@ protected Table addEntitySetAsTable(MetadataFactory mf, EdmEntitySet entitySet)
+ 					        || (property.getType() instanceof EdmCollectionType 
+ 		                    && ((EdmCollectionType)property.getType()).getItemType().isSimple())) {
+ 						Column column = addPropertyAsColumn(mf, table, property, entitySet, ep.getName());
+-						column.setProperty(COMPLEX_TYPE, embedded.getName()); // complex type
++						column.setProperty(COMPLEX_TYPE, embedded.getFullyQualifiedTypeName()); // complex type
+ 						column.setProperty(COLUMN_GROUP, ep.getName()); // name of parent column
+ 					}
+ 					else {",2015-06-18T00:36:50Z,123
+"@@ -151,9 +151,10 @@ public void testSimpleSelectEmbedded() throws Exception {
+ 		String query = ""SELECT * FROM Customers"";
+ 		String expectedURL = ""Customers?$select=CustomerID,CompanyName,ContactName,ContactTitle,Mailing,Shipping"";
+ 		
+-		FileReader reader = new FileReader(UnitTestUtil.getTestDataFile(""categories.xml""));
++		FileReader reader = new FileReader(UnitTestUtil.getTestDataFile(""customer.xml""));
+ 		ResultSetExecution excution = helpExecute(query, ObjectConverterUtil.convertToString(reader), expectedURL);
+ 		reader.close();
++		assertEquals(18, excution.next().size());
+ 	}	
+ 	
+ 	@Test",2015-06-18T00:36:50Z,124
+"@@ -12,18 +12,28 @@
+     </author>
+     <content type=""application/xml"">
+         <m:properties>
++           <d:Shipping m:type=""NorthwindModel.Address"">
++                <d:Address>Obere Str. 57</d:Address>
++                <d:City>Berlin</d:City>
++                <d:Region m:null=""true"" />
++                <d:PostalCode>12209</d:PostalCode>
++                <d:Country>Germany</d:Country>
++                <d:Phone>030-0074321</d:Phone>
++                <d:Fax>030-0076545</d:Fax>
++            </d:Shipping>
++            <d:Mailing m:type=""NorthwindModel.Address"">
++                <d:Address>Obere Str. 57</d:Address>
++                <d:City>Berlin</d:City>
++                <d:Region m:null=""true"" />
++                <d:PostalCode>12209</d:PostalCode>
++                <d:Country>Germany</d:Country>
++                <d:Phone>030-0074321</d:Phone>
++                <d:Fax>030-0076545</d:Fax>
++            </d:Mailing>
+             <d:CustomerID>ALFKI</d:CustomerID>
+             <d:CompanyName>Alfreds Futterkiste</d:CompanyName>
+             <d:ContactName>Maria Anders</d:ContactName>
+             <d:ContactTitle>Sales Representative</d:ContactTitle>
+-            <d:Address>Obere Str. 57</d:Address>
+-            <d:City>Berlin</d:City>
+-            <d:Region m:null=""true"" />
+-            <d:PostalCode>12209</d:PostalCode>
+-            <d:Country>Germany</d:Country>
+-            <d:Phone>030-0074321</d:Phone>
+-            <d:Fax>030-0076545</d:Fax>
+         </m:properties>
+     </content>
+ </entry>
+-F
+\ No newline at end of file",2015-06-18T00:36:50Z,125
+"@@ -111,6 +111,7 @@ protected Object convertToken(String group) {
+ 	public static final Version TWO_0 = Version.getVersion(""2.0""); //$NON-NLS-1$
+ 	
+ 	private Version postGisVersion = Version.DEFAULT_VERSION;
++	private boolean projSupported = false;
+     
+ 	public PostgreSQLExecutionFactory() {
+ 		setMaxDependentInPredicates(1);
+@@ -239,9 +240,19 @@ public void initCapabilities(Connection connection)
+     	ResultSet rs = null;
+     	try {
+ 	    	s = connection.createStatement();
+-	    	rs = s.executeQuery(""select PostGIS_Lib_Version()""); //$NON-NLS-1$
++	    	rs = s.executeQuery(""SELECT PostGIS_Full_Version()""); //$NON-NLS-1$
+ 	    	rs.next();
+-	    	this.setPostGisVersion(rs.getString(1));
++	    	String versionInfo = rs.getString(1);
++	    	if (versionInfo != null) {
++	    		if (versionInfo.contains(""PROJ="")) { //$NON-NLS-1$
++	    			projSupported = true;
++	    		}
++	    		int index = versionInfo.indexOf(""POSTGIS="");
++	    		if (index > -1) {
++	    			String version = versionInfo.substring(index+9, versionInfo.indexOf('""', index+9));
++	    	    	this.setPostGisVersion(version);
++	    		}
++	    	}
+     	} catch (SQLException e) {
+     		LogManager.logDetail(LogConstants.CTX_CONNECTOR, e, ""Could not determine PostGIS version""); //$NON-NLS-1$
+     	} finally {
+@@ -583,6 +594,10 @@ public List<String> getSupportedFunctions() {
+         if (this.postGisVersion.compareTo(TWO_0) >= 0) {
+         	supportedFunctions.add(SourceSystemFunctions.ST_GEOMFROMGEOJSON);
+         }
++        if (this.projSupported) {
++        	supportedFunctions.add(SourceSystemFunctions.ST_TRANSFORM);
++        	supportedFunctions.add(SourceSystemFunctions.ST_ASKML);
++        }
+         return supportedFunctions;
+     }
+     
+@@ -756,6 +771,15 @@ public String getPostGisVersion() {
+ 		return postGisVersion.toString();
+ 	}
+     
++    public boolean isProjSupported() {
++		return projSupported;
++	}
++    
++    @TranslatorProperty(display=""Proj support enabled"", description=""If PostGIS Proj support is enabled for ST_TRANSFORM"",advanced=true)
++    public void setProjSupported(boolean projSupported) {
++		this.projSupported = projSupported;
++	}
++    
+     @Override
+     public MetadataProcessor<Connection> getMetadataProcessor() {
+     	return new JDBCMetdataProcessor() {",2015-03-16T15:11:59Z,126
+"@@ -75,18 +75,18 @@ public static ClobType asGeoJson(GeometryType geometry)
+                    category=FunctionCategoryConstants.GEOMETRY,
+         		   pushdown=PushDown.CAN_PUSHDOWN,
+                    nullOnNull=true)
+-    public static ClobType asGml(GeometryType geometry) 
++    public static ClobType asGml(CommandContext context, GeometryType geometry) 
+             throws FunctionExecutionException {
+-        return GeometryUtils.geometryToGml(geometry, true);
++        return GeometryUtils.geometryToGml(context, geometry, true);
+     }
+ 
+     @TeiidFunction(name=SourceSystemFunctions.ST_ASKML,
+                    category=FunctionCategoryConstants.GEOMETRY,
+                    pushdown=PushDown.CAN_PUSHDOWN,
+                    nullOnNull=true)
+-    public static ClobType asKml(GeometryType geometry) 
++    public static ClobType asKml(CommandContext context, GeometryType geometry) 
+             throws FunctionExecutionException {
+-        return GeometryUtils.geometryToGml(geometry, false);
++        return GeometryUtils.geometryToGml(context, geometry, false);
+     }
+     
+     @TeiidFunction(name=SourceSystemFunctions.ST_GEOMFROMTEXT,",2015-03-16T15:11:59Z,127
+"@@ -22,19 +22,10 @@
+ 
+ package org.teiid.query.function;
+ 
+-import com.vividsolutions.jts.geom.Coordinate;
+-import com.vividsolutions.jts.geom.Geometry;
+-import com.vividsolutions.jts.geom.GeometryCollection;
+-import com.vividsolutions.jts.geom.LineString;
+-import com.vividsolutions.jts.geom.LinearRing;
+-import com.vividsolutions.jts.geom.MultiLineString;
+-import com.vividsolutions.jts.geom.MultiPoint;
+-import com.vividsolutions.jts.geom.MultiPolygon;
+-import com.vividsolutions.jts.geom.Point;
+-import com.vividsolutions.jts.geom.Polygon;
+ import java.sql.PreparedStatement;
+ import java.sql.ResultSet;
+ import java.sql.SQLException;
++
+ import org.osgeo.proj4j.CRSFactory;
+ import org.osgeo.proj4j.CoordinateReferenceSystem;
+ import org.osgeo.proj4j.CoordinateTransform;
+@@ -46,6 +37,8 @@
+ import org.teiid.jdbc.TeiidConnection;
+ import org.teiid.query.QueryPlugin;
+ 
++import com.vividsolutions.jts.geom.*;
++
+ /**
+  * Wrapper around proj4j library to transform geometries to different coordinate
+  * systems (ST_Transform).
+@@ -66,15 +59,29 @@ public static GeometryType transform(CommandContext ctx,
+                                          GeometryType geom,
+                                          int srid)
+             throws FunctionExecutionException {
+-        String srcParam = lookupProj4Text(ctx, geom.getSrid());
+-        String tgtParam = lookupProj4Text(ctx, srid);
+-
+         Geometry jtsGeomSrc = GeometryUtils.getGeometry(geom);
+-        Geometry jtsGeomTgt = transform(jtsGeomSrc, srcParam, tgtParam);
++
++        Geometry jtsGeomTgt = transform(ctx, jtsGeomSrc, srid);
+ 
+         return GeometryUtils.getGeometryType(jtsGeomTgt, srid);
+     }
+ 
++    /**
++     * Convert the raw geometry to the target srid coordinate system.
++     * @param ctx Command context used to lookup proj4 parameters from table.
++     * @param jtsGeomSrc Geometry to transform.
++     * @param srid Target SRID; must exist in SPATIAL_REF_SYS table.
++     * @return
++     * @throws FunctionExecutionException
++     */
++	static Geometry transform(CommandContext ctx, Geometry jtsGeomSrc, int srid) throws FunctionExecutionException {
++		String srcParam = lookupProj4Text(ctx, jtsGeomSrc.getSRID());
++        String tgtParam = lookupProj4Text(ctx, srid);
++
++        Geometry jtsGeomTgt = transform(jtsGeomSrc, srcParam, tgtParam);
++		return jtsGeomTgt;
++	}
++
+     /**
+      * Lookup proj4 parameters in SPATIAL_REF_SYS using SRID as key.
+      *",2015-03-16T15:11:59Z,9
+"@@ -31,6 +31,7 @@
+ import javax.xml.parsers.SAXParser;
+ import javax.xml.parsers.SAXParserFactory;
+ 
++import org.teiid.CommandContext;
+ import org.teiid.api.exception.query.FunctionExecutionException;
+ import org.teiid.core.types.BlobType;
+ import org.teiid.core.types.ClobImpl;
+@@ -137,15 +138,18 @@ public static GeometryType geometryFromGeoJson(ClobType json, int srid)
+         }
+     }    
+     
+-    public static ClobType geometryToGml(GeometryType geometry, 
++    public static ClobType geometryToGml(CommandContext ctx, GeometryType geometry, 
+                                          boolean withGmlPrefix) 
+             throws FunctionExecutionException {        
+         Geometry jtsGeometry = getGeometry(geometry);
+         GMLWriter writer = new GMLWriter();
+         
+         if (!withGmlPrefix) {
+         	if (geometry.getSrid() != SRID_4326) {
+-        		throw new FunctionExecutionException(QueryPlugin.Util.gs(QueryPlugin.Event.TEIID31161));
++        		if (geometry.getSrid() == GeometryType.UNKNOWN_SRID) {
++        			throw new FunctionExecutionException(QueryPlugin.Util.gs(QueryPlugin.Event.TEIID31161));
++        		}
++        		jtsGeometry = GeometryTransformUtils.transform(ctx, jtsGeometry, SRID_4326);
+         	}
+             writer.setPrefix(null);
+         } else if (geometry.getSrid() != GeometryType.UNKNOWN_SRID) {",2015-03-16T15:11:59Z,128
+"@@ -36,6 +36,7 @@
+ import org.teiid.core.types.GeometryType;
+ import org.teiid.core.types.XMLType;
+ import org.teiid.query.eval.Evaluator;
++import org.teiid.query.function.GeometryTransformUtils;
+ import org.teiid.query.function.GeometryUtils;
+ import org.teiid.query.resolver.TestFunctionResolving;
+ import org.teiid.query.sql.symbol.Expression;
+@@ -47,7 +48,6 @@
+ import com.vividsolutions.jts.io.OutputStreamOutStream;
+ import com.vividsolutions.jts.io.WKBWriter;
+ import com.vividsolutions.jts.io.WKTReader;
+-import org.teiid.query.function.GeometryTransformUtils;
+ 
+ @SuppressWarnings(""nls"")
+ public class TestGeometry {
+@@ -187,6 +187,11 @@ public void testAsKml() throws Exception {
+                    ""</Polygon>\n"");
+     }
+     
++    @Test(expected=ExpressionEvaluationException.class)
++    public void testAsKmlException() throws Exception {
++        assertEval(""ST_AsKML(ST_GeomFromText('POLYGON((0 0,0 1,1 1,1 0,0 0))'))"", null);
++    }
++    
+     private void assertEval(String expr, String result) 
+             throws Exception {
+         Expression ex = TestFunctionResolving.getExpression(expr);        ",2015-03-16T15:11:59Z,129
+"@@ -39,6 +39,7 @@
+  * function uses the command context to lookup values from the SPATIAL_REF_SYS
+  * system table.
+  */
++@SuppressWarnings(""nls"")
+ public class TestGeometryTransform extends AbstractQueryTest {
+ 
+     private static final String VDB = ""PartsSupplier""; //$NON-NLS-1$
+@@ -127,4 +128,15 @@ private void assertTransformFail(String wkt, int srcSrid, int tgtSrid, String ex
+                 ""POINT (2.1145411092971056 50.345602339855326)""
+         );
+     }
++    
++    @Test public void testTransformForKml() throws Exception {
++    	String wkt= ""POINT(390084.12 5025551.73)"";
++    	int srcSrid = 32632;
++    	String sql = String.format(""select ST_AsKML(ST_GeomFromText('%s',%d))"", wkt, srcSrid); //$NON-NLS-1$
++        execute(sql);
++        internalResultSet.next();
++        String result = ClobType.getString(internalResultSet.getClob(1));
++        String expectedWkt = ""<Point>\n  <coordinates>\n    7.596214015140495,45.37485400208321 \n  </coordinates>\n</Point>\n"";
++        Assert.assertEquals(expectedWkt, result);
++    }
+ }",2015-03-16T15:11:59Z,130
+"@@ -7,11 +7,22 @@ TEIID_VERSION=$(xmllint --xpath '/*/*[local-name()=""version""]/text()' pom.xml)
+ TEIID_DIST=teiid-${TEIID_VERSION}-jboss-dist.zip
+ 
+ SOURCES=(
+-    ""http://download.jboss.org/jbosseap/6/jboss-eap-6.1.0.Alpha/jboss-eap-6.1.0.Alpha.zip""
+-    ""http://sourceforge.net/projects/resteasy/files/Resteasy%20JAX-RS/2.3.6.Final/resteasy-jaxrs-2.3.6.Final-all.zip""
+-    ""http://sourceforge.net/projects/teiid/files/webconsole/1.2/Final/teiid-console-dist-1.2.0.Final-jboss-as7.zip""
++    ""jboss-eap.zip""
++    ""resteasy-jaxrs.zip""
++    ""teiid-console-dist.zip""
+ )
+ 
++declare -A SOURCE_URL SOURCE_SHA1
++
++SOURCE_URL[""jboss-eap.zip""]=""http://download.jboss.org/jbosseap/6/jboss-eap-6.1.0.Alpha/jboss-eap-6.1.0.Alpha.zip""
++SOURCE_SHA1[""jboss-eap.zip""]=""630d81f83b851077e3ad129924502bbdf0c1552a""
++
++SOURCE_URL[""resteasy-jaxrs.zip""]=""http://sourceforge.net/projects/resteasy/files/Resteasy%20JAX-RS/2.3.6.Final/resteasy-jaxrs-2.3.6.Final-all.zip""
++SOURCE_SHA1[""resteasy-jaxrs.zip""]=""cfcb2aaa60cd954d04e73cc7e99509ec38b5538a""
++
++SOURCE_URL[""teiid-console-dist.zip""]=""http://sourceforge.net/projects/teiid/files/webconsole/1.2/Final/teiid-console-dist-1.2.0.Final-jboss-as7.zip""
++SOURCE_SHA1[""teiid-console-dist.zip""]=""7b57b77520f2894b0f48a385f7dcff03898bb514""
++
+ set -e
+ 
+ echo ""Making install for Teiid $TEIID_VERSION...""
+@@ -31,10 +42,35 @@ mkdir -p install
+ cd install
+ 
+ ## Download extra packages for server.
+-echo ""Downloading extra packages...""
+-wget -nc ${SOURCES[@]}
+-ln -sf ../build/target/$TEIID_DIST .
++echo ""Downloading packages...""
+ echo
++for NAME in ""${SOURCES[@]}"";
++do
++    URL=""${SOURCE_URL[$NAME]}""
++    
++    ## Download if doesn't exist.
++    if [ ! -e ""$NAME"" ];
++    then	
++	echo ""Downloading $NAME...""
++	wget -O ""$NAME"" ""$URL""
++	echo
++    fi    
++done
++
++## Verify sources match checksums.
++echo ""Verifying checksums...""
++echo
++for NAME in ""${SOURCES[@]}"";
++do
++    SHA1=""${SOURCE_SHA1[$NAME]}""
++    
++    ## Verify checksum.
++    echo ""$SHA1 $NAME"" | sha1sum -c -
++    echo
++done
++
++## Create softlink for Teiid dist.
++ln -sf ../build/target/$TEIID_DIST .
+ 
+ rm -rf temp
+ mkdir temp",2014-10-02T06:53:40Z,89
+"@@ -65,21 +65,6 @@ public ResultSetExecution createResultSetExecution(QueryExpression command,
+ 		return new ObjectExecution((Select) command, metadata, this, connection, executionContext);
+ 	}
+ 
+-	@Override
+-	public boolean supportsInnerJoins() {
+-		return false;
+-	}
+-
+-	@Override
+-	public boolean supportsOuterJoins() {
+-		return false;
+-	}
+-
+-	@Override
+-	public boolean supportsFullOuterJoins() {
+-		return false;
+-	}
+-
+ 	@Override
+     public boolean supportsCompareCriteriaEquals() {
+ 		return true;
+@@ -94,6 +79,7 @@ public boolean supportsInCriteria() {
+ 	public boolean supportsOnlyLiteralComparison() {
+ 		return true;
+ 	}
++	
+ 	public  List<Object> search(Select command, String cacheName, ObjectConnection connection,ExecutionContext executionContext) throws TranslatorException {
+ 		  SearchByKey sbk = new SearchByKey();
+ 		  Class<?> type = connection.getType(cacheName);",2014-07-28T21:47:56Z,73
+"@@ -45,6 +45,9 @@ public  class SearchByKey  {
+ 
+ 	public  List<Object> search(Select command, Class<?> rootClass, String cacheName, CacheContainerWrapper cache)
+ 			throws TranslatorException {
++		LogManager.logTrace(LogConstants.CTX_CONNECTOR,
++				""Perform search by key.""); //$NON-NLS-1$
++		
+ 		Condition criterion = command.getWhere();
+ 		List<Object> results = new ArrayList<Object>();
+ ",2014-07-28T21:47:56Z,5
+"@@ -80,6 +80,10 @@ public boolean supportsCompareCriteriaOrdered() {
+ 		return isFullTextSearchingSupported();
+ 	}
+ 	
++	@Override
++	public boolean supportsNotCriteria() {
++		return isFullTextSearchingSupported();	}
++
+ 	@Override
+ 	public boolean supportsLikeCriteria() {
+ 		// at this point, i've been unable to get the Like to work.",2014-07-28T21:47:56Z,131
+"@@ -56,6 +56,9 @@ public final class LuceneSearch   {
+ 
+ 	public static List<Object> performSearch(Select command, Class<?> type, String cacheName, CacheContainerWrapper cache)
+ 			throws TranslatorException {
++		LogManager.logTrace(LogConstants.CTX_CONNECTOR,
++				""Perform lucene search.""); //$NON-NLS-1$
++		
+ 		//Map<?, ?> cache, 
+ 		SearchManager searchManager = Search
+ 				.getSearchManager((Cache<?, ?>) cache.getCache(cacheName) );",2014-07-28T21:47:56Z,44
+"@@ -347,6 +347,12 @@ public List<String> getSupportedFunctions() {
+         return supportedFunctions;
+     }
+ 
++    @Deprecated
++    @Override
++    protected JDBCMetdataProcessor createMetadataProcessor() {
++        return (HiveMetadataProcessor)getMetadataProcessor();
++    }
++    
+     @Override
+     public MetadataProcessor<Connection> getMetadataProcessor(){
+         return new HiveMetadataProcessor();",2014-04-01T13:36:58Z,132
+"@@ -22,21 +22,30 @@
+ 
+ package org.teiid.translator.jdbc.excel;
+ 
++import java.sql.Connection;
++
++import org.teiid.translator.MetadataProcessor;
+ import org.teiid.translator.Translator;
+ import org.teiid.translator.jdbc.JDBCExecutionFactory;
+ import org.teiid.translator.jdbc.JDBCMetdataProcessor;
+ 
+ @Translator(name=""excel-odbc"", description=""A translator for Excel using the JDBC-ODBC bridge"")
+ public class ExcelExecutionFactory extends JDBCExecutionFactory {
+ 	
+-	@Override
+-	protected JDBCMetdataProcessor createMetadataProcessor() {
+-		return new JDBCMetdataProcessor() {
+-			@Override
+-			protected String quoteName(String name) {
+-				return '[' + name + ']';
+-			}
+-		};
+-	}
++    @Override
++    @Deprecated
++    protected JDBCMetdataProcessor createMetadataProcessor() {
++        return (JDBCMetdataProcessor)getMetadataProcessor();
++    }    
++    
++    @Override
++    public MetadataProcessor<Connection> getMetadataProcessor() {
++        return new JDBCMetdataProcessor() {
++            @Override
++            protected String quoteName(String name) {
++                return '[' + name + ']';
++            }
++        };
++    }	
+ 
+ }",2014-04-01T13:36:58Z,133
+"@@ -22,28 +22,22 @@
+ 
+ package org.teiid.translator.jdbc.modeshape;
+ 
+-import static org.teiid.translator.TypeFacility.RUNTIME_NAMES.*;
++import static org.teiid.translator.TypeFacility.RUNTIME_NAMES.BOOLEAN;
++import static org.teiid.translator.TypeFacility.RUNTIME_NAMES.STRING;
+ 
++import java.sql.Connection;
+ import java.sql.Date;
+ import java.sql.Time;
+ import java.sql.Timestamp;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+ import java.util.List;
+ 
+-import org.teiid.language.Comparison;
++import org.teiid.language.*;
+ import org.teiid.language.Comparison.Operator;
+-import org.teiid.language.Function;
+-import org.teiid.language.LanguageObject;
+-import org.teiid.language.Literal;
+-import org.teiid.language.Not;
+ import org.teiid.logging.LogConstants;
+ import org.teiid.logging.LogManager;
+-import org.teiid.translator.ExecutionContext;
+-import org.teiid.translator.SourceSystemFunctions;
+-import org.teiid.translator.Translator;
+-import org.teiid.translator.TranslatorException;
+-import org.teiid.translator.TypeFacility;
++import org.teiid.translator.*;
+ import org.teiid.translator.jdbc.AliasModifier;
+ import org.teiid.translator.jdbc.JDBCExecutionFactory;
+ import org.teiid.translator.jdbc.JDBCMetdataProcessor;
+@@ -253,8 +247,14 @@ public boolean supportsSetQueryOrderBy() {
+     	return false;
+     }
+ 	
+-	protected JDBCMetdataProcessor createMetadataProcessor() {
+-		return new ModeShapeJDBCMetdataProcessor();
+-	}
+-        
++	@Override
++    @Deprecated
++    protected JDBCMetdataProcessor createMetadataProcessor() {
++        return (JDBCMetdataProcessor)getMetadataProcessor();
++    }    
++    
++    @Override
++    public MetadataProcessor<Connection> getMetadataProcessor() {
++        return new ModeShapeJDBCMetdataProcessor();
++    }	   
+ }",2014-04-01T13:36:58Z,97
+"@@ -22,28 +22,15 @@
+ 
+ package org.teiid.translator.jdbc.mysql;
+ 
+-import java.sql.Connection;
+-import java.sql.Date;
+-import java.sql.PreparedStatement;
+-import java.sql.ResultSet;
+-import java.sql.SQLException;
+-import java.sql.Time;
+-import java.sql.Timestamp;
++import java.sql.*;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+ import java.util.List;
+ 
+ import org.teiid.language.Function;
+ import org.teiid.metadata.Table;
+-import org.teiid.translator.SourceSystemFunctions;
+-import org.teiid.translator.Translator;
+-import org.teiid.translator.TranslatorException;
+-import org.teiid.translator.TypeFacility;
+-import org.teiid.translator.jdbc.ConvertModifier;
+-import org.teiid.translator.jdbc.FunctionModifier;
+-import org.teiid.translator.jdbc.JDBCExecutionFactory;
+-import org.teiid.translator.jdbc.JDBCMetdataProcessor;
+-import org.teiid.translator.jdbc.LocateFunctionModifier;
++import org.teiid.translator.*;
++import org.teiid.translator.jdbc.*;
+ 
+ 
+ /** 
+@@ -393,7 +380,7 @@ public String getHibernateDialectClassName() {
+     }
+     
+     @Override
+-    protected JDBCMetdataProcessor createMetadataProcessor() {
++    public MetadataProcessor<Connection> getMetadataProcessor() {
+     	return new JDBCMetdataProcessor() {
+     		@Override
+     		protected void getTableStatistics(Connection conn, String catalog, String schema, String name, Table table) throws SQLException {
+@@ -426,4 +413,10 @@ protected void getTableStatistics(Connection conn, String catalog, String schema
+     		}
+     	};
+     }
++    
++    @Override
++    @Deprecated
++    protected JDBCMetdataProcessor createMetadataProcessor() {
++        return (JDBCMetdataProcessor)getMetadataProcessor();
++    }    
+ }",2014-04-01T13:36:58Z,134
+"@@ -22,15 +22,11 @@
+ 
+ package org.teiid.translator.jdbc.oracle;
+ 
+-import static org.teiid.translator.TypeFacility.RUNTIME_NAMES.*;
++import static org.teiid.translator.TypeFacility.RUNTIME_NAMES.INTEGER;
++import static org.teiid.translator.TypeFacility.RUNTIME_NAMES.OBJECT;
++import static org.teiid.translator.TypeFacility.RUNTIME_NAMES.STRING;
+ 
+-import java.sql.CallableStatement;
+-import java.sql.Connection;
+-import java.sql.PreparedStatement;
+-import java.sql.ResultSet;
+-import java.sql.SQLException;
+-import java.sql.Timestamp;
+-import java.sql.Types;
++import java.sql.*;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+ import java.util.Collection;
+@@ -42,6 +38,7 @@
+ import org.teiid.language.Like.MatchMode;
+ import org.teiid.language.SQLConstants.Tokens;
+ import org.teiid.language.SetQuery.Operation;
++import org.teiid.language.Array;
+ import org.teiid.language.visitor.CollectorVisitor;
+ import org.teiid.language.visitor.SQLStringVisitor;
+ import org.teiid.logging.LogConstants;
+@@ -50,12 +47,7 @@
+ import org.teiid.metadata.Column;
+ import org.teiid.metadata.ProcedureParameter;
+ import org.teiid.metadata.Table;
+-import org.teiid.translator.ExecutionContext;
+-import org.teiid.translator.SourceSystemFunctions;
+-import org.teiid.translator.Translator;
+-import org.teiid.translator.TranslatorException;
+-import org.teiid.translator.TranslatorProperty;
+-import org.teiid.translator.TypeFacility;
++import org.teiid.translator.*;
+ import org.teiid.translator.jdbc.*;
+ 
+ 
+@@ -116,6 +108,7 @@ static final class FixedCharType {}
+ 	public OracleExecutionFactory() {
+ 	}
+     
++    @Override
+     public void start() throws TranslatorException {
+         super.start();
+         
+@@ -575,7 +568,8 @@ private boolean isFixedChar(Expression obj) {
+ 								|| ""NCHAR"".equalsIgnoreCase(cr.getMetadataObject().getNativeType())); //$NON-NLS-1$
+ 			}
+     		
+-    		public void visit(In obj) {
++    		@Override
++            public void visit(In obj) {
+     			if (isFixedChar(obj.getLeftExpression())) {
+     				for (Expression exp : obj.getRightExpressions()) {
+     					if (exp instanceof Literal) {
+@@ -590,7 +584,8 @@ public void visit(In obj) {
+     			super.visit(obj);
+     		}
+     		
+-    		public void visit(NamedTable table) {
++    		@Override
++            public void visit(NamedTable table) {
+     			stripDualAlias(table);
+     			super.visit(table);
+     		}
+@@ -874,7 +869,13 @@ public boolean supportsArrayType() {
+     }
+     
+     @Override
++    @Deprecated
+     protected JDBCMetdataProcessor createMetadataProcessor() {
++        return (JDBCMetdataProcessor)getMetadataProcessor();
++    }    
++    
++    @Override
++    public MetadataProcessor<Connection> getMetadataProcessor() {
+     	return new JDBCMetdataProcessor() {
+     		@Override
+     		protected String getRuntimeType(int type, String typeName,",2014-04-01T13:36:58Z,41
+"@@ -24,15 +24,9 @@
+  */
+ package org.teiid.translator.jdbc.sqlserver;
+ 
++import java.sql.*;
+ import java.sql.Date;
+-import java.sql.ResultSet;
+-import java.sql.SQLException;
+-import java.sql.Timestamp;
+-import java.util.ArrayList;
+-import java.util.Arrays;
+-import java.util.HashSet;
+-import java.util.List;
+-import java.util.Map;
++import java.util.*;
+ 
+ import org.teiid.core.util.StringUtil;
+ import org.teiid.language.AggregateFunction;
+@@ -42,10 +36,7 @@
+ import org.teiid.metadata.Column;
+ import org.teiid.metadata.MetadataFactory;
+ import org.teiid.metadata.Table;
+-import org.teiid.translator.ExecutionContext;
+-import org.teiid.translator.SourceSystemFunctions;
+-import org.teiid.translator.Translator;
+-import org.teiid.translator.TypeFacility;
++import org.teiid.translator.*;
+ import org.teiid.translator.jdbc.JDBCExecutionFactory;
+ import org.teiid.translator.jdbc.JDBCMetdataProcessor;
+ import org.teiid.translator.jdbc.Version;
+@@ -331,22 +322,29 @@ protected boolean setFetchSize() {
+     }
+     
+     @Override
++    @Deprecated
+     protected JDBCMetdataProcessor createMetadataProcessor() {
+-    	return new JDBCMetdataProcessor() {
+-    		@Override
+-    		protected Column addColumn(ResultSet columns, Table table,
+-    				MetadataFactory metadataFactory, int rsColumns)
+-    				throws SQLException {
+-    			Column c = super.addColumn(columns, table, metadataFactory, rsColumns);
+-    			//The ms jdbc driver does not correctly report the auto incremented column
+-    			if (!c.isAutoIncremented() && c.getNativeType() != null && StringUtil.endsWithIgnoreCase(c.getNativeType(), "" identity"")) { //$NON-NLS-1$
+-    				c.setAutoIncremented(true);
+-    			}
+-    			return c;
+-    		}
+-    	};
++        return (JDBCMetdataProcessor)getMetadataProcessor();
+     }
+     
++    @Override
++    public MetadataProcessor<Connection> getMetadataProcessor() {
++        return new JDBCMetdataProcessor() {
++            @Override
++            protected Column addColumn(ResultSet columns, Table table,
++                    MetadataFactory metadataFactory, int rsColumns)
++                    throws SQLException {
++                Column c = super.addColumn(columns, table, metadataFactory, rsColumns);
++                //The ms jdbc driver does not correctly report the auto incremented column
++                if (!c.isAutoIncremented() && c.getNativeType() != null && StringUtil.endsWithIgnoreCase(c.getNativeType(), "" identity"")) { //$NON-NLS-1$
++                    c.setAutoIncremented(true);
++                }
++                return c;
++            }
++        };
++    }
++    
++    
+ 	@Override
+ 	protected boolean usesDatabaseVersion() {
+ 		return true;",2014-04-01T13:36:58Z,135
+"@@ -457,14 +457,7 @@ public FunctionMethod addFunction(String name, Method method) {
+ 			Class<?> clazz = params[i];
+ 			if (clazz.isPrimitive()) {
+ 				nullOnNull = true;
+-				if      ( clazz == Boolean.TYPE   ) clazz = Boolean.class;
+-	            else if ( clazz == Character.TYPE ) clazz = Character.class;
+-	            else if ( clazz == Byte.TYPE      ) clazz = Byte.class;
+-	            else if ( clazz == Short.TYPE     ) clazz = Short.class;
+-	            else if ( clazz == Integer.TYPE   ) clazz = Integer.class;
+-	            else if ( clazz == Long.TYPE      ) clazz = Long.class;
+-	            else if ( clazz == Float.TYPE     ) clazz = Float.class;
+-	            else if ( clazz == Double.TYPE    ) clazz = Double.class;
++				clazz = TypeFacility.convertPrimitiveToObject(clazz);
+ 			}
+ 			paramTypes[i] = DataTypeManager.getDataTypeName(clazz);
+ 		}
+@@ -481,7 +474,7 @@ public FunctionMethod addFunction(String name, Method method) {
+ 		func.setNullOnNull(nullOnNull);
+ 		return func;
+ 	}
+-	
++
+ 	/**
+ 	 * Set to false to disable correcting column and other names to be valid Teiid names.
+ 	 * @param autoCorrectColumnNames",2012-10-29T16:20:42Z,6
+"@@ -114,19 +114,29 @@ public static final class RUNTIME_NAMES {
+     }
+     
+     /**
+-     * Get the Class constant for the given String type name
++     * Get the Class constant for the given String runtime type name
+      */
+     public static Class<?> getDataTypeClass(String type) {
+     	return DataTypeManager.getDataTypeClass(type);    	
+     }
+     
+     /**
+-     * Get the String constant for the given type class
++     * Get the String constant for the given runtime type class
+      */
+     public static String getDataTypeName(Class<?> type) {
+     	return DataTypeManager.getDataTypeName(type);    	
+     }
+     
++    /**
++     * Get the String constant for the given class
++     */
++    public static Class<?> getRuntimeType(Class<?> type) {
++    	if (type.isPrimitive()) {
++    		return convertPrimitiveToObject(type);
++    	}
++    	return DataTypeManager.getRuntimeType(type);    	
++    }
++    
+     /**
+      * Get the SQL type for the given runtime type Class constant
+      * @param type
+@@ -162,5 +172,25 @@ public Object convertDate(Date date, TimeZone initial, Calendar target,
+ 			Class<?> targetType) {
+ 		return TimestampWithTimezone.create(date, initial, target, targetType);
+ 	}
++	
++	/**
++	 * Convert a primitive class to the corresponding object class
++	 * @param clazz
++	 * @return
++	 */
++	public static Class<?> convertPrimitiveToObject(Class<?> clazz) {
++		if (!clazz.isPrimitive()) {
++			return clazz;
++		}
++		if      ( clazz == Boolean.TYPE   ) clazz = Boolean.class;
++		else if ( clazz == Character.TYPE ) clazz = Character.class;
++		else if ( clazz == Byte.TYPE      ) clazz = Byte.class;
++		else if ( clazz == Short.TYPE     ) clazz = Short.class;
++		else if ( clazz == Integer.TYPE   ) clazz = Integer.class;
++		else if ( clazz == Long.TYPE      ) clazz = Long.class;
++		else if ( clazz == Float.TYPE     ) clazz = Float.class;
++		else if ( clazz == Double.TYPE    ) clazz = Double.class;
++		return clazz;
++	}
+ 
+ }",2012-10-29T16:20:42Z,42
+"@@ -800,37 +800,37 @@ public boolean isExplicit() {
+ 	}
+ 
+ 	static void loadSourceConversions() {
+-		addSourceTransform(Clob.class, new SourceTransform<Clob, ClobType>() {
++		addSourceTransform(Clob.class, new SourceTransform<Clob, ClobType>(ClobType.class) {
+ 			@Override
+ 			public ClobType transform(Clob value) {
+ 				return new ClobType(value);
+ 			}
+ 		});
+-		addSourceTransform(char[].class, new SourceTransform<char[], ClobType>() {
++		addSourceTransform(char[].class, new SourceTransform<char[], ClobType>(ClobType.class) {
+ 			@Override
+ 			public ClobType transform(char[] value) {
+ 				return new ClobType(ClobImpl.createClob(value));
+ 			}
+ 		});
+-		addSourceTransform(Blob.class, new SourceTransform<Blob, BlobType>() {
++		addSourceTransform(Blob.class, new SourceTransform<Blob, BlobType>(BlobType.class) {
+ 			@Override
+ 			public BlobType transform(Blob value) {
+ 				return new BlobType(value);
+ 			}
+ 		});
+-		addSourceTransform(byte[].class, new SourceTransform<byte[], BinaryType>() {
++		addSourceTransform(byte[].class, new SourceTransform<byte[], BinaryType>(BinaryType.class) {
+ 			@Override
+ 			public BinaryType transform(byte[] value) {
+ 				return new BinaryType(value);
+ 			}
+ 		});
+-		addSourceTransform(SQLXML.class, new SourceTransform<SQLXML, XMLType>() {
++		addSourceTransform(SQLXML.class, new SourceTransform<SQLXML, XMLType>(XMLType.class) {
+ 			@Override
+ 			public XMLType transform(SQLXML value) {
+ 				return new XMLType(value);
+ 			}
+ 		});
+-		addSourceTransform(Date.class, new SourceTransform<Date, Timestamp>() {
++		addSourceTransform(Date.class, new SourceTransform<Date, Timestamp>(Timestamp.class) {
+ 			@Override
+ 			public Timestamp transform(Date value) {
+ 				return new Timestamp(value.getTime());
+@@ -857,6 +857,25 @@ public static Object convertToRuntimeType(Object value) {
+ 		}
+ 		return value; // ""object type""
+ 	}
++	
++	public static Class<?> getRuntimeType(Class<?> c) {
++		if (c == null) {
++			return DefaultDataClasses.NULL;
++		}
++		if (DATA_TYPE_CLASSES.contains(c)) {
++			return c;
++		}
++		SourceTransform t = sourceConverters.get(c);
++		if (t != null) {
++			return t.getTargetType();
++		}
++		for (Map.Entry<Class<?>, SourceTransform> entry : sourceConverters.entrySet()) {
++			if (entry.getKey().isAssignableFrom(c)) {
++				return entry.getValue().getTargetType();
++			}
++		}
++		return DefaultDataClasses.OBJECT; // ""object type""
++	}
+ 
+ 	@SuppressWarnings(""unchecked"")
+ 	public static <T> T transformValue(Object value, Class<T> targetClass)",2012-10-29T16:20:42Z,17
+"@@ -22,7 +22,13 @@
+ 
+ package org.teiid.core.types;
+ 
+-public interface SourceTransform<S, T> {
++public abstract class SourceTransform<S, T> {
++	
++	private Class<T> target;
++	
++	public SourceTransform(Class<T> target) {
++		this.target = target;
++	}
+ 	
+ 	/**
+ 	 * This method transforms a value of the source type into a value
+@@ -32,6 +38,10 @@ public interface SourceTransform<S, T> {
+ 	 * @throws TransformationException if value is an incorrect input type or
+ 	 * the transformation fails
+ 	 */
+-	public T transform(S value);
++	public abstract T transform(S value);
++	
++	public Class<T> getTargetType() {
++		return target;
++	}
+ 
+ }",2012-10-29T16:20:42Z,28
+"@@ -99,5 +99,10 @@ public Class<?> getType(String name) throws TranslatorException {
+ 	public Map<String, Class<?>> getMapOfCacheTypes() {
+ 		return this.config.getMapOfCacheTypes();
+ 	}
++	
++	@Override
++	public String getPkField(String name) {
++		return this.config.getPkMap().get(name);
++	}
+ 
+ }",2012-10-29T16:20:42Z,15
+"@@ -63,8 +63,7 @@ public class InfinispanManagedConnectionFactory extends BasicManagedConnectionFa
+ 	private Map<String, Class<?>> typeMap = null;
+ 	private String cacheTypes = null;
+ 	private BasicCacheContainer cacheContainer = null;
+-
+-
++	private Map<String, String> pkMap;
+ 	private String module;
+ 	
+ 	@Override
+@@ -83,6 +82,7 @@ public BasicConnectionFactory<InfinispanConnectionImpl> createConnectionFactory(
+ 		
+ 		createCacheContainer();
+ 
++		pkMap = new HashMap<String, String>();
+ 		ClassLoader cl = null;
+ 		if (module != null) {
+ 			Module m;
+@@ -98,10 +98,17 @@ public BasicConnectionFactory<InfinispanConnectionImpl> createConnectionFactory(
+ 		List<String> types = StringUtil.getTokens(this.cacheTypes, "",""); //$NON-NLS-1$
+ 		Map<String, Class<?>> tm = new HashMap<String, Class<?>>();
+ 		for (String type : types) {
+-			final List<String> mapped = StringUtil.getTokens(type, "":""); //$NON-NLS-1$
++			List<String> mapped = StringUtil.getTokens(type, "":""); //$NON-NLS-1$
++			if (mapped.size() != 2) {
++				throw new InvalidPropertyException();
++			}
+ 			final String cacheName = mapped.get(0);
+-			final String className = mapped.get(1);
+-
++			String className = mapped.get(1);
++			mapped = StringUtil.getTokens(className, "";""); //$NON-NLS-1$
++			if (mapped.size() > 1) {
++				className = mapped.get(0);
++				pkMap.put(cacheName, mapped.get(1));
++			}
+ 			try {
+ 				tm.put(cacheName, Class.forName(className, true, cl));
+ 			} catch (ClassNotFoundException e) {
+@@ -122,22 +129,26 @@ public InfinispanConnectionImpl getConnection() throws ResourceException {
+ 		};
+ 	}	
+ 	
++	public Map<String, String> getPkMap() {
++		return pkMap;
++	}
++	
+ 	/**
+-	 * Get the <code>cacheName:ClassName[;cacheName:ClassName...]</code> cache type mappings.
++	 * Get the <code>cacheName:ClassName[,cacheName:ClassName...]</code> cache type mappings.
+ 	 * 
+-	 * @return <code>cacheName:ClassName[;cacheName:ClassName...]</code> cache type mappings
++	 * @return <code>cacheName:ClassName[,cacheName:ClassName...]</code> cache type mappings
+ 	 * @see #setCacheTypeMap(String)
+ 	 */
+ 	public String getCacheTypeMap() {
+ 		return cacheTypes;
+ 	}
+ 
+ 	/**
+-	 * Set the cache type mapping <code>cacheName:ClassName[;cacheName:ClassName...]</code> that represent
++	 * Set the cache type mapping <code>cacheName:ClassName[,cacheName:ClassName...]</code> that represent
+ 	 * the root node class type for 1 or more caches available for access.
+ 	 * 
+ 	 * @param cacheTypeMap
+-	 *            the cache type mappings passed in the form of <code>cacheName:ClassName[;cacheName:ClassName...]</code>
++	 *            the cache type mappings passed in the form of <code>cacheName:ClassName[,cacheName:ClassName...]</code>
+ 	 * @see #getCacheTypeMap()
+ 	 */
+ 	public void setCacheTypeMap(
+@@ -255,9 +266,8 @@ protected Map<Object,Object> getCache(String cacheName) {
+     	if (cacheContainer != null) {
+     		if (cacheName == null) {
+     			return cacheContainer.getCache();
+-    		} else {
+-    			return cacheContainer.getCache(cacheName);
+-    		}   		
++    		}
++			return cacheContainer.getCache(cacheName);
+     	}
+     	return null;
+     }
+@@ -350,8 +360,8 @@ protected synchronized void createLocalCacheContainer() throws ResourceException
+ 	            } 	
+ 	            
+ 				LogManager
+-				.logInfo(LogConstants.CTX_CONNECTOR,
+-						""=== Using CacheContainer (obtained by JNDI: "" + jndiName + "" ===""); //$NON-NLS-1
++				.logDetail(LogConstants.CTX_CONNECTOR,
++						""=== Using CacheContainer (obtained by JNDI:"", jndiName, ""===""); //$NON-NLS-1 //$NON-NLS-2
+ 	            
+ 				
+ 				cacheContainer  = (EmbeddedCacheManager) cache;",2012-10-29T16:20:42Z,138
+"@@ -37,7 +37,7 @@
+             <managedconnectionfactory-class>org.teiid.resource.adapter.infinispan.InfinispanManagedConnectionFactory</managedconnectionfactory-class>
+   
+             <config-property>
+-               <description>{$display:""Cache Type Mapping"",$description:""Cache Type Map(cacheName:className[;cacheName:className...])"",$required=""true""}</description>
++               <description>{$display:""Cache Type Mapping"",$description:""Cache Type Map(cacheName:className[;pkFieldName][,cacheName:className[;pkFieldName]...])"",$required=""true""}</description>
+                <config-property-name>CacheTypeMap</config-property-name>
+                <config-property-type>java.lang.String</config-property-type>
+             </config-property>  ",2012-10-29T16:20:42Z,139
+"@@ -21,12 +21,10 @@
+  */
+ package org.teiid.resource.adapter.infinispan;
+ 
+-import static org.junit.Assert.assertEquals;
+-import static org.junit.Assert.assertNotNull;
++import static org.junit.Assert.*;
+ 
+ import java.util.Map;
+ 
+-import java.lang.Long;
+ import org.junit.BeforeClass;
+ import org.junit.Test;
+ import org.teiid.translator.object.ObjectConnection;
+@@ -42,7 +40,7 @@ public static void beforeEachClass() throws Exception {
+ 		factory = new InfinispanManagedConnectionFactory();
+ 
+ 		factory.setConfigurationFileNameForLocalCache(""./src/test/resources/infinispan_persistent_config.xml"");
+-		factory.setCacheTypeMap(RemoteInfinispanTestHelper.CACHE_NAME + "":"" + ""java.lang.Long"");
++		factory.setCacheTypeMap(RemoteInfinispanTestHelper.CACHE_NAME + "":"" + ""java.lang.Long;longValue"");
+ 		
+ 		// initialize container and cache
+ 		factory.createCacheContainer();
+@@ -61,5 +59,8 @@ public void testConnection() throws Exception {
+     		Class<?> t = conn.getType(RemoteInfinispanTestHelper.CACHE_NAME);
+     		
+     		assertEquals(Long.class, t);
++    		
++    		assertEquals(""longValue"", conn.getPkField(RemoteInfinispanTestHelper.CACHE_NAME));
++
+     }
+ }",2012-10-29T16:20:42Z,140
+"@@ -45,6 +45,13 @@ public interface ObjectConnection  {
+ 	 */
+ 	public Class<?> getType(String name) throws TranslatorException;
+ 	
++	/**
++	 * Returns the type of the primary key
++	 * @param name
++	 * @return
++	 */
++	public String getPkField(String name);
++	
+ 	/**
+ 	 * Returns a map of all defined caches, and their respective root object class type,
+ 	 * that are accessible using this connection.",2012-10-29T16:20:42Z,141
+"@@ -1,206 +0,0 @@
+-/*
+- * JBoss, Home of Professional Open Source.
+- * See the COPYRIGHT.txt file distributed with this work for information
+- * regarding copyright ownership.  Some portions may be licensed
+- * to Red Hat, Inc. under one or more contributor license agreements.
+- * 
+- * This library is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU Lesser General Public
+- * License as published by the Free Software Foundation; either
+- * version 2.1 of the License, or (at your option) any later version.
+- * 
+- * This library is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * Lesser General Public License for more details.
+- * 
+- * You should have received a copy of the GNU Lesser General Public
+- * License along with this library; if not, write to the Free Software
+- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+- * 02110-1301 USA.
+- */
+-
+-package org.teiid.translator.object.metadata;
+-
+-import java.math.BigDecimal;
+-import java.math.BigInteger;
+-import java.sql.Blob;
+-import java.sql.Clob;
+-import java.sql.SQLXML;
+-import java.util.Calendar;
+-import java.util.Date;
+-import java.util.HashMap;
+-import java.util.Map;
+-
+-import org.teiid.core.types.BlobType;
+-import org.teiid.core.types.ClobType;
+-import org.teiid.metadata.Column;
+-import org.teiid.metadata.Column.SearchType;
+-import org.teiid.metadata.MetadataFactory;
+-import org.teiid.metadata.Schema;
+-import org.teiid.metadata.Table;
+-import org.teiid.metadata.Table.Type;
+-import org.teiid.translator.TranslatorException;
+-import org.teiid.translator.TypeFacility;
+-import org.teiid.translator.object.ObjectConnection;
+-import org.teiid.translator.object.ObjectExecutionFactory;
+-
+-
+-/**
+- * The BaseMetadataProcess is the core logic for providing metadata to the translator.
+- */
+-public abstract class BaseMetadataProcessor {
+-	public static final String KEY_ASSOSIATED_WITH_FOREIGN_TABLE = ""assosiated_with_table"";  //$NON-NLS-1$
+-	public static final String ENTITYCLASS= ""entity_class""; //$NON-NLS-1$
+-	
+-	public static final String SCHEMA_NAME = ""ObjectModel""; //$NON-NLS-1$
+-	
+-	public static final String GET = ""get""; //$NON-NLS-1$
+-	public static final String IS = ""is""; //$NON-NLS-1$
+-		
+-	public static final String VIEWTABLE_SUFFIX = ""View""; //$NON-NLS-1$
+-	public static final String OBJECT_COL_SUFFIX = ""Object""; //$NON-NLS-1$
+-
+-
+-	final static Map<Class<?>, Class<?>> map = new HashMap<Class<?>, Class<?>>();
+-	static {
+-	    map.put(boolean.class, Boolean.class);
+-	    map.put(byte.class, Byte.class);
+-	    map.put(short.class, Short.class);
+-	    map.put(char.class, Character.class);
+-	    map.put(int.class, Integer.class);
+-	    map.put(long.class, Long.class);
+-	    map.put(float.class, Float.class);
+-	    map.put(double.class, Double.class);
+-	    map.put(byte[].class, BlobType.class);
+-	    map.put(char[].class, ClobType.class);
+-	    map.put(Byte[].class, BlobType.class);
+-	    map.put(Character[].class, ClobType.class);
+-	    
+-	    map.put(Boolean.class, Boolean.class);
+-	    map.put(Byte.class, Byte.class);
+-	    map.put(Short.class, Short.class);
+-	    map.put(Character.class, Character.class);
+-	    map.put(Integer.class, Integer.class);
+-	    map.put(Long.class, Long.class);
+-	    map.put(Float.class, Float.class);
+-	    map.put(Double.class, Double.class);
+-	    map.put(Calendar.class, java.sql.Timestamp.class);
+-	}
+-	
+-	public void getMetadata(MetadataFactory mf, ObjectConnection conn, ObjectExecutionFactory env) throws TranslatorException {
+-		
+-		Map<String, Class<?>> cacheTypes = conn.getMapOfCacheTypes();
+-		for (String cacheName : cacheTypes.keySet()) {
+-			Class<?> type = cacheTypes.get(cacheName);
+-			
+-			Schema objSource = new Schema();
+-			objSource.setName(SCHEMA_NAME); //$NON-NLS-1$
+-			
+-			mf.setSchema(objSource);
+-			
+-			Table sourceTable = createSourceTable(mf, type, cacheName);
+-			createViewTable(mf, sourceTable, type, cacheName);
+-		}
+-
+-	}
+-	
+-	private Table createSourceTable(MetadataFactory mf, Class<?> entity, String cacheName) throws TranslatorException {
+-		String tableName = getTableName(entity);
+-		Table table = mf.getSchema().getTable(tableName);
+-		if (table == null) {			
+-			table = mf.addTable(tableName);
+-			table.setSupportsUpdate(isUpdateable(entity));
+-			table.setNameInSource(cacheName);  //$NON-NLS-1$
+-
+-			table.setProperty(ENTITYCLASS, entity.getName());
+-			
+-			String columnName = tableName + OBJECT_COL_SUFFIX;
+-			Column column = addColumn(mf, entity, columnName, ""this"", SearchType.Unsearchable, TypeFacility.getDataTypeName(getJavaDataType(entity)), isUpdateable(entity, columnName), table);
+-			
+-			column.setNativeType(entity.getName());
+-
+-		}
+-		return table;
+-	}
+-	
+-	private void createViewTable(MetadataFactory mf, Table sourceTable, Class<?> entity, String cacheName) throws TranslatorException {		
+-		String viewName = sourceTable.getName() + VIEWTABLE_SUFFIX;
+-		Table vtable = mf.getSchema().getTable(viewName);
+-		if (vtable == null) {			
+-			vtable = mf.addTable(viewName);
+-			vtable.setSupportsUpdate(isUpdateable(entity));
+-			vtable.setTableType(Type.View);
+-			vtable.setVirtual(true);
+-			
+-			String transfomation = createViewTransformation(mf, entity, vtable, sourceTable);
+-			vtable.setSelectTransformation(transfomation);
+-		}
+-
+-	}	
+-	
+-	/**
+-	 * Call to get the name of table based on the <code>Class</code> entity
+-	 * @param entity
+-	 * @return String name of table
+-	 */
+-	protected abstract String getTableName(Class<?> entity);
+-	
+-	/**
+-	 * Call to determine if entity is updateable 
+-	 * @param table
+-	 * @return boolean true if the table is updateable
+-	 */
+-	protected abstract boolean isUpdateable(Class<?> entity);
+-
+-	protected abstract boolean isUpdateable(Class<?> entity, String columnName);
+-		
+-
+-	protected abstract String createViewTransformation(MetadataFactory mf, Class<?> entity, Table vtable, Table sourceTable) throws TranslatorException;
+-
+-
+-	
+-	protected Column addColumn(MetadataFactory mf, Class<?> entity, String attributeName, String nis, SearchType searchType, String type, boolean updateable, Table entityTable) throws TranslatorException {
+-		if (!columnExists(attributeName, entityTable)) {
+-			Column c = mf.addColumn(attributeName, type, entityTable);
+-			if (nis != null) {
+-				c.setNameInSource(nis);
+-			}
+-			c.setUpdatable(updateable);
+-			c.setSearchType(searchType);
+-			return c;
+-		}
+-		return entityTable.getColumnByName(attributeName);
+-	}
+-
+-	
+-	protected boolean isSimpleType(Class<?> type) {
+-		return type.isPrimitive() || type.equals(String.class)
+-				|| type.equals(BigDecimal.class) || type.equals(Date.class)
+-				|| type.equals(BigInteger.class)
+-				|| map.containsKey(type);
+-	}
+-	
+-	protected boolean isSupportedObjectType(Object object) {
+-		if (object instanceof Blob || object instanceof Clob || object instanceof SQLXML) {
+-			return true;
+-		}
+-		return false;
+-	}
+-	
+-	private boolean columnExists(String name, Table table) {
+-		return table.getColumnByName(name) != null;
+-	}
+-	
+-	protected Class<?> getJavaDataType(Class<?> type) {
+-		if (type.equals(Date.class)) {
+-			return java.sql.Timestamp.class;
+-		}
+-		
+-		if (type.isPrimitive()) {
+-			return map.get(type);  // usage			
+-		}
+-		return type;
+-	}
+-	
+-}",2012-10-29T16:20:42Z,142
+"@@ -1,120 +1,167 @@
++/*
++ * JBoss, Home of Professional Open Source.
++ * See the COPYRIGHT.txt file distributed with this work for information
++ * regarding copyright ownership.  Some portions may be licensed
++ * to Red Hat, Inc. under one or more contributor license agreements.
++ * 
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ * 
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ * 
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
++ * 02110-1301 USA.
++ */
++
+ package org.teiid.translator.object.metadata;
+ 
+ import java.lang.reflect.Method;
++import java.util.LinkedHashMap;
++import java.util.Map;
++
++import javax.script.ScriptException;
+ 
++import org.teiid.metadata.BaseColumn.NullType;
+ import org.teiid.metadata.Column;
++import org.teiid.metadata.Column.SearchType;
++import org.teiid.metadata.MetadataException;
+ import org.teiid.metadata.MetadataFactory;
+ import org.teiid.metadata.Table;
+-import org.teiid.metadata.Column.SearchType;
+-import org.teiid.translator.TranslatorException;
++import org.teiid.query.eval.TeiidScriptEngine;
+ import org.teiid.translator.TypeFacility;
++import org.teiid.translator.object.ObjectConnection;
++import org.teiid.translator.object.ObjectExecutionFactory;
++
+ 
+-public class JavaBeanMetadataProcessor extends BaseMetadataProcessor {
++/**
++ * The BaseMetadataProcess is the core logic for providing metadata to the translator.
++ */
++public class JavaBeanMetadataProcessor {
++	public static final String KEY_ASSOSIATED_WITH_FOREIGN_TABLE = ""assosiated_with_table"";  //$NON-NLS-1$
++	public static final String ENTITYCLASS= ""entity_class""; //$NON-NLS-1$
+ 	
++	public static final String GET = ""get""; //$NON-NLS-1$
++	public static final String IS = ""is""; //$NON-NLS-1$
++		
++	public static final String VIEWTABLE_SUFFIX = ""View""; //$NON-NLS-1$
++	public static final String OBJECT_COL_SUFFIX = ""Object""; //$NON-NLS-1$
+ 	
+-	private boolean isUpdatable = false;
++	protected boolean isUpdatable = false;
++	private TeiidScriptEngine engine = new TeiidScriptEngine();
+ 
++	public void getMetadata(MetadataFactory mf, ObjectConnection conn, ObjectExecutionFactory env) {
++		
++		Map<String, Class<?>> cacheTypes = conn.getMapOfCacheTypes();
++		for (String cacheName : cacheTypes.keySet()) {
++			Class<?> type = cacheTypes.get(cacheName);
++			String pkField = conn.getPkField(cacheName);
++			createSourceTable(mf, type, cacheName, pkField);
++		}
++
++	}
+ 	
+-	protected String getTableName(Class<?> entity) {
+-		if (entity == null) {
+-			return ""tableName"";
++	private Table createSourceTable(MetadataFactory mf, Class<?> entity, String cacheName, String pkField) {
++		String tableName = getTableName(entity);
++		Table table = mf.getSchema().getTable(tableName);
++		if (table != null) {
++			//TODO: probably an error
++			return table;
+ 		}
+-		String name = null;
+-		String className = entity.getName();
+-		int idx = className.lastIndexOf(""."");
+-		if (idx > 0) {
+-			name = className.substring(idx + 1);
+-		} else {
+-			name = className;
++		table = mf.addTable(tableName);
++		table.setSupportsUpdate(isUpdateable(entity));
++		table.setNameInSource(cacheName); 
++
++		table.setProperty(ENTITYCLASS, entity.getName());
++		
++		String columnName = tableName + OBJECT_COL_SUFFIX;
++		addColumn(mf, entity, entity, columnName, ""this"", SearchType.Unsearchable, table); //$NON-NLS-1$
++		Map<String, Method> methods;
++		try {
++			methods = engine.getMethodMap(entity);
++		} catch (ScriptException e) {
++			throw new MetadataException(e);
++		}
++		
++		Method pkMethod = null;
++		if (pkField != null) {
++			pkMethod = methods.get(pkField);
++			if (pkMethod != null) {
++				addColumn(mf, entity, pkMethod.getReturnType(), pkField, pkField, SearchType.Searchable, table);
++			} else {
++				//TODO: warning/error?
++			}
+ 		}
+-		return name;		
+ 		
++		//we have to filter the duplicate names, isFoo vs. foo
++		Map<Method, String> methodsToAdd = new LinkedHashMap<Method, String>();
++		for (Map.Entry<String, Method> entry : methods.entrySet()) {
++			String name = methodsToAdd.get(entry.getValue());
++			if (name == null || name.length() > entry.getKey().length()) {
++				if (entry.getValue() == pkMethod 
++						|| entry.getValue().getDeclaringClass() == Object.class
++						|| entry.getValue().getName().equals(""toString"") //$NON-NLS-1$
++						|| entry.getValue().getName().equals(""hashCode"") //$NON-NLS-1$
++						|| TypeFacility.getRuntimeType(entry.getValue().getReturnType()) == Object.class) {
++					continue;
++				}				
++				methodsToAdd.put(entry.getValue(), entry.getKey());
++			}
++		}
++		
++		for (Map.Entry<Method, String> entry : methodsToAdd.entrySet()) {
++			addColumn(mf, entity, entry.getKey().getReturnType(), entry.getValue(), entry.getValue(), SearchType.Unsearchable, table);
++		}
++		return table;
++	}
++	
++	/**
++	 * Call to get the name of table based on the <code>Class</code> entity
++	 * @param entity
++	 * @return String name of table
++	 */
++	protected String getTableName(Class<?> entity) {
++		return entity.getSimpleName();
+ 	}
+ 	
++	/**
++	 * @param entity  
++	 */
+ 	protected boolean isUpdateable(Class<?> entity) {
+ 		return this.isUpdatable;
+ 	}
+ 
++	/**
++	 * @param entity  
++	 * @param columnName 
++	 */
+ 	protected boolean isUpdateable(Class<?> entity, String columnName) {
+ 		return this.isUpdatable;
+ 	}
+-	
+-	protected String createViewTransformation(MetadataFactory mf, Class<?> entity, Table vtable, Table sourceTable) throws TranslatorException {
+-		StringBuilder sb = new StringBuilder();
+-		sb.append(""SELECT "");
+-		
+-		StringBuilder sbObjTable = new StringBuilder();
+-		
+-		
+-		Method[] methods = entity.getDeclaredMethods();
+-
+-		int cnt = 0;
+-		for (Method m : methods) {
+-			String methodName = m.getName();
+-			if (methodName.startsWith(GET)) {
+-				methodName=methodName.substring( methodName.indexOf(GET) + 3);
+-			} else if (methodName.startsWith(IS)) {
+-				methodName=methodName.substring( methodName.indexOf(IS) + 2);
+-			} else {
+-				continue;
+-			}
+-			boolean simpleType = isSimpleType(m.getReturnType());
+-			boolean returnType = simpleType;
+-			if (!simpleType) {
+-				returnType = isSupportedObjectType(m.getReturnType());
+-			}
+-			
+-			// if the object type is not supported to be returned as is, then don't include it,
+-			// this is an object that will need a chaining OBJECTTABLE specified
+-			if (! returnType) continue;
+-			
+-			if (cnt > 0) {
+-				sb.append("", "");
+-				sbObjTable.append("", "");
+-			}
+-			
+-			sb.append(""o."");
+-			sb.append(methodName);
+-			
+-			sbObjTable.append(methodName);
+-			sbObjTable.append("" "");
+-			
+-			
+-			String simpleName = m.getReturnType().getSimpleName();
+-			
+-			Column column = addColumn(mf, entity, methodName, """", SearchType.Searchable, TypeFacility.getDataTypeName(getJavaDataType(m.getReturnType())), false, vtable);
+-		
+-			sbObjTable.append(column.getRuntimeType());
+-			sbObjTable.append("" "");
+-			sbObjTable.append(""'teiid_row."");
+-			sbObjTable.append(methodName);
+-			sbObjTable.append(""'"");
+-			
+-			column.setNativeType(simpleName);
+ 
+-			if (simpleName.equalsIgnoreCase(""string"")) {
+-				column.setLength(4000);
+-			}
+-			if (!simpleType) {
+-					column.setSearchType(SearchType.Unsearchable);
+-			}
+-			++cnt;
++	protected Column addColumn(MetadataFactory mf, Class<?> entity, Class<?> type, String attributeName, String nis, SearchType searchType, Table entityTable) {
++		Column c = entityTable.getColumnByName(attributeName);
++		if (c != null) {
++			//TODO: there should be a log here
++			return c;
+ 		}
+-		
+-		Column sourceColumn = sourceTable.getColumns().get(0);
+-		
+-		sb.append("" FROM "");
+-		sb.append(sourceTable.getName());
+-		sb.append("" as T, OBJECTTABLE('x' PASSING T."");
+-		sb.append(sourceColumn.getName());
+-		sb.append("" AS x COLUMNS "");
+-		
+-		sb.append(sbObjTable.toString());
+-		
+-		sb.append("") as o;"");
+-		
+-		return sb.toString();
+-		
++		c = mf.addColumn(attributeName, TypeFacility.getDataTypeName(TypeFacility.getRuntimeType(type)), entityTable);
++		if (nis != null) {
++			c.setNameInSource(nis);
++		}
++		c.setUpdatable(isUpdateable(entity, attributeName));
++		c.setSearchType(searchType);
++		c.setNativeType(type.getName());
++		if (type.isPrimitive()) {
++			c.setNullType(NullType.No_Nulls);
++		}
++		return c;
+ 	}
+-
++	
+ }",2012-10-29T16:20:42Z,143
+"@@ -22,31 +22,26 @@
+ package org.teiid.translator.object;
+ 
+ import static org.junit.Assert.*;
+-import static org.mockito.Matchers.anyString;
+-import static org.mockito.Mockito.mock;
+-import static org.mockito.Mockito.when;
++import static org.mockito.Matchers.*;
++import static org.mockito.Mockito.*;
+ 
+-import java.util.Iterator;
+-import java.util.List;
+ import java.util.Map;
+ import java.util.Properties;
+ 
+ import javax.naming.Context;
+ 
+-import org.apache.commons.lang.StringUtils;
+ import org.junit.Before;
+ import org.junit.BeforeClass;
+ import org.junit.Test;
+ import org.mockito.Mock;
+-import org.teiid.core.util.StringUtil;
+ import org.teiid.language.Select;
++import org.teiid.metadata.BaseColumn.NullType;
+ import org.teiid.metadata.Datatype;
+ import org.teiid.metadata.MetadataFactory;
+ import org.teiid.metadata.Table;
+ import org.teiid.query.metadata.SystemMetadata;
+ import org.teiid.translator.ExecutionContext;
+ import org.teiid.translator.TranslatorException;
+-import org.teiid.translator.object.metadata.BaseMetadataProcessor;
+ import org.teiid.translator.object.testdata.Trade;
+ import org.teiid.translator.object.util.TradesCacheSource;
+ import org.teiid.translator.object.util.VDBUtility;
+@@ -100,7 +95,7 @@ protected ObjectExecution createExecution(Select command) throws TranslatorExcep
+ 		
+ 		factory.getMetadata(mfactory, source);
+ 		
+-		assertEquals(mfactory.getSchema().getName(), BaseMetadataProcessor.SCHEMA_NAME);
++		assertEquals(mfactory.getSchema().getName(), ""Trade"");
+ 		
+ 		String clzName = Trade.class.getName();
+ 		clzName = clzName.substring(clzName.lastIndexOf(""."") + 1);
+@@ -109,43 +104,14 @@ protected ObjectExecution createExecution(Select command) throws TranslatorExcep
+ 		assertNotNull(physicalTable);
+ 		assertTrue(physicalTable.isPhysical());
+ 		assertTrue(!physicalTable.isVirtual());
+-
+-		
+-		String virClzName = clzName + BaseMetadataProcessor.VIEWTABLE_SUFFIX;
+-
+-		Table virtualTable = mfactory.getSchema().getTable(virClzName);
+-		assertNotNull(virtualTable);
+-		assertTrue(virtualTable.isVirtual());
+-		assertTrue(!virtualTable.isPhysical());
+-		
+-//		transform = ""SELECT o.Name, o.TradeId, o.TradeDate, o.Settled FROM Trade as T,"" +
+-//		"" OBJECTTABLE('x' PASSING T.TradeObject AS x COLUMNS Name string 'teiid_row.Name',"" + 
+-//		"" TradeId long 'teiid_row.TradeId', TradeDate timestamp 'teiid_row.TradeDate',"" + 
+-//		"" Settled boolean 'teiid_row.Settled') as o;"";
+-
+-		
+-		//  used the following to validate the transform because the class methods are not 
+-		//		guaranteed to be processed in the same order, 
+-		//		thereby, the elements in transform statement can be arranged differently each time
+-		String transform = virtualTable.getSelectTransformation();	
+-		
+-		int idx = transform.indexOf(""OBJECTTABLE"");
+-		
+-		String select = transform.substring(0, idx);
+-		String objecttable = transform.substring(idx);
+-		assertTrue(select.indexOf(""o.Name"") >-1);
+-		assertTrue(select.indexOf(""o.TradeId"") >-1);
+-		assertTrue(select.indexOf(""o.TradeDate"") >-1);
+-		assertTrue(select.indexOf(""o.Settled"") >-1);
+-		assertTrue(select.indexOf(""FROM Trade as T"") >-1);
+-
+-		assertTrue(objecttable.indexOf(""'x' PASSING T.TradeObject AS x COLUMNS"") >-1);
+-		assertTrue(objecttable.indexOf(""Name string 'teiid_row.Name'"") >-1);
+-		assertTrue(objecttable.indexOf(""TradeId long 'teiid_row.TradeId'"") >-1);
+-		assertTrue(objecttable.indexOf(""TradeDate timestamp 'teiid_row.TradeDate'"") >-1);
+-		assertTrue(objecttable.indexOf(""Settled boolean 'teiid_row.Settled'"") >-1);
+-
+-
++		assertEquals(5, physicalTable.getColumns().size());
++		//this
++		assertEquals(""object"", physicalTable.getColumns().get(0).getRuntimeType());
++		//trade id key
++		assertEquals(""long"", physicalTable.getColumns().get(1).getRuntimeType());
++		assertEquals(NullType.No_Nulls, physicalTable.getColumns().get(1).getNullType());
++		//name
++		assertEquals(""string"", physicalTable.getColumns().get(2).getRuntimeType());
+ 	}
+ 
+ }",2012-10-29T16:20:42Z,21
+"@@ -61,7 +61,11 @@ public Class<?> getType(String name) throws TranslatorException {
+ 
+ 		@Override
+ 		public Map<String, Class<?>> getMapOfCacheTypes() {
+-			// TODO Auto-generated method stub
++			return null;
++		}
++		
++		@Override
++		public String getPkField(String name) {
+ 			return null;
+ 		}
+ 	}",2012-10-29T16:20:42Z,1
+"@@ -169,5 +169,10 @@ public Map<String, Class<?>> getMapOfCacheTypes() {
+ 		return mapOfCaches;
+ 	}
+ 	
++	@Override
++	public String getPkField(String name) {
++		return ""tradeId"";
++	}
++	
+ 	
+ }",2012-10-29T16:20:42Z,7
+"@@ -33,7 +33,7 @@
+ import java.lang.reflect.InvocationTargetException;
+ import java.lang.reflect.Method;
+ import java.util.Collections;
+-import java.util.HashMap;
++import java.util.LinkedHashMap;
+ import java.util.Map;
+ import java.util.WeakHashMap;
+ import java.util.regex.Pattern;
+@@ -117,7 +117,7 @@ public Object eval(ScriptContext sc) throws ScriptException {
+ 		};
+ 	}
+ 	
+-	private Map<String, Method> getMethodMap(Class<?> clazz) throws ScriptException {
++	public Map<String, Method> getMethodMap(Class<?> clazz) throws ScriptException {
+ 		Map<Class<?>, Map<String, Method>> clazzMaps = null;
+ 		synchronized (properties) {
+ 			clazzMaps = properties.get(clazz.getClassLoader());
+@@ -131,7 +131,7 @@ private Map<String, Method> getMethodMap(Class<?> clazz) throws ScriptException
+ 			try {
+ 				BeanInfo info = Introspector.getBeanInfo(clazz);
+ 				PropertyDescriptor[] pds = info.getPropertyDescriptors();
+-				methodMap = new HashMap<String, Method>();
++				methodMap = new LinkedHashMap<String, Method>();
+ 				if (pds != null) {
+ 					for (int j = 0; j < pds.length; j++) {
+ 						PropertyDescriptor pd = pds[j];",2012-10-29T16:20:42Z,144
+"@@ -11,15 +11,15 @@ connect
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/replicated-cache=resultset-repl/locking=LOCKING:add(isolation=READ_COMMITTED)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/replicated-cache=resultset-repl/expiration=EXPIRATION:add(lifespan=7200000)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/replicated-cache=resultset-repl/eviction=EVICTION:add(max-entries=1024, strategy=LIRS)
+-/profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/transaction=TRANSACTION:add(mode=NON_XA)
++/profile=ha/subsystem=infinispan/cache-container=teiid-cache/replicated-cache=resultset-repl/transaction=TRANSACTION:add(mode=NON_XA)
+ 
+-/profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset:add(mode=SYNC, batching=true)
++/profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset:add(batching=true)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/locking=LOCKING:add(isolation=READ_COMMITTED)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/expiration=EXPIRATION:add(lifespan=7200000)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/eviction=EVICTION:add(max-entries=1024, strategy=LIRS)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/transaction=TRANSACTION:add(mode=NON_XA)
+ 
+-/profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan:add(mode=SYNC, batching=true)
++/profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan:add(batching=true)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan/locking=LOCKING:add(isolation=READ_COMMITTED)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan/expiration=EXPIRATION:add(lifespan=28800)
+ /profile=ha/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan/eviction=EVICTION:add(max-entries=512, strategy=LIRS)
+@@ -28,7 +28,7 @@ connect
+ /profile=ha/subsystem=security/security-domain=teiid-security/authentication=classic:add(login-modules=[{""code""=>""org.jboss.security.auth.spi.UsersRolesLoginModule"", ""flag""=>""required"", ""module-options""=>[(""usersProperties""=>""${jboss.domain.config.dir}/teiid-security-users.properties""), (""rolesProperties""=>""${jboss.domain.config.dir}/teiid-security-roles.properties"")]}]) 
+ /profile=ha/subsystem=threads/bounded-queue-thread-pool=teiid-async:add(name=teiid-async, max-threads=4, queue-length=100)
+ 
+-/profile=ha/subsystem=teiid:add(async-thread-pool=teiid-async, distributed-cache-jgroups-stack=udp, resultset-cache-infinispan-container=teiid-cache, policy-decider-module=org.jboss.teiid)
++/profile=ha/subsystem=teiid:add(async-thread-pool=teiid-async, distributed-cache-jgroups-stack=udp, resultset-cache-infinispan-container=teiid-cache, preparedplan-cache-infinispan-container=teiid-cache, policy-decider-module=org.jboss.teiid)
+ /profile=ha/subsystem=teiid/transport=embedded:add()
+ /profile=ha/subsystem=teiid/transport=jdbc:add(protocol=teiid, socket-binding=teiid-jdbc, authentication-security-domain=teiid-security)
+ /profile=ha/subsystem=teiid/transport=odbc:add(protocol=pg, socket-binding=teiid-odbc, authentication-security-domain=teiid-security) 
+@@ -64,6 +64,7 @@ connect
+ /profile=ha/subsystem=teiid/translator=hive:add(module=org.jboss.teiid.translator.hive)
+ /profile=ha/subsystem=teiid/translator=infinispan-cache:add(module=org.jboss.teiid.translator.object)
+ /profile=ha/subsystem=teiid/translator=map-cache:add(module=org.jboss.teiid.translator.object)
++/profile=ha/subsystem=teiid/translator=google-spreadsheet:add(module=org.jboss.teiid.translator.google)
+ 
+ 
+ /profile=ha/subsystem=datasources/jdbc-driver=teiid:add(driver-name=teiid, driver-module-name=org.jboss.teiid.client, driver-class-name=org.teiid.jdbc.TeiidDriver, driver-xa-datasource-class-name=org.teiid.jdbc.TeiidDataSource)",2013-01-08T17:58:19Z,102
+"@@ -0,0 +1,71 @@
++connect
++/extension=org.jboss.teiid:add(module=org.jboss.teiid)
++/socket-binding-group=standard-sockets/socket-binding=teiid-jdbc:add(port=31000)
++/socket-binding-group=standard-sockets/socket-binding=teiid-odbc:add(port=35432)
++
++/subsystem=infinispan/cache-container=teiid-cache:add(default-cache=resultset)
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset-repl:add(batching=true)
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset-repl/locking=LOCKING:add(isolation=READ_COMMITTED)
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset-repl/expiration=EXPIRATION:add(lifespan=7200000)
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset-repl/eviction=EVICTION:add(max-entries=1024, strategy=LIRS)
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset-repl/transaction=TRANSACTION:add(mode=NON_XA)
++
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset:add(batching=true)
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/locking=LOCKING:add(isolation=READ_COMMITTED)
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/expiration=EXPIRATION:add(lifespan=7200000)
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/eviction=EVICTION:add(max-entries=1024, strategy=LIRS)
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=resultset/transaction=TRANSACTION:add(mode=NON_XA)
++
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan:add(batching=true)
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan/locking=LOCKING:add(isolation=READ_COMMITTED)
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan/expiration=EXPIRATION:add(lifespan=28800)
++/subsystem=infinispan/cache-container=teiid-cache/local-cache=preparedplan/eviction=EVICTION:add(max-entries=512, strategy=LIRS)
++
++/subsystem=security/security-domain=teiid-security:add(cache-type=default)
++/subsystem=security/security-domain=teiid-security/authentication=classic:add(login-modules=[{""code""=>""org.jboss.security.auth.spi.UsersRolesLoginModule"", ""flag""=>""required"", ""module-options""=>[(""usersProperties""=>""${jboss.domain.config.dir}/teiid-security-users.properties""), (""rolesProperties""=>""${jboss.domain.config.dir}/teiid-security-roles.properties"")]}]) 
++/subsystem=threads/bounded-queue-thread-pool=teiid-async:add(name=teiid-async, max-threads=4, queue-length=100)
++
++/subsystem=teiid:add(async-thread-pool=teiid-async, resultset-cache-infinispan-container=teiid-cache, preparedplan-cache-infinispan-container=teiid-cache, policy-decider-module=org.jboss.teiid)
++/subsystem=teiid/transport=embedded:add()
++/subsystem=teiid/transport=jdbc:add(protocol=teiid, socket-binding=teiid-jdbc, authentication-security-domain=teiid-security)
++/subsystem=teiid/transport=odbc:add(protocol=pg, socket-binding=teiid-odbc, authentication-security-domain=teiid-security) 
++
++/subsystem=teiid/translator=jdbc-simple:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=jdbc-ansi:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=access:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=db2:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=derby:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=h2:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=hsql:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=informix:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=metamatrix:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=mysql:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=mysql5:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=oracle:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=postgresql:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=sqlserver:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=sybase:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=teiid:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=teradata:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=modeshape:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=ingres:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=ingres93:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=intersystems-cache:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=netezza:add(module=org.jboss.teiid.translator.jdbc)
++/subsystem=teiid/translator=file:add(module=org.jboss.teiid.translator.file)
++/subsystem=teiid/translator=ldap:add(module=org.jboss.teiid.translator.ldap)
++/subsystem=teiid/translator=loopback:add(module=org.jboss.teiid.translator.loopback)
++/subsystem=teiid/translator=olap:add(module=org.jboss.teiid.translator.olap)
++/subsystem=teiid/translator=ws:add(module=org.jboss.teiid.translator.ws)
++/subsystem=teiid/translator=salesforce:add(module=org.jboss.teiid.translator.salesforce)
++/subsystem=teiid/translator=hive:add(module=org.jboss.teiid.translator.hive)
++/subsystem=teiid/translator=infinispan-cache:add(module=org.jboss.teiid.translator.object)
++/subsystem=teiid/translator=map-cache:add(module=org.jboss.teiid.translator.object)
++/subsystem=teiid/translator=google-spreadsheet:add(module=org.jboss.teiid.translator.google)
++
++
++/subsystem=datasources/jdbc-driver=teiid:add(driver-name=teiid, driver-module-name=org.jboss.teiid.client, driver-class-name=org.teiid.jdbc.TeiidDriver, driver-xa-datasource-class-name=org.teiid.jdbc.TeiidDataSource)
++/subsystem=datasources/jdbc-driver=teiid-local:add(driver-name=teiid-local, driver-module-name=org.jboss.teiid, driver-class-name=org.teiid.jdbc.TeiidDriver, driver-xa-datasource-class-name=org.teiid.jdbc.TeiidDataSource)
++
++
++/:reload
+\ No newline at end of file",2013-01-08T17:58:19Z,104

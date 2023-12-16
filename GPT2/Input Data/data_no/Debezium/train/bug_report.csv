@@ -1,0 +1,564 @@
+bug_report_id,bug_report_desc,bug_report_time
+DBZ-148,"The following test has started to fail now that DST has ended:
+
+{code}
+Failed tests: 
+  MySqlConnectorRegressionIT.shouldConsumeAllEventsFromDatabaseUsingSnapshot:537->lambda$shouldConsumeAllEventsFromDatabaseUsingSnapshot$2:608 expected:<1[7]> but was:<1[6]>
+{code}
+
+I believe the problem is that the date we're inserting into the database is during daylight savings time, but if the time zone where the tests are being run is no longer in DST, then there is an hour difference compared to what's expected in the test.
+
+",2016/11/08 4:36 PM
+DBZ-144,"The MySQL connector records in the offset and {{source}} field for each change event various pieces of data about the position in the binlog where the corresponding binlog event appeared. This includes the binlog filename and position and, when the server is using GTIDs, the GTID (in the form of the updated GTID set) for the transaction in which the corresponding binlog event occurred. As the connector works, it periodically records these offsets so that upon startup the last offset can be used to position the connector's binlog client at the correct location.
+
+When the connector is not using GTIDs, upon startup the last offset's binlog filename and position specify the location of the _next_ binlog event the connector should start with. However, when the connector is using GTIDs, the last offset's GTID set is sent to the MySQL server as if the connector has seen all of those GTIDs.
+
+The problem is that each GTID identifies a transaction that may have multiple binlog events, and currently _all_ of the resulting change events will have an offset that includes this transaction's GTID. That means that if Kafka Connect were to record as it's last offset the offset from any of these change events _except the last one in the transaction_, and the connector were to crash without processing any other events, then when the connector restarts the GTID for this incomplete transaction will be included in the GTID set as being fully processed. *IOW, it is possible the connector misses some binlog events upon startup.*
+
+So, the connector needs to instead record a GTID in the offset's GTID set only _after_ the binlog events for that transaction have all been processed. And, because each GTID transaction can involve multiple binlog events, we probably *also* need to record the binlog event number in the offset (only when using GTIDs) so that we know to which binlog event our event corresponds.
+
+*UPDATE: This is actually not just a problem when using GTIDs. The connector can run into problems when restarting using only the binlog filename and position to identify the starting location, because the connector (including the binlog client library) can't simply just restart with a binlog event that is in the middle of a transaction. When it does, the connector is skips over the {{TABLE_MAP}} event for the affected table, and so the binlog client library doesn't know the structure of the table and thus cannot deserialize the rows in insert, update, or delete binlog events.*",2016/11/01 2:03 PM
+DBZ-139,"Regarding the {{ts_sec}} field in the {{source}} field of change events from the MySQL connector, the millisecond value gets divided by 1000 twice, once in [BinlogReader|https://github.com/debezium/debezium/blob/25b80556420630d9f0d0771c87b215ccc2c51201/debezium-connector-mysql/src/main/java/io/debezium/connector/mysql/BinlogReader.java#L275], and once in [SourceInfo|https://github.com/debezium/debezium/blob/25b80556420630d9f0d0771c87b215ccc2c51201/debezium-connector-mysql/src/main/java/io/debezium/connector/mysql/SourceInfo.java#L314]. So the value in the payload is 1000 times smaller than it is supposed to be. 
+
+The division in {{SourceInfo.setBinlogTimestampSeconds()}} should be removed.
+
+(Originally [reported|https://gitter.im/debezium/user?at=5808bb1c48292577613f8218] by [Dennis Persson|https://github.com/DennisPersson] in the Debezium Users chat room.)",2016/10/20 9:43 AM
+DBZ-129,"We setup 2 DB's which are replicating separately from bunch of masters. 
+
+So we have some thing like this
+
+{noformat}
+M1     M2     M3    M4 **********************|             M1       M2       M3
+       DB1***********************************|                     DB2
+{noformat}
+
+The actual GTIDs are:
+
+{noformat}
+GTID
+----------------------------------------------------------------------------------
+DB1: 01261278-6ade-11e6-b36a-42010af00790:1-118306402,4d1a4918-44ba-11e6-bf12-42010af0040b:1-707983,716ec46f-d522-11e5-bb56-0242ac110004:1-12939581,ab33eb9e-89ad-11e6-877b-42010af0002d:1-3
+DB2:                                                  4d1a4918-44ba-11e6-bf12-42010af0040b:1-707637,716ec46f-d522-11e5-bb56-0242ac110004:1-12938714,f8f9cf64-86c9-11e6-8aab-42010af00004:1-4
+{noformat}
+
+When we fail over DBZ to connect to DB1, DBZ failed with Error 
+
+{code}
+[2016-10-06 17:38:54,721] INFO Connector last known GTIDs are 4d1a4918-44ba-11e6-bf12-42010af0040b:1-707637,716ec46f-d522-11e5-bb56-0242ac110004:1-12938715,f8f9cf64-86c9-11e6-8aab-42010af00004:1-4, but MySQL has 01261278-6ade-11e6-b36a-42010af00790:1-118364883,4d1a4918-44ba-11e6-bf12-42010af0040b:1-709438,716ec46f-d522-11e5-bb56-0242ac110004:1-12944001,ab33eb9e-89ad-11e6-877b-42010af0002d:1-3 (io.debezium.connector.mysql.MySqlConnectorTask)
+{code} 
+
+It looks like when we fail over to another DB, in case of we have Extra GTID DBZ fails.",2016/10/06 4:05 PM
+DBZ-124,"Starting the MySQL connector produces the following warning about a duplicate AppInfo mbean: 
+
+{code}
+[2016-09-15 17:39:27,055] WARN Error registering AppInfo mbean (org.apache.kafka.common.utils.AppInfoParser:60)
+javax.management.InstanceAlreadyExistsException: kafka.producer:type=app-info,id=b29b0d29-bbd9-469e-985f-594fc8662adc
+        at com.sun.jmx.mbeanserver.Repository.addMBean(Repository.java:437)
+        at com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.registerWithRepository(DefaultMBeanServerInterceptor.java:1898)
+        at com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.registerDynamicMBean(DefaultMBeanServerInterceptor.java:966)
+        at com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.registerObject(DefaultMBeanServerInterceptor.java:900)
+        at com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.registerMBean(DefaultMBeanServerInterceptor.java:324)
+        at com.sun.jmx.mbeanserver.JmxMBeanServer.registerMBean(JmxMBeanServer.java:522)
+        at org.apache.kafka.common.utils.AppInfoParser.registerAppInfo(AppInfoParser.java:58)
+        at org.apache.kafka.clients.producer.KafkaProducer.<init>(KafkaProducer.java:328)
+        at org.apache.kafka.clients.producer.KafkaProducer.<init>(KafkaProducer.java:188)
+        at io.debezium.relational.history.KafkaDatabaseHistory.start(KafkaDatabaseHistory.java:147)
+        at io.debezium.connector.mysql.MySqlSchema.start(MySqlSchema.java:134)
+        at io.debezium.connector.mysql.MySqlTaskContext.start(MySqlTaskContext.java:135)
+        at io.debezium.connector.mysql.MySqlConnectorTask.start(MySqlConnectorTask.java:69)
+        at org.apache.kafka.connect.runtime.WorkerSourceTask.execute(WorkerSourceTask.java:137)
+        at org.apache.kafka.connect.runtime.WorkerTask.doRun(WorkerTask.java:140)
+        at org.apache.kafka.connect.runtime.WorkerTask.run(WorkerTask.java:175)
+        at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+        at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+        at java.lang.Thread.run(Thread.java:745)
+{code}
+
+The mbean ID appears to be set with the Kafka producer's {{client.id}}, so I think we just need to set this to a unique value within the KafkaDatabaseHistory class. ",2016/09/17 9:22 AM
+DBZ-122,"While running debezium with SSL to db, its prints out log whisk has password for keystone and truststore. We need mask the passwords from log.
+
+{code}
+[2016-09-14 16:32:49,901] INFO KafkaDatabaseHistory Consumer config: {security.protocol=SSL, enable.auto.commit=false, value.deserializer=org.apache.kafka.common.serialization.StringDeserializer, group.id=1323ee5b-9a2a-46f6-8ec0-f680ae7a2ae8, auto.offset.reset=earliest, session.timeout.ms=30000, ssl.truststore.location=/usr/local/certs/truststore, bootstrap.servers=ddddd, ssl.truststore.password=XXXXX, client.id=1323ee5b-9a2a-46f6-8ec0-f680ae7a2ae8, key.deserializer=org.apache.kafka.common.serialization.StringDeserializer, fetch.min.bytes=1} (io.debezium.relational.history.KafkaDatabaseHistory:140)
+[2016-09-14 16:32:49,902] INFO KafkaDatabaseHistory Producer config: {security.protocol=SSL, ssl.truststore.location=/usr/local/certs/truststore, bootstrap.servers=poc-kafka01:9093,poc-kafka02:9093,poc-kafka03:9093, ssl.truststore.password=XXXXX, value.serializer=org.apache.kafka.common.serialization.StringSerializer, buffer.memory=1048576, retries=1, client.id=f11c160b-4839-4ac7-91e3-7d03c1d63d61, linger.ms=0, key.serializer=org.apache.kafka.common.serialization.StringSerializer, batch.size=32768, acks=1} (io.debezium.relational.history.KafkaDatabaseHistory:141)
+{code}",2016/09/14 3:01 PM
+DBZ-114,"0000-00-00 can not be represented as java.sql.Date Error code: 0; SQLSTATE: S1009
+
+We also have other invalid dates like 0001-00-00 etc. that might fail as well",2016/09/01 3:20 AM
+DBZ-112,"If we have SSL enabled for both kafka and mysql and submit a config to connector will work fine.
+
+{code}
+curl -X POST -H ""Content-Type: application/json"" --data @debezium.json http://connect:8083/connectors
+{code}
+
+If we try to submit one more connector for different mysql DB. it will error out with following Error
+{code}
+[2016-08-26 19:29:03,271] ERROR Task debizium-connector-tst-new101-0 threw an uncaught and unrecoverable exception (org.apache.kafka.connect.runtime.WorkerTask:142)
+org.apache.kafka.connect.errors.ConnectException: System or JVM property 'javax.net.ssl.trustStore' is already defined as /usr/local/certs/truststore, but the configuration property 'database.ssl.truststore' defines a different value '/usr/local/certs/truststore'
+	at io.debezium.connector.mysql.MySqlJdbcContext.setSystemProperty(MySqlJdbcContext.java:137)
+	at io.debezium.connector.mysql.MySqlJdbcContext.start(MySqlJdbcContext.java:95)
+	at io.debezium.connector.mysql.MySqlTaskContext.start(MySqlTaskContext.java:133)
+	at io.debezium.connector.mysql.MySqlConnectorTask.start(MySqlConnectorTask.java:69)
+	at org.apache.kafka.connect.runtime.WorkerSourceTask.execute(WorkerSourceTask.java:137)
+	at org.apache.kafka.connect.runtime.WorkerTask.doRun(WorkerTask.java:140)
+	at org.apache.kafka.connect.runtime.WorkerTask.run(WorkerTask.java:175)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+[2016-08-26 19:29:03,271] ERROR Task is being killed and will not recover until manually restarted (org.apache.kafka.connect.runtime.WorkerTask:143)
+{code}",2016/08/26 3:33 PM
+DBZ-111,"One connector start up and  snapshot is complete. restarting connector fails to read the bingo and worker will stop.
+
+Here is the first step when snapshot is complete.
+{code}
+[2016-08-26 18:21:33,017] INFO Step 8: - 3851 of 3851 rows scanned from table 'CCCC' after 00:00:00.904 (io.debezium.connector.mysql.SnapshotReader:364)
+[2016-08-26 18:21:33,022] INFO Step 8: - scanning table 'CCCCC' (6 of 6 tables) (io.debezium.connector.mysql.SnapshotReader:346)
+[2016-08-26 18:21:33,115] INFO Step 8: - 1473 of 1473 rows scanned from table 'VVVVVV' after 00:00:00.093 (io.debezium.connector.mysql.SnapshotReader:364)
+[2016-08-26 18:21:33,118] INFO Step 8: scanned 10052 rows in 6 tables in 00:00:01.596 (io.debezium.connector.mysql.SnapshotReader:389)
+[2016-08-26 18:21:33,118] INFO Step 9: committing transaction (io.debezium.connector.mysql.SnapshotReader:424)
+[2016-08-26 18:21:33,120] INFO Completed snapshot in 00:00:02.704 (io.debezium.connector.mysql.SnapshotReader:436)
+[2016-08-26 18:22:30,116] INFO Finished WorkerSourceTask{id=debizium-connector-tst-new101-0} commitOffsets successfully in 157 ms (org.apache.kafka.connect.runtime.WorkerSourceTask:356)
+{code}
+
+Here is exception after restarting the connector
+{code}
+[2016-08-26 18:38:54,489] ERROR Task debizium-connector-tst-new101-0 threw an uncaught and unrecoverable exception (org.apache.kafka.connect.runtime.WorkerTask:142)
+org.apache.kafka.connect.errors.ConnectException: The connector is trying to read binlog starting at GTIDs 036d85a9-64e5-11e6-9b48-42010af0000c:1-2,7145bf69-d1ca-11e5-a588-0242ac110004:1-3200,7c1de3f2-3fd2-11e6-9cdc-42010af000bc:1-41 and binlog file 'mysql-bin.000004', pos=2306, row=0, but this is no longer available on the server. Reconfigure the connector to use a snapshot when needed.
+	at io.debezium.connector.mysql.MySqlConnectorTask.start(MySqlConnectorTask.java:104)
+	at org.apache.kafka.connect.runtime.WorkerSourceTask.execute(WorkerSourceTask.java:137)
+	at org.apache.kafka.connect.runtime.WorkerTask.doRun(WorkerTask.java:140)
+	at org.apache.kafka.connect.runtime.WorkerTask.run(WorkerTask.java:175)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
+	at java.lang.Thread.run(Thread.java:745)
+view rawgistfile1.txt hosted with ❤ by GitHub
+{code}
+
+
+Here are the GTID values
+{code}
+
++----------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| Variable_name                    | Value                                                                                                                            |
++----------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| gtid_executed                    | 036d85a9-64e5-11e6-9b48-42010af0000c:1-2,
+7145bf69-d1ca-11e5-a588-0242ac110004:1-3202,
+7c1de3f2-3fd2-11e6-9cdc-42010af000bc:1-41 |
+| gtid_executed_compression_period | 1000                                                                                                                             |
+| gtid_mode                        | ON                                                                                                                               |
+| gtid_owned                       |                                                                                                                                  |
+| gtid_purged                      | 7145bf69-d1ca-11e5-a588-0242ac110004:1-3092,
+7c1de3f2-3fd2-11e6-9cdc-42010af000bc:1-39                                           |
++----------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+5 rows in set (0.00 sec)
+
+mysql> show master status
+    -> ;
++------------------+----------+--------------+------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| File             | Position | Binlog_Do_DB | Binlog_Ignore_DB | Executed_Gtid_Set                                                                                                                |
++------------------+----------+--------------+------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| mysql-bin.000004 |     2683 |              |                  | 036d85a9-64e5-11e6-9b48-42010af0000c:1-2,
+7145bf69-d1ca-11e5-a588-0242ac110004:1-3202,
+7c1de3f2-3fd2-11e6-9cdc-42010af000bc:1-41 |
++------------------+----------+--------------+------------------+----------------------------------------------------------------------------------------------------------------------------------+
+1 row in set (0.00 sec)
+{code}
+
+",2016/08/26 3:26 PM
+DBZ-108,"When [~akshathpatkar] and I build 0.3.x, we both get:
+
+{noformat}
+shouldAdaptSqlTime(io.debezium.jdbc.TimeZoneAdapterTest)  Time elapsed: 0.011 sec  <<< ERROR!
+java.time.DateTimeException: Invalid value for NanoOfDay (valid values 0 - 86399999999999): 93064777000000
+	at java.time.temporal.ValueRange.checkValidValue(ValueRange.java:311)
+	at java.time.temporal.ChronoField.checkValidValue(ChronoField.java:703)
+	at java.time.LocalTime.ofNanoOfDay(LocalTime.java:376)
+	at io.debezium.jdbc.TimeZoneAdapter.toZonedDateTime(TimeZoneAdapter.java:143)
+	at io.debezium.jdbc.TimeZoneAdapterTest.shouldAdaptSqlTime(TimeZoneAdapterTest.java:64)
+{noformat}
+
+I checked master, and it also fails.",2016/08/24 4:39 PM
+DBZ-107,"_*Original title: Topics not getting created in kafka*_
+
+Used following config to run the debezium.
+
+{noformat}
+    ""name"": ""debizium-connector"",
+    ""config"": {
+        ""name"": ""debizium-connector"",
+        ""connector.class"": ""io.debezium.connector.mysql.MySqlConnector"",
+        ""tasks.max"": ""1"",
+        ""database.hostname"": ""tst-di-mysql01"",
+        ""database.port"": ""3306"",
+        ""database.user"": ""VVVV"",
+        ""database.password"": ""XXXX"",
+        ""database.server.id"": ""12"",
+        ""database.server.name"": ""di-mysql"",
+        ""database.whitelist"": ""fraud"",
+        ""poll.interval.ms"": ""2"",
+        ""table.whitelist"": ""CCCCC"",
+        ""database.history.kafka.bootstrap.servers"": ""kafka01:9092"",
+        ""database.history.kafka.topic"": ""schema-changes.inventory"",
+        ""database.history.producer.ssl.keystore.location"": ""<keystore>"",
+        ""database.history.producer.ssl.keystore.password"": ""<password>"",
+        ""database.history.producer.ssl.truststore.location"": ""<truststore>"",
+        ""database.history.producer.ssl.truststore.password"" : ""<password>"",
+        ""database.history.consumer.ssl.keystore.location"": ""<keystore>"",
+        ""database.history.consumer.ssl.keystore.password"": ""<password>"",
+        ""database.history.consumer.ssl.truststore.location"": ""<truststore>"",
+        ""database.history.consumer.ssl.truststore.password"": ""<password>""
+            }
+}
+{noformat}
+
+How ever it is just creating one topic di-mysql, which has only DDL statements, but there are no topics created for the tables.  Not sure if i am missing some config paramater.",2016/08/23 12:15 AM
+DBZ-103,"When gracefully stopping the Kafka Connect process running the MySQL connector, the following error is produced:
+
+{code}
+2016-08-16 13:33:00,140 INFO   ||  Starting graceful shutdown of thread WorkerSourceTask-inventory-connector-0   [org.apache.kafka.connect.util.ShutdownableThread]
+2016-08-16 13:33:00,140 INFO   ||  Stopping MySQL connector task   [io.debezium.connector.mysql.MySqlConnectorTask]
+2016-08-16 13:33:00,141 INFO   ||  Connector task successfully stopped   [io.debezium.connector.mysql.MySqlConnectorTask]
+Exception in thread ""Thread-1"" java.lang.NullPointerException
+	at io.debezium.connector.mysql.MySqlConnectorTask.stop(MySqlConnectorTask.java:155)
+	at org.apache.kafka.connect.runtime.WorkerSourceTask$WorkerSourceTaskThread.startGracefulShutdown(WorkerSourceTask.java:378)
+	at org.apache.kafka.connect.runtime.WorkerSourceTask.stop(WorkerSourceTask.java:108)
+	at org.apache.kafka.connect.runtime.Worker.stop(Worker.java:136)
+	at org.apache.kafka.connect.runtime.Connect.stop(Connect.java:72)
+	at org.apache.kafka.connect.runtime.Connect$ShutdownHook.run(Connect.java:93)
+{code}
+
+This appears to have been fixed in {{master}} as part of 0.3.",2016/08/16 9:40 AM
+DBZ-102,"When monitoring a table with Chinese characters as fields value, the topic content shows ���
+
+I use example-myqsl docker images and here is the sql file for testing:
+
+{code:java}
+set character_set_client=utf8;
+set character_set_connection=utf8;
+set character_set_database=utf8;
+set character_set_results=utf8;
+set character_set_server=utf8;
+create table inventory.test (
+  id int(11) not null auto_increment,
+  text varchar(255) default null,
+  primary key (`id`)
+) engine=InnoDB auto_increment=1006 default charset=utf8;
+insert into inventory.test values (default, ""产品"");
+{code}
+
+
+watch-topic output:
+{code:java}
+""after"":{""id"":1006,""text"":""������""}
+{code}
+",2016/08/16 4:50 AM
+DBZ-100,"The MySQL connector is not representing {{ENUM}} and {{SET}} value correctly when processing the binlog. Rather than an int and a long, they need to be represented as a string like the JDBC driver returns during the snapshot.",2016/08/11 2:18 PM
+DBZ-94,"using debezium/connect:0.2 to source a large database
+Debezium throwed OOM when taking snapshot
+
+Running on Amazon EC2 with 16G memory
+
+{code}
+2016-08-04 13:12:43,901 INFO   MySQL|mysql_host_52_70_200_92_port_3307|snapshot  Step 8.2: scanned table 'gpay.app_billing' in 00:01:25.56   [io.debezium.connector.mysql.SnapshotReader]
+2016-08-04 13:14:00,793 ERROR  MySQL|mysql_host_52_70_200_92_port_3307|snapshot  Failed due to error: Aborting snapshot after running 'SELECT * FROM gpay.app_installation': Java heap space   [io.debezium.connector.mysql.SnapshotReader]
+java.lang.OutOfMemoryError: Java heap space
+	at com.mysql.jdbc.MysqlIO.nextRowFast(MysqlIO.java:2205)
+	at com.mysql.jdbc.MysqlIO.nextRow(MysqlIO.java:1984)
+	at com.mysql.jdbc.MysqlIO.readSingleRowSet(MysqlIO.java:3403)
+	at com.mysql.jdbc.MysqlIO.getResultSet(MysqlIO.java:470)
+	at com.mysql.jdbc.MysqlIO.readResultsForQueryOrUpdate(MysqlIO.java:3105)
+	at com.mysql.jdbc.MysqlIO.readAllResults(MysqlIO.java:2336)
+	at com.mysql.jdbc.MysqlIO.sqlQueryDirect(MysqlIO.java:2729)
+	at com.mysql.jdbc.ConnectionImpl.execSQL(ConnectionImpl.java:2545)
+	at com.mysql.jdbc.ConnectionImpl.execSQL(ConnectionImpl.java:2503)
+	at com.mysql.jdbc.StatementImpl.executeQuery(StatementImpl.java:1369)
+	at io.debezium.jdbc.JdbcConnection.query(JdbcConnection.java:277)
+	at io.debezium.connector.mysql.SnapshotReader.execute(SnapshotReader.java:311)
+	at io.debezium.connector.mysql.SnapshotReader$$Lambda$82/1145170159.run(Unknown Source)
+	at java.lang.Thread.run(Thread.java:745)
+2016-08-04 13:14:01,179 ERROR  MySQL|mysql_host_52_70_200_92_port_3307|task  Task gpay-0 threw an uncaught and unrecoverable exception   [org.apache.kafka.connect.runtime.WorkerSourceTask]
+2016-08-04 13:14:01,180 ERROR  MySQL|mysql_host_52_70_200_92_port_3307|task  Task is being killed and will not recover until manually restarted:   [org.apache.kafka.connect.runtime.WorkerSourceTask]
+org.apache.kafka.connect.errors.ConnectException: Aborting snapshot after running 'SELECT * FROM gpay.app_installation': Java heap space
+	at io.debezium.connector.mysql.AbstractReader.failed(AbstractReader.java:118)
+	at io.debezium.connector.mysql.SnapshotReader.execute(SnapshotReader.java:388)
+	at java.lang.Thread.run(Thread.java:745)
+Caused by: java.lang.OutOfMemoryError: Java heap space
+	at com.mysql.jdbc.MysqlIO.nextRowFast(MysqlIO.java:2205)
+	at com.mysql.jdbc.MysqlIO.nextRow(MysqlIO.java:1984)
+	at com.mysql.jdbc.MysqlIO.readSingleRowSet(MysqlIO.java:3403)
+	at com.mysql.jdbc.MysqlIO.getResultSet(MysqlIO.java:470)
+	at com.mysql.jdbc.MysqlIO.readResultsForQueryOrUpdate(MysqlIO.java:3105)
+	at com.mysql.jdbc.MysqlIO.readAllResults(MysqlIO.java:2336)
+	at com.mysql.jdbc.MysqlIO.sqlQueryDirect(MysqlIO.java:2729)
+	at com.mysql.jdbc.ConnectionImpl.execSQL(ConnectionImpl.java:2545)
+	at com.mysql.jdbc.ConnectionImpl.execSQL(ConnectionImpl.java:2503)
+	at com.mysql.jdbc.StatementImpl.executeQuery(StatementImpl.java:1369)
+	at io.debezium.jdbc.JdbcConnection.query(JdbcConnection.java:277)
+	at io.debezium.connector.mysql.SnapshotReader.execute(SnapshotReader.java:311)
+	at io.debezium.connector.mysql.SnapshotReader$$Lambda$82/1145170159.run(Unknown Source)
+	... 1 more
+{code}
+
+table info:
+Name: app_installation
+Engine: InnoDB
+Version: 10
+Row_format: Dynamic
+Rows: 28267215
+Avg_row_length: 104
+Data_length: 2967470080
+Max_data_length: 0
+Index_length: 4715446272
+Data_free: 4194304
+Auto_increment: 29442980
+Create_time: 2016-08-04 05:07:17
+Update_time: NULL
+Check_time: NULL
+Collation: utf8_general_ci
+Checksum: NULL
+Create_options: 
+Comment: 
+
+
+",2016/08/04 9:40 AM
+DBZ-91,"Kafka Connect's logical temporal types in {{org.apache.kafka.connect.data}} include {{Time}}, {{Date}}, and {{Timestamp}}, and these logical types convert to/from {{java.util.Date}} and store values in events as either milliseconds (INT64) or epoch days (INT32). This technically works because none of these have any timezone information, but using {{java.util.Date}} is very difficult and error prone, especially when it involves determining the {{java.util.Date}} using year, month, day, hour, etc. values as that requires using a Calendar that if not properly used defaults to using the local time zone in conversions. The MySQL connector, for example, ends up using 4 possible timezone conversions between the database and consumer.
+
+Kafka Connect's built-in logical types are also problematic, since they require serialization and deserialization from/to {{java.util.Date}}, meaning that even if we calculate the correct primitive representation, to use these logical types we still need to construct a {{java.util.Date}}. We can use this internally, but if consumers do use the Kafka Connect converter libraries, they will get {{java.util.Date}} objects in their events. By defining our own _semantic_ types, Debezium can completely avoid the conflagration of the serialization/deserialization logic with the semantic representation.
+
+Kafka Connect's built-in logical types are also restricted to millisecond precision, and have no support for times or timestamps that include timezone information. Meanwhile, Debezium can define separate semantic temporal types for representing millisecond, microsecond, or nanosecond precisions, and we can define semantic types for times and timestamps that include timezone information.
+
+Debezium can also use Java 8's {{javax.time}} library to make conversion between MySQL raw binlog event values and the literals that go into Debezium-produced events, and completely eliminate the use of time zone conversions (except in MySQL {{TIMESTAMP}} columns that are stored in UTC). It should also provide a way to keep the precision of the database columns, which for MySQL 5.6.4 and up can use up to microsecond precision (where the _fractional second precision_ is set to 6). This will involve defining additional semantic Kafka Connect schemas, customizing how the MySQL binlog client library converts raw binlog event data, and rewriting the temporal conversion logic.
+
+Kafka Connect's schema system makes it possible for us to define our own semantic types yet still represent data with primitives. To do this, a field's schema is defined with a _type_ (e.g., INT32, INT64, STRING, etc.) and a _name_ (e.g., {{org.apache.kafka.connect.data.Time}} or {{io.debezium.time.Time}}). Each converter is free to use this information, and the JSON converter and Avro converters both do. Specifically, the Avro Converter uses the type to define how the values are serialized and includes the schema name as the {{connect.name}} property in the Avro schema's field definition (which Avro doesn't use, though it is available for consumers that use the schemas).
+
+The MySQL connector's configuration will allow specifying whether to use the Kafka Connect built-in logical types or Debezium's semantic types that adapt based upon the column's precision.",2016/07/29 9:22 AM
+DBZ-87,"The MySQL connector currently maps {{TINYINT}} and {{SMALLINT}} columns to {{INT32}}, but they should instead map to {{INT16}} since the [range of TINYINT values|http://dev.mysql.com/doc/refman/5.7/en/integer-types.html] is either -128 to 127 for signed or 0 to 255 for unsigned. Since {{INT8}} can only handle values in the range 0 to 255, and therefore {{INT8}} is not a good choice for a value. And the [JDBC Specification|http://docs.oracle.com/javase/1.5.0/docs/guide/jdbc/getstart/mapping.html] also suggest the proper Java type for SQL-99's {{TINYINT}} is {{short}}, which maps to Kafka Connect's {{INT16}}.
+
+This change will be backward compatible, although the generated Kafka Connect schema will be different than in previous versions. This shouldn't cause a problem, since clients should expect to handle schema changes, and this schema change does comply with [Avro schema evolution rules|https://martin.kleppmann.com/2012/12/05/schema-evolution-in-avro-protocol-buffers-thrift.html].",2016/07/19 11:57 AM
+DBZ-86,"The MongoDB connector generates the Kafka schema name based upon the logical name, database name, collection name, and other suffixes (e.g., {{.Key}}, {{.Envelope}}, etc.), and the MySQL connector does the same thing with the fully-qualified table names. While Kafka schema names can contain any characters, when using the Avro Converter these Kafka schemas are mapped into Avro schemas, and Avro schema _names_ are limited to {{[A-Za-z_]}} for the first character and {{[A-Za-z_0-9]}}, with the {{.}} character used to delimit names in namespaces (see the [Avro specification|http://avro.apache.org/docs/current/spec.html#names]).
+
+Since MongoDB has few restrictions on the characters that can be used in a database name or collection name, any database or collection name with characters that don't satisfy Avro will create problems when using the Avro Connector.
+
+The MongoDB connector should either remove or replace characters in the Kafka schema names that are not valid per Avro.",2016/07/14 4:23 PM
+DBZ-85,"MySQL 5.7 has fractional seconds support for TIME, DATETIME, and TIMESTAMP values, with up to microseconds (6 digits) precision.
+
+{code:sql}
+mysql> CREATE TABLE fractest( c1 *TIME(2)*, c2 *DATETIME(2),* c3 *TIMESTAMP(2)* );
+mysql> INSERT INTO fractest VALUES ('17:51:04.777', '2014-09-08 17:51:04.777', '2014-09-08 17:51:04.777');
+{code}
+
+Now the millisecond part is ignore, hope the connector can support this new feature
+
+*_UPDATE: Upon closer inspection, the container was not properly reconstructing temporal values and encoding them in Kafka Connect records._*",2016/07/05 3:15 AM
+DBZ-84,"Null value used for required Struct field.
+
+{code}
+.bulletin.status' of type TINYINT: (io.debezium.relational.TableSchemaBuilder:23
+3)
+org.apache.kafka.connect.errors.DataException: Invalid value: null used for requ
+ired field
+        at org.apache.kafka.connect.data.ConnectSchema.validateValue(ConnectSche
+ma.java:206)
+{code}",2016/06/30 6:49 AM
+DBZ-82,"mysql version is 5.5 and it has no option for GTIDs, so
+
+{code}
+gtid_mode                 = on
+enforce_gtid_consistency  = on
+{code}
+
+cannot be set. The MySQL connector documentation already states this is optional, but at line 191 of {{io.debezium.connector.mysql.SnapshotReader.java}} the following line requires a 5th column in the {{SHOW MASTER STATUS}} result set:
+
+{code}
+String gtidSet = rs.getString(5)
+{code}
+
+Since earlier versions of MySQL do not have a 5th column, this results in an index out of range and it register success. However, it won't create the Kafka topic or change event stream.",2016/06/27 7:01 AM
+DBZ-77,"If the MySQL connector were shutdown right after a snapshot completes but before any other events are recorded, then the connector fails to record the updated offset in which the snapshot was marked as completed. Then, upon restart, the connector will perform another snapshot.",2016/06/15 12:23 PM
+DBZ-76,"The position that we’re recording in the offsets is actually the position of the _next_ event in the binlog. This makes it easy to restart, since the last offset we recorded has the position in the binlog where we’re supposed to start. But we’re also including that position in the `source` field, which IMO is semantically wrong.
+
+The `source` field should reference the binlog coordinates where that event appeared. See the [forum discussion|https://gitter.im/debezium/dev?at=57602bc936c83a8802057b6d] in which everyone agreed that it should be fixed.",2016/06/14 6:23 PM
+DBZ-73,"A MySQL insert, update, or delete event can contain multiple rows. When the MySQL connector processes these multi-row events, it incorrectly sets the position in the offset so that if the connector fails after Kafka Connect has flushed the offset for some of the rows but not all, then upon restart the connector will begin at the _next_ event, thereby missing some of the rows.",2016/06/14 12:28 PM
+DBZ-72,"The MySQL connector in Debezium 0.2 generates a Kafka Connect (and ultimately Avro) schema for the {{before}} and {{after}} fields in the event message envelope with a name that is missing a delimiter. 
+
+This is a big deal and needs to be fixed, but doing so would mean any envelopes produced with 0.2.1 or 0.3 would be with a different schema than with 0.2, and this would likely make a mess for downstream consumers. Ideally, this means that **Debezium 0.2 should not be used**, but it if is then clients will simply have to deal with the change in schema for any persisted messages. ",2016/06/09 7:50 PM
+DBZ-71,"The Debezium 0.2 artifacts uploaded into Maven Central include two archives that are supposed to contain all of the JARs necessary to run the connector:
+
+* {{debezium-connector-mysql-0.2.0-plugin.zip}}
+* {{debezium-connector-mysql-0.2.0-plugin.tar.gz}}
+
+Both of these files are missing the MySQL driver, which was not needed in 0.1 but is now used in the snapshot feature added in 0.2 via DBZ-31. The reason it was not included is because the MySQL driver is still {{test}} scope in the POM file.
+
+Therefore, when using the 0.2 release one simply cannot unzip the MySQL connector archive into a Kafka Connect deployment. To solve this problem, the MySQL driver also needs to be added to the deployment.",2016/06/09 12:06 PM
+DBZ-64,"The {{AbstractConnectorTest}} class provides several helper methods that other integration tests can use to ensure that all messages are _valid_. Currently validation just involves serialization and deserialization using Kafka Connect's built-in JSON converter, but it'd be great to also use Confluent's Avro converter. 
+
+See DBZ-63 for a recent change that added this dependency for use in unit tests.
+
+Several of the naming conventions used in the Schema names is not compatible with the Avro naming conventions.",2016/05/25 10:50 AM
+DBZ-61,"When the database contains the following table:
+
+{code:sql}
+CREATE TABLE t1464075356413_testtable6 (
+  pk_column int auto_increment NOT NULL,
+  varbinary_col varbinary(20) NOT NULL,
+  PRIMARY KEY(pk_column)
+);
+{code}
+
+and the MySQL connector is monitoring it, when a row is inserted with a blob field as a hex string as follows:
+
+{code:sql}
+INSERT INTO t1464075356413_testtable6 (pk_column, varbinary_col)
+VALUES(default, 0x4D7953514C)
+{code}
+
+the connector will produce an error:
+
+{code}
+connect_1                 | 2016-05-24 07:36:18,731 - ERROR [WorkerSourceTask-inventory-connector-0:WorkerSourceTask$WorkerSourceTaskThread@362] - Task inventory-connector-0 threw an uncaught and unrecoverable exception
+connect_1                 | 2016-05-24 07:36:18,734 - ERROR [WorkerSourceTask-inventory-connector-0:WorkerSourceTask$WorkerSourceTaskThread@363] - Task is being killed and will not recover until manually restarted:
+connect_1                 | java.lang.ClassCastException: java.lang.String cannot be cast to [B
+connect_1                 | 	at io.debezium.relational.TableSchemaBuilder.lambda$createValueConverterFor$9(TableSchemaBuilder.java:446)
+connect_1                 | 	at io.debezium.relational.TableSchemaBuilder.lambda$createValueGenerator$3(TableSchemaBuilder.java:186)
+connect_1                 | 	at io.debezium.relational.TableSchema.valueFromColumnData(TableSchema.java:109)
+connect_1                 | 	at io.debezium.connector.mysql.TableConverters$1.inserted(TableConverters.java:213)
+connect_1                 | 	at io.debezium.connector.mysql.TableConverters.handleInsert(TableConverters.java:256)
+connect_1                 | 	at io.debezium.connector.mysql.MySqlConnectorTask.poll(MySqlConnectorTask.java:281)
+connect_1                 | 	at org.apache.kafka.connect.runtime.WorkerSourceTask$WorkerSourceTaskThread.execute(WorkerSourceTask.java:353)
+connect_1                 | 	at org.apache.kafka.connect.util.ShutdownableThread.run(ShutdownableThread.java:82)
+{code}",2016/05/24 3:06 AM
+DBZ-57,I noticed some errors when I started debezium for MySQL database that had a table that used the {{CHARSET}} shortened alias in place of {{CHARACTER SET}}.,2016/05/17 3:09 AM
+DBZ-55,"databaseName null in messages emited to {{database.history.kafka.topic}} when DDL statement uses {{databaseName.tablename}}
+
+{code:json}
+null	{
+  ""source"" : {
+    ""server"" : ""mysql-server-1""
+  },
+  ""position"" : {
+    ""file"" : ""mysql-bin.000003"",
+    ""pos"" : 1873,
+    ""row"" : 0
+  },
+  ""databaseName"" : """",
+  ""ddl"" : ""CREATE TABLE inventory.customers1\n(\n  id INT(11) PRIMARY KEY NOT NULL AUTO_INCREMENT,\n  first_name VARCHAR(255) NOT NULL,\n  last_name VARCHAR(255) NOT NULL,\n  email VARCHAR(255) NOT NULL\n)""
+}
+{code}
+
+Debezium should be able to extract databaseName from DDL statement. ",2016/05/15 2:52 PM
+DBZ-49,"I'm getting this odd behavior with the app/mysql version i'm using 5.6 (https://github.com/openshift/mysql) and using the ticket monster application. I'm getting stack traces like this:
+
+{code}
+2016-05-05 20:46:52,685 - ERROR [WorkerSourceTask-ticketmonster-connector-0:TableConverters@111] - Error parsing DDL statement and updating tables: CREATE TABLE IF NOT EXISTS help_r
+elation ( help_topic_id int unsigned not null references help_topic, help_keyword_id  int unsigned not null references help_keyword, primary key (help_keyword_id, help_topic_id) ) e
+ngine=MyISAM CHARACTER SET utf8 comment='keyword-topic relation';
+io.debezium.text.ParsingException: Expecting '(' at line 1, column 101 but found ',': eferences help_topic ===>> , help_keyword_id  i
+        at io.debezium.text.TokenStream.consume(TokenStream.java:693)
+        at io.debezium.connector.mysql.MySqlDdlParser.parseColumnNameList(MySqlDdlParser.java:983)
+        at io.debezium.connector.mysql.MySqlDdlParser.parseReferenceDefinition(MySqlDdlParser.java:581)
+        at io.debezium.connector.mysql.MySqlDdlParser.parseColumnDefinition(MySqlDdlParser.java:526)
+        at io.debezium.connector.mysql.MySqlDdlParser.parseCreateColumn(MySqlDdlParser.java:437)
+        at io.debezium.connector.mysql.MySqlDdlParser.parseCreateDefinition(MySqlDdlParser.java:427)
+        at io.debezium.connector.mysql.MySqlDdlParser.parseCreateDefinitionList(MySqlDdlParser.java:353)
+        at io.debezium.connector.mysql.MySqlDdlParser.parseCreateTable(MySqlDdlParser.java:183)
+        at io.debezium.connector.mysql.MySqlDdlParser.parseCreate(MySqlDdlParser.java:133)
+        at io.debezium.connector.mysql.MySqlDdlParser.parseNextStatement(MySqlDdlParser.java:116)
+        at io.debezium.relational.ddl.DdlParser.parse(DdlParser.java:269)
+        at io.debezium.relational.ddl.DdlParser.parse(DdlParser.java:250)
+{code}
+
+But this kinda doesn't make any sense.. from the code we expect a '("" opening brace for the column name, but as the stack trace indicates, the statement doesn't have an parens.. 
+
+{code}
+    protected List<String> parseColumnNameList(Marker start) {
+        List<String> names = new ArrayList<>();
+        tokens.consume('(');
+        names.add(tokens.consume());
+        while (tokens.canConsume(',')) {
+            names.add(tokens.consume());
+        }
+        tokens.consume(')');
+        return names;
+    }
+{code}
+
+
+And seems the parsing is correct based on the mysql REFERENCES clause:
+
+https://dev.mysql.com/doc/refman/5.6/en/create-table.html
+{code}
+reference_definition:
+    REFERENCES tbl_name (index_col_name,...)
+      [MATCH FULL | MATCH PARTIAL | MATCH SIMPLE]
+      [ON DELETE reference_option]
+      [ON UPDATE reference_option]
+{code}
+
+
+Not sure if this is a bug in mysql or how this statement got created. ",2016/05/05 6:40 PM
+DBZ-43,"it seems that the schema change topic message does not have keys which would break kafka connect unless we comment out
+{code}
+CONNECT_key.converter.schemas.enable=false
+CONNECT_value.converter.schemas.enable=false
+{code}
+
+Chatted with Randall in gitter, he mentioned that a non-null scheme needs to be supplied for the keys.",2016/04/26 11:52 PM
+DBZ-28,"The MySQL connector is incorrectly handling row delete events:
+
+{code}
+    public void handleDelete(Event event, SourceInfo source, Consumer<SourceRecord> recorder) {
+        DeleteRowsEventData deleted = event.getData();
+        long tableNumber = deleted.getTableId();
+        BitSet includedColumns = deleted.getIncludedColumns();
+        Converter converter = convertersByTableId.get(tableNumber);
+        if (tableFilter.test(converter.tableId())) {
+            logger.debug(""Received delete row event: {}"", event);
+            String topic = converter.topic();
+            Integer partition = converter.partition();
+            List<Serializable[]> rows = deleted.getRows();
+            for (int row = 0; row != rows.size(); ++row) {
+                Serializable[] values = rows.get(row);
+                Schema keySchema = converter.keySchema();
+                Object key = converter.createKey(values, includedColumns);
+                Schema valueSchema = converter.valueSchema();
+                Struct value = converter.inserted(values, includedColumns);
+                SourceRecord record = new SourceRecord(source.partition(), source.offset(row), topic, partition,
+                        keySchema, key, valueSchema, value);
+                recorder.accept(record);
+            }
+{code}
+
+The {{value}} should be obtained by calling {{converter.deleted(...)}} rather than {{converter.inserted(...)}}.",2016/03/04 9:17 AM
+DBZ-26,"It looks like the MySQL JDBC connector does not properly restart. It fails when it tries to reload its offsets or something.
+
+The connector worked just fine initially. When stopped and restarted the connector, it gave me a typecasting error:
+
+{noformat}
+[2016-03-02 22:33:52,174] ERROR Task mysql-whitelist-timestamp-source-0 threw an uncaught and unrecoverable exception (org.apache.kafka.connect.runtime.WorkerSourceTask:362)
+[2016-03-02 22:33:52,175] ERROR Task is being killed and will not recover until manually restarted: (org.apache.kafka.connect.runtime.WorkerSourceTask:363)
+java.lang.ClassCastException: java.lang.Long cannot be cast to java.lang.Integer
+        at io.debezium.connector.mysql.SourceInfo.setOffset(SourceInfo.java:142)
+        at io.debezium.connector.mysql.MySqlConnectorTask.start(MySqlConnectorTask.java:183)
+        at org.apache.kafka.connect.runtime.WorkerSourceTask$WorkerSourceTaskThread.execute(WorkerSourceTask.java:341)
+        at org.apache.kafka.connect.util.ShutdownableThread.run(ShutdownableThread.java:82)
+{noformat}
+
+After we fixed the typecasting issue, we got the following error when we restarted the connector:
+
+{noformat}
+[2016-03-03 03:08:34,904] INFO Source task Thread[WorkerSourceTask-mysql-whitelist-timestamp-source-0,5,main] finished initialization and start (org.apache.kafka.connect.runtime.WorkerSourceTask:342)
+[2016-03-03 03:08:35,007] ERROR Task mysql-whitelist-timestamp-source-0 threw an uncaught and unrecoverable exception (org.apache.kafka.connect.runtime.WorkerSourceTask:362)
+[2016-03-03 03:08:35,008] ERROR Task is being killed and will not recover until manually restarted: (org.apache.kafka.connect.runtime.WorkerSourceTask:363)
+java.lang.NullPointerException
+        at io.debezium.connector.mysql.TableConverters$1.keySchema(TableConverters.java:164)
+        at io.debezium.connector.mysql.TableConverters.handleInsert(TableConverters.java:217)
+        at io.debezium.connector.mysql.MySqlConnectorTask.poll(MySqlConnectorTask.java:270)
+        at org.apache.kafka.connect.runtime.WorkerSourceTask$WorkerSourceTaskThread.execute(WorkerSourceTask.java:353)
+        at org.apache.kafka.connect.util.ShutdownableThread.run(ShutdownableThread.java:82)
+{noformat}
+",2016/03/02 10:37 PM

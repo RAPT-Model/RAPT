@@ -1,0 +1,1884 @@
+bug_report_id,bug_report_desc,bug_report_time
+ISPN-2338,"Transactions should be transferred anyway, even if the affected data segments are not.
+
+Affected test: ParticipantFailsAfterPrepareTest",2012/09/24 7:47 AM
+ISPN-2297,"Cache restart has at least two issues:
+
+1. If a cache is stopped via {{Cache.stop()}} it will still be returned by {{DefaultCacheManager.getCache()}}. Cache {{start()}} and {{stop()}} are not synchronized in any way, so a {{start()}} call may return before the cache was properly started - just because another thread is in the process of starting it.
+
+2. {{ComponentRegistry}} keeps a few components as fields to speed up access. These components are destroyed on {{stop()}} and re-created on {{start()}}, because they are volatile, but the field references are not updated.
+
+Also, the documentation of {{EmbeddedCacheManager.getCache()}} should say that it will start the cache only if it doesn't exist yet - if the cache is stopped it will return the cache as it was. Alternatively we could change the behaviour of {{getCache()}} to always start the cache.",2012/09/14 3:57 AM
+ISPN-2262,"Basic resilience scenario in library mode:
+* spawn 4 nodes
+* kill one node (kill = insert DISCARD protocol and then call CacheManger.stop())
+* start one node
+
+We use RadarGun (with some modifications) for this test.
+
+When the node is started again the system looses some messages as some timeouts are triggered (and the RadarGun stage acknowledgement is missing as well) and later put/get requests cause exceptions.
+
+The trace logs are too big, therefore, these are published on http://dl.dropbox.com/u/103079234/serverlogs_trace.zip
+
+Note that the test was shutdown manually.",2012/09/05 11:47 AM
+ISPN-2193,"This problem was spotted by the Hibernate 2nd level cache testsuite.
+
+Since the introduction of ExpandableMarshalledValueByteStream as an improvement to MarshalledValue, the war buffer might be allocated larger than the actually used buffer region. Most usages of getRaw() where correctly using the area, except the final line of the equals implementation of MarshalledValue - which is reached only in exceptional cases and configurations.",2012/08/11 1:22 PM
+ISPN-2173,"When using xa enlistment (transaction/useSynchronization=false, default), and recovery is disabled (transaction/recovery/enabled=false, default) the transaction manager might invoke recovery related methods such as XAResource.forget() in certain situations.
+E.g. the JBossTM invokes ""forget"", if during, XAResource.commit(xid, true) (second param means 1PC=true) an exception is thrown. (I expect an XAResource.rollback to be invoked in between the failed commit and forget). 
+Here is such a stack trace: 
+{quote}
+2012-07-25 14:13:42,821 WARN  (testng-CheckRemoteLockAcquiredOnlyOnceDistTest:) [org.infinispan.transaction.xa.TransactionXaAdapter] Exception removing recovery information:java.lang.NullPointerException
+        at org.infinispan.transaction.xa.TransactionXaAdapter.forget(TransactionXaAdapter.java:159)
+        at com.arjuna.ats.internal.jta.resources.arjunacore.XAResourceRecord.forget(XAResourceRecord.java:759)
+        at com.arjuna.ats.internal.jta.resources.arjunacore.XAResourceRecord.topLevelOnePhaseCommit(XAResourceRecord.java:691)
+        at com.arjuna.ats.arjuna.coordinator.BasicAction.onePhaseCommit(BasicAction.java:2285)
+        at com.arjuna.ats.arjuna.coordinator.BasicAction.End(BasicAction.java:1468)
+        at com.arjuna.ats.arjuna.coordinator.TwoPhaseCoordinator.end(TwoPhaseCoordinator.java:98)
+        at com.arjuna.ats.arjuna.AtomicAction.commit(AtomicAction.java:164)
+        at com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionImple.commitAndDisassociate(TransactionImple.java:1165)
+        at com.arjuna.ats.internal.jta.transaction.arjunacore.BaseTransaction.commit(BaseTransaction.java:117)
+        at org.infinispan.lock.CheckRemoteLockAcquiredOnlyOnceTest.testLockThenOperation(CheckRemoteLockAcquiredOnlyOnceTest.java:157)
+        at org.infinispan.lock.CheckRemoteLockAcquiredOnlyOnceTest.testLockThenPutAll(CheckRemoteLockAcquiredOnlyOnceTest.java:100)
+        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.lang.reflect.Method.invoke(Method.java:601)
+        at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:74)
+        at org.testng.internal.Invoker.invokeMethod(Invoker.java:673)
+        at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:846)
+        at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1170)
+        at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:125)
+        at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:109)
+        at org.testng.TestRunner.runWorkers(TestRunner.java:1147)
+        at org.testng.TestRunner.privateRun(TestRunner.java:749)
+        at org.testng.TestRunner.run(TestRunner.java:600)
+        at org.testng.SuiteRunner.runTest(SuiteRunner.java:317)
+        at org.testng.SuiteRunner.access$000(SuiteRunner.java:34)
+        at org.testng.SuiteRunner$SuiteWorker.run(SuiteRunner.java:351)
+        at org.testng.internal.thread.ThreadUtil$CountDownLatchedRunnable.run(ThreadUtil.java:147)
+        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1110)
+        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:603)
+        at java.lang.Thread.run(Thread.java:722)
+{quote}
+
+As we do allow xa enlistment *without* recovery enabled this NPE shouldn't be shown to the user.
+Instead an warning should be logged stating that XA enlistment is configured without recovery, but recovery might be needed in certain situations.
+",2012/07/26 9:18 AM
+ISPN-2150,"When the event is trigger the getMembersAtStart/End() returns an empty set.
+
+A test case can be found in here [1] and you can integrate it in the master if you want. =)
+
+Cheers
+
+[1] https://github.com/pruivo/infinispan/blob/data_rehash_event/core/src/test/java/org/infinispan/distribution/rehash/RehashNotification.java",2012/07/07 7:33 AM
+ISPN-2132,"Hi,
+   I am getting a StackOverFlowError when I call remote EJB's that return an exception. The EJBs are running in Weblogic configured to use the LLR XA transaction optimization. We are currently using version 5.0.1-FINAL. I have tried the latest 5.1.5-FINAL version and the problem still occurs.
+
+The top of the stacktrace is:
+
+ javax.ejb.EJBException: EJB encountered System Exception: : java.lang.StackOverflowError
+	at java.lang.Integer.toUnsignedString(Integer.java:245)
+	at java.lang.Integer.toHexString(Integer.java:174)
+	at weblogic.transaction.internal.XAResourceHelper.xidToString(XAResourceHelper.java:26)
+	at weblogic.transaction.internal.XAResourceHelper.xidToString(XAResourceHelper.java:21)
+	at weblogic.transaction.internal.XidImpl.toString(XidImpl.java:151)
+	at java.lang.String.valueOf(String.java:2826)
+	at java.lang.StringBuffer.append(StringBuffer.java:219)
+	at weblogic.transaction.internal.TransactionImpl.toString(TransactionImpl.java:965)
+	at java.lang.String.valueOf(String.java:2826)
+	at java.lang.StringBuilder.append(StringBuilder.java:115)
+	at org.infinispan.transaction.LocalTransaction.toString(LocalTransaction.java:159)
+	at org.infinispan.transaction.xa.LocalXaTransaction.toString(LocalXaTransaction.java:66)
+	at java.lang.String.valueOf(String.java:2826)
+	at java.lang.StringBuilder.append(StringBuilder.java:115)
+	at org.infinispan.transaction.xa.TransactionXaAdapter.toString(TransactionXaAdapter.java:214)
+	at java.lang.String.valueOf(String.java:2826)
+	at java.lang.StringBuffer.append(StringBuffer.java:219)
+	at weblogic.transaction.internal.XAServerResourceInfo.toString(XAServerResourceInfo.java:151)
+	at weblogic.transaction.internal.TransactionImpl.toString(TransactionImpl.java:985)
+	at java.lang.String.valueOf(String.java:2826)
+	at java.lang.StringBuilder.append(StringBuilder.java:115)
+	at org.infinispan.transaction.LocalTransaction.toString(LocalTransaction.java:159)
+	at org.infinispan.transaction.xa.LocalXaTransaction.toString(LocalXaTransaction.java:66)
+	at java.lang.String.valueOf(String.java:2826)
+	at java.lang.StringBuilder.append(StringBuilder.java:115)
+	at org.infinispan.transaction.xa.TransactionXaAdapter.toString(TransactionXaAdapter.java:214)
+	at java.lang.String.valueOf(String.java:2826)
+	at java.lang.StringBuffer.append(StringBuffer.java:219)
+	at weblogic.transaction.internal.XAServerResourceInfo.toString(XAServerResourceInfo.java:151)
+	at weblogic.transaction.internal.TransactionImpl.toString(TransactionImpl.java:985)
+	at java.lang.String.valueOf(String.java:2826)
+	at java.lang.StringBuilder.append(StringBuilder.java:115)
+	at org.infinispan.transaction.LocalTransaction.toString(LocalTransaction.java:159)
+	at org.infinispan.transaction.xa.LocalXaTransaction.toString(LocalXaTransaction.java:66)
+	at java.lang.String.valueOf(String.java:2826)
+	at java.lang.StringBuilder.append(StringBuilder.java:115)
+	at org.infinispan.transaction.xa.TransactionXaAdapter.toString(TransactionXaAdapter.java:214)
+
+",2012/06/26 5:12 AM
+ISPN-2118,The Cassandra cache store pulls in cassandra-all with scope=compile only for the ByteBufferUtil class. Provide an internal version of the ByteBufferUtil methods we use and put cassandra-all on scope=test,2012/06/19 6:12 AM
+ISPN-2089,"This test fails:
+
+{code}public class DistSyncTxCacheStoreSharedTest extends BaseDistCacheStoreTest {
+
+   public DistSyncTxCacheStoreSharedTest() {
+      sync = true;
+      tx = true;
+      testRetVals = true;
+      shared = true;
+      INIT_CLUSTER_SIZE = 2;
+      numOwners = 1;
+   }
+
+   public void testPutFromNonOwner() throws Exception {
+      Cache<Object, String> cacheX = getFirstNonOwner(""key1"");
+      CacheStore storeX = TestingUtil.extractComponent(
+            cacheX, CacheLoaderManager.class).getCacheStore();
+      cacheX.put(""key1"", ""v1"");
+      assertEquals(""v1"", cacheX.get(""key1""));
+      assertNotNull(storeX.load(""key1""));
+      assertEquals(""v1"", storeX.load(""key1"").getValue());
+   }
+
+}{code}",2012/06/04 5:38 AM
+ISPN-2072,"When having this configuration:
+{code:xml}
+<transaction
+        transactionMode=""TRANSACTIONAL""
+        transactionManagerLookupClass=""org.infinispan.transaction.lookup.JBossStandaloneJTAManagerLookup""/>
+    <locking isolationLevel=""REPEATABLE_READ"" writeSkewCheck=""true"" />
+{code}
+
+When a write skew check is failed, the following exception is propagated to the user code:
+{quote}
+org.infinispan.CacheException: Detected write skew - concurrent removal of entry!
+	at org.infinispan.container.entries.RepeatableReadEntry.performLocalWriteSkewCheck(RepeatableReadEntry.java:75)
+        at org.infinispan.container.entries.RepeatableReadEntry.copyForUpdate(RepeatableReadEntry.java:52)
+	at org.infinispan.container.EntryFactoryImpl.wrapEntryForRemove(EntryFactoryImpl.java:133)
+	at org.infinispan.interceptors.EntryWrappingInterceptor.visitRemoveCommand(EntryWrappingInterceptor.java:158)
+	at org.infinispan.commands.write.RemoveCommand.acceptVisitor(RemoveCommand.java:72)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:116)
+	at org.infinispan.interceptors.locking.OptimisticLockingInterceptor.visitRemoveCommand(OptimisticLockingInterceptor.java:173)
+	at org.infinispan.commands.write.RemoveCommand.acceptVisitor(RemoveCommand.java:72)
+{quote}
+
+The user code is catching the exception, and attempts a rollback. The rollback fails with:
+
+{quote}
+WARN  [jta] (main) ARJUNA016045: attempted rollback of < formatId=131077, gtrid_length=29, bqual_length=36, tx_uid=0:ffffac11823e:8e2d:4fc39246:2669f, node_name=1, branch_uid=0:ffffac11823e:8e2d:4fc39246:266a4, subordinatenodename=null, eis_name=0 > (TransactionXaAdapter\{localTransaction=LocalXaTransaction\{xid=< formatId=131077, gtrid_length=29, bqual_length=36, tx_uid=0:ffffac11823e:8e2d:4fc39246:2669f, node_name=1, branch_uid=0:ffffac11823e:8e2d:4fc39246:266a4, subordinatenodename=null, eis_name=0 >} LocalTransaction\{remoteLockedNodes=null, isMarkedForRollback=false, transaction=TransactionImple < ac, BasicAction: 0:ffffac11823e:8e2d:4fc39246:2669f status: ActionStatus.ABORTING >, lockedKeys=null, backupKeyLocks=null, viewId=-1} org.infinispan.transaction.xa.LocalXaTransaction@99a9}) failed with exception code XAException.XAER_NOTA
+javax.transaction.xa.XAException
+	at org.infinispan.transaction.xa.TransactionXaAdapter.getLocalTransactionAndValidateImpl(TransactionXaAdapter.java:245)
+	at org.infinispan.transaction.xa.TransactionXaAdapter.rollback(TransactionXaAdapter.java:134)
+	at com.arjuna.ats.internal.jta.resources.arjunacore.XAResourceRecord.topLevelAbort(XAResourceRecord.java:345)
+	at com.arjuna.ats.arjuna.coordinator.BasicAction.doAbort(BasicAction.java:2876)
+	at com.arjuna.ats.arjuna.coordinator.BasicAction.doAbort(BasicAction.java:2855)
+	at com.arjuna.ats.arjuna.coordinator.BasicAction.Abort(BasicAction.java:1618)
+	at com.arjuna.ats.arjuna.coordinator.TwoPhaseCoordinator.cancel(TwoPhaseCoordinator.java:118)
+	at com.arjuna.ats.arjuna.AtomicAction.abort(AtomicAction.java:188)
+	at com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionImple.rollbackAndDisassociate(TransactionImple.java:1247)
+	at com.arjuna.ats.internal.jta.transaction.arjunacore.BaseTransaction.rollback(BaseTransaction.java:134)
+{quote}
+
+as in _org.infinispan.transaction.xa.TransactionXaAdapter.getLocalTransactionAndValidateImpl(Xid, XaTransactionTable)_ the operation 
+{code}
+LocalXaTransaction localTransaction = txTable.getLocalTransaction(xid);{code}
+returns *null*.
+
+This happens as the method _org.infinispan.interceptors.TxInterceptor_.enlistWriteAndInvokeNext(InvocationContext, WriteCommand) is removing a reference to the local transaction on *line 218*
+
+I've removed the cleanup line and it fixes my problem: I'm now correctly able to rollback transactions and try again. Still I'm uncomfortable with that change..",2012/05/28 11:05 AM
+ISPN-2068,"I am using Infinispan on top of a Cassandra cache store. Whenever I start an Infinispan cluster node, and Cassandra contains data from a previous run, the application immediatly allocates all available memory (1GB) and after a few minutes I get OutOfMemory exceptions in org.infinispan.loaders.cassandra.CassandraCacheStore.purgeInternal.
+
+If I purge Cassandra manually (TRUNCATE InfinispanEntries; TRUNCATE InfinispanExpiration;) and restart the application, everything works again.
+
+Note that there were only around 10000 entries stored in Cassandra (around 150 MB spread over 2 nodes). 
+
+Infinispan loaders configuration:
+
+<loaders passivation=""false"" preload=""false"" shared=""true"">
+     <loader class=""org.infinispan.loaders.cassandra.CassandraCacheStore"" fetchPersistentState=""false"" ignoreModifications=""false"" purgeOnStartup=""false"">
+          <properties>
+               <!--  property name=""autoCreateKeyspace"" value=""true""/ -->
+               <property name=""host"" value=""localhost"" />
+               <property name=""keySpace"" value=""Infinispan"" />
+               <property name=""entryColumnFamily"" value=""InfinispanEntries"" />
+               <property name=""expirationColumnFamily"" value=""InfinispanExpiration"" />
+               <property name=""sharedKeyspace"" value=""false"" />
+               <property name=""readConsistencyLevel"" value=""ONE"" />
+               <property name=""writeConsistencyLevel"" value=""ONE"" />
+               <property name=""configurationPropertiesFile"" value=""cassandrapool.properties"" />
+               <property name=""keyMapper"" value=""org.infinispan.loaders.keymappers.DefaultTwoWayKey2StringMapper"" />
+          </properties>
+     </loader>
+</loaders>
+
+Stack trace:
+
+Caused by: java.lang.OutOfMemoryError: Java heap space
+        at java.nio.ByteBuffer.wrap(ByteBuffer.java:367)
+        at java.nio.ByteBuffer.wrap(ByteBuffer.java:390)
+        at org.apache.thrift.TBaseHelper.rightSize(TBaseHelper.java:279)
+        at org.apache.cassandra.thrift.Column.getName(Column.java:195)
+        at org.infinispan.loaders.cassandra.CassandraCacheStore.purgeInternal(CassandraCacheStore.java:539)
+        at org.infinispan.loaders.cassandra.CassandraCacheStore.start(CassandraCacheStore.java:153)
+        at org.infinispan.loaders.CacheLoaderManagerImpl.start(CacheLoaderManagerImpl.java:136)
+        at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+        at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+        at java.lang.reflect.Method.invoke(Method.java:616)
+        at org.infinispan.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:236)
+        at org.infinispan.factories.AbstractComponentRegistry$PrioritizedMethod.invoke(AbstractComponentRegistry.java:885)
+        at org.infinispan.factories.AbstractComponentRegistry.invokeStartMethods(AbstractComponentRegistry.java:639)
+        at org.infinispan.factories.AbstractComponentRegistry.internalStart(AbstractComponentRegistry.java:628)
+        at org.infinispan.factories.AbstractComponentRegistry.start(AbstractComponentRegistry.java:531)
+        at org.infinispan.factories.ComponentRegistry.start(ComponentRegistry.java:174)
+        at org.infinispan.CacheImpl.start(CacheImpl.java:521)
+        at org.infinispan.manager.DefaultCacheManager.createCache(DefaultCacheManager.java:656)
+        at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:549)
+        at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:521)",2012/05/25 10:53 AM
+ISPN-2008,"The REST server's optimistic currency control is not atomic. The sequence in e.g. a PUT request goes like this:
+
+* request.evaluatePreconditions
+* cache.put (if preconditions met)
+
+Which is not inside any lock (that would make it pessimistic, anyway), in other words, a race condition.
+
+This applies to the optimistic variants, i.e. requests carrying 'If-Match' or any of the other 'If-*' preconditions, of PUT, POST, and DELETE requests.",2012/04/24 10:06 PM
+ISPN-2005,"With native memcached out of the box, I can execute such a test without any problems:
+1000 clients (threads), 400 operations per thread, 34% writes
+
+However, running Infinispan Memcached distribution with 1000 worker threads results in exceptions such as:
+
+{code}2012-04-23 16:46:59,893 ERROR (MemcachedServerWorker-1-957) [org.infinispan.server.memcached.MemcachedDecoder] ISPN005003: Exception reported
+org.infinispan.server.core.UnknownOperationException: Unknown operation: 
+	at org.infinispan.server.memcached.RequestResolver$.toRequest(MemcachedDecoder.scala:659)
+	at org.infinispan.server.memcached.MemcachedDecoder.readHeader(MemcachedDecoder.scala:73)
+	at org.infinispan.server.core.AbstractProtocolDecoder.decodeHeader(AbstractProtocolDecoder.scala:92)
+	at org.infinispan.server.core.AbstractProtocolDecoder.decode(AbstractProtocolDecoder.scala:69)
+	at org.infinispan.server.core.AbstractProtocolDecoder.decode(AbstractProtocolDecoder.scala:45)
+	at org.infinispan.server.core.transport.CustomReplayingDecoder.callDecode(CustomReplayingDecoder.java:250)
+	at org.infinispan.server.core.transport.CustomReplayingDecoder.messageReceived(CustomReplayingDecoder.java:223)
+	at org.infinispan.server.core.AbstractProtocolDecoder.messageReceived(AbstractProtocolDecoder.scala:360)
+	at org.jboss.netty.channel.Channels.fireMessageReceived(Channels.java:274)
+	at org.jboss.netty.channel.Channels.fireMessageReceived(Channels.java:261)
+	at org.jboss.netty.channel.socket.nio.NioWorker.read(NioWorker.java:351)
+	at org.jboss.netty.channel.socket.nio.NioWorker.processSelectedKeys(NioWorker.java:282)
+	at org.jboss.netty.channel.socket.nio.NioWorker.run(NioWorker.java:202)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.runTask(ThreadPoolExecutor.java:886)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:908)
+	at java.lang.Thread.run(Thread.java:680){code}
+
+Client shows:
+
+{code}2012-04-23 16:46:28.742 INFO net.spy.memcached.MemcachedConnection:  Reconnecting due to exception on {QA sa=/127.0.0.1:11211, #Rops=0, #Wops=0, #iq=0, topRop=null, topWop=null, toWrite=0, interested=0}
+java.net.SocketException: Connection reset by peer
+	at sun.nio.ch.SocketChannelImpl.checkConnect(Native Method)
+	at sun.nio.ch.SocketChannelImpl.finishConnect(SocketChannelImpl.java:567)
+	at net.spy.memcached.MemcachedConnection.handleIO(MemcachedConnection.java:369)
+	at net.spy.memcached.MemcachedConnection.handleIO(MemcachedConnection.java:242)
+	at net.spy.memcached.MemcachedConnection.run(MemcachedConnection.java:833){code}",2012/04/23 11:04 AM
+ISPN-1998,"Hot Rod distribution tests have recently been failing with:
+
+{code}Caused by: java.util.concurrent.ExecutionException: org.infinispan.remoting.transport.jgroups.SuspectException: One or more nodes have left the cluster while replicating command SingleRpcCommand{cacheName='hotRodDistSync', command=InvalidateL1Command{num keys=1, forRehash=false, origin=HotRodDistributionTest-NodeA-24419}}
+	at java.util.concurrent.FutureTask$Sync.innerGet(FutureTask.java:222)
+	at java.util.concurrent.FutureTask.get(FutureTask.java:83)
+	at org.infinispan.interceptors.DistributionInterceptor.handleWriteCommand(DistributionInterceptor.java:518)
+	at org.infinispan.interceptors.DistributionInterceptor.visitPutKeyValueCommand(DistributionInterceptor.java:272){code}
+
+This happens once a node goes down, after waiting for the cluster view to reform, when a client does a put() on one of the other surviving nodes.
+
+The two suspicious things here are:
+* Why is an error on InvalidateL1Command bubbling up? If anything, it should be the put that fails to work.
+* Why would a suspect exception happen even if you wait for the cluster to reform?
+
+Note that these Hot Rod server tests use a simplistic Hot Rod client that does not filter suspect exceptions...etc
+
+",2012/04/23 4:56 AM
+ISPN-1990,"I think I've spotted a issue when I use repeatable read with write skew check and I preload the cache.
+ 
+I've made a test case to reproduce the bug. It can be found here [1]. 
+The problem is that each keys preloaded is put in the container with version = null. When I try to commit a transaction, I get this exception:
+ 
+{code}
+ java.lang.IllegalStateException: Entries cannot have null versions!
+    at org.infinispan.container.entries.ClusteredRepeatableReadEntry.performWriteSkewCheck(ClusteredRepeatableReadEntry.java:44)
+    at org.infinispan.transaction.WriteSkewHelper.performWriteSkewCheckAndReturnNewVersions(WriteSkewHelper.java:81)
+    at org.infinispan.interceptors.locking.ClusteringDependentLogic$AllNodesLogic.createNewVersionsAndCheckForWriteSkews(ClusteringDependentLogic.java:133)
+    at org.infinispan.interceptors.VersionedEntryWrappingInterceptor.visitPrepareCommand(VersionedEntryWrappingInterceptor.java:64)
+{code}
+ 
+I think that all info is in the test case, but if you need something let 
+me know.
+ 
+Cheers,
+Pedro
+
+[1] 
+https://github.com/pruivo/infinispan/blob/issue_1/core/src/test/java/org/infinispan/loaders/WriteSkewCacheLoaderFunctionalTest.java",2012/04/18 6:03 AM
+ISPN-1983,"The javadoc says: ""Only goes through if the key specified does not exist...""
+
+But, two consecutive calls for putForExternalRead result in the second one acting on the cache.
+
+1st call:
+{code}
+1444  TRACE [org.infinispan.interceptors.InvocationContextInterceptor] (main:replSync) Invoked with command PutKeyValueCommand{key=k, value=v, flags=[ZERO_LOCK_ACQUISITION_TIMEOUT, FORCE_ASYNCHRONOUS, FAIL_SILENTLY, PUT_FOR_EXTERNAL_READ], putIfAbsent=true, lifespanMillis=-1, maxIdleTimeMillis=-1} and InvocationContext [SingleKeyNonTxInvocationContext{flags=[ZERO_LOCK_ACQUISITION_TIMEOUT, FORCE_ASYNCHRONOUS, FAIL_SILENTLY, PUT_FOR_EXTERNAL_READ]}]
+1444  TRACE [org.infinispan.statetransfer.StateTransferLockImpl] (main:replSync) Acquired shared state transfer shared lock, total holders: 1
+1444  TRACE [org.infinispan.container.EntryFactoryImpl] (main:replSync) Exists in context? null 
+1444  TRACE [org.infinispan.container.EntryFactoryImpl] (main:replSync) Retrieved from container null
+1444  TRACE [org.infinispan.container.EntryFactoryImpl] (main:replSync) Creating new entry.
+1446  TRACE [org.infinispan.interceptors.CallInterceptor] (main:replSync) Executing command: PutKeyValueCommand{key=k, value=v, flags=[ZERO_LOCK_ACQUISITION_TIMEOUT, FORCE_ASYNCHRONOUS, FAIL_SILENTLY, PUT_FOR_EXTERNAL_READ], putIfAbsent=true, lifespanMillis=-1, maxIdleTimeMillis=-1}.
+1447  TRACE [org.infinispan.remoting.rpc.RpcManagerImpl] (main:replSync) NodeA-26945 broadcasting call PutKeyValueCommand{key=k, value=v, flags=[ZERO_LOCK_ACQUISITION_TIMEOUT, FORCE_ASYNCHRONOUS, FAIL_SILENTLY, PUT_FOR_EXTERNAL_READ], putIfAbsent=true, lifespanMillis=-1, maxIdleTimeMillis=-1} to recipient list null
+...
+1452  TRACE [org.infinispan.container.entries.ReadCommittedEntry] (main:replSync) Updating entry (key=k removed=false valid=true changed=true created=true value=v]
+1453  TRACE [org.infinispan.interceptors.EntryWrappingInterceptor] (main:replSync) Committed entry ReadCommittedEntry(1436ae83){key=k, value=v, oldValue=null, isCreated=false, isChanged=false, isRemoved=false, isValid=true}
+{code}
+
+2nd call:
+{code}
+1453  TRACE [org.infinispan.interceptors.InvocationContextInterceptor] (main:replSync) Invoked with command PutKeyValueCommand{key=k, value=v, flags=[ZERO_LOCK_ACQUISITION_TIMEOUT, FORCE_ASYNCHRONOUS, FAIL_SILENTLY, PUT_FOR_EXTERNAL_READ], putIfAbsent=true, lifespanMillis=-1, maxIdleTimeMillis=-1} and InvocationContext [SingleKeyNonTxInvocationContext{flags=[ZERO_LOCK_ACQUISITION_TIMEOUT, FORCE_ASYNCHRONOUS, FAIL_SILENTLY, PUT_FOR_EXTERNAL_READ]}]
+1453  TRACE [org.infinispan.remoting.InboundInvocationHandlerImpl] (Incoming-1,ISPN,NodeB-23417:) Calling perform() on SingleRpcCommand{cacheName='replSync', command=PutKeyValueCommand{key=k, value=v, flags=[ZERO_LOCK_ACQUISITION_TIMEOUT, FORCE_ASYNCHRONOUS, FAIL_SILENTLY, PUT_FOR_EXTERNAL_READ], putIfAbsent=false, lifespanMillis=-1, maxIdleTimeMillis=-1}}
+1453  TRACE [org.infinispan.container.EntryFactoryImpl] (main:replSync) Exists in context? null 
+1453  TRACE [org.infinispan.container.EntryFactoryImpl] (main:replSync) Retrieved from container ImmortalCacheEntry{key=k, value=ImmortalCacheValue {value=v}}
+1454  TRACE [org.infinispan.interceptors.CallInterceptor] (main:replSync) Executing command: PutKeyValueCommand{key=k, value=v, flags=[ZERO_LOCK_ACQUISITION_TIMEOUT, FORCE_ASYNCHRONOUS, FAIL_SILENTLY, PUT_FOR_EXTERNAL_READ], putIfAbsent=true, lifespanMillis=-1, maxIdleTimeMillis=-1}.
+1454  TRACE [org.infinispan.container.entries.ReadCommittedEntry] (main:replSync) Updating entry (key=k removed=false valid=true changed=true created=false value=v]
+1454  TRACE [org.infinispan.interceptors.EntryWrappingInterceptor] (main:replSync) Committed entry ReadCommittedEntry(7f2ea1dd){key=k, value=v, oldValue=null, isCreated=false, isChanged=false, isRemoved=false, isValid=true}
+{code}
+
+Why is updating an entry if if the value is already present? It shouldn't do that.
+
+Even further, in the case of putForExternalRead() the previous value is not needed since we don't return it, so it should not even retrieve it from the container. Just checking if it's present should be enough. This is in contrast to a normal putIfAbsent() call.",2012/04/17 10:28 AM
+ISPN-1979,"This is related to ISPN-1873 and ISPN-1926. AS7-3180 now shows what the missing status check:
+
+{code}[JBossINF] 21:04:58,419 WARN  [org.infinispan.remoting.transport.jgroups.CommandAwareRpcDispatcher] Problems unmarshalling remote command 
+from byte buffer: org.infinispan.CacheException: Cache manager is TERMINATED and type (id=74) cannot be resolved (thread not interrupted){code}",2012/04/16 5:50 AM
+ISPN-1968,The test suite is hanging on the cluster cache store. This makes it practically unusable.,2012/04/04 1:32 PM
+ISPN-1948,"Here we have the good old ""invalid magic number"" problem again (JDG 6.0.0.ER5 testing):
+https://hudson.qa.jboss.com/hudson/view/EDG6/view/EDG-REPORTS-RESILIENCE/job/edg-60-elasticity-dist-basic/47/console-edg-perf05/consoleText
+
+{code}
+2012-03-26 15:18:43,524 253444 ERROR [org.jboss.smartfrog.edg.loaddriver.DriverNode] (Client-477:) Error doing PUT(key410977) to node node02 (lastOpTime 1 ms)
+org.infinispan.client.hotrod.exceptions.InvalidResponseException:: Invalid magic number. Expected 0xa1 and received 0x0
+	at org.infinispan.client.hotrod.impl.protocol.Codec10.readHeader(Codec10.java:92)
+	at org.infinispan.client.hotrod.impl.operations.HotRodOperation.readHeaderAndValidate(HotRodOperation.java:78)
+	at org.infinispan.client.hotrod.impl.operations.AbstractKeyValueOperation.sendPutOperation(AbstractKeyValueOperation.java:72)
+	at org.infinispan.client.hotrod.impl.operations.PutOperation.executeOperation(PutOperation.java:52)
+	at org.infinispan.client.hotrod.impl.operations.PutOperation.executeOperation(PutOperation.java:41)
+	at org.infinispan.client.hotrod.impl.operations.RetryOnFailureOperation.execute(RetryOnFailureOperation.java:68)
+	at org.infinispan.client.hotrod.impl.RemoteCacheImpl.put(RemoteCacheImpl.java:219)
+	at org.infinispan.CacheSupport.put(CacheSupport.java:52)
+	at org.jboss.qa.edg.adapter.HotRodAdapter$HotRodRemoteCacheAdapter.put(HotRodAdapter.java:249)
+	at org.jboss.qa.edg.adapter.HotRodAdapter$HotRodRemoteCacheAdapter.put(HotRodAdapter.java:234)
+	at org.jboss.smartfrog.edg.loaddriver.DriverNodeImpl$ClientThread.makeRequest(DriverNodeImpl.java:244)
+	at org.jboss.smartfrog.edg.loaddriver.DriverNodeImpl$ClientThread.run(DriverNodeImpl.java:375)
+{code}
+
+The exception repeats many times in the log and the ""received"" part of ""Expected 0xa1 and received 0xXX"" takes on different values.
+Also happens in both PUT and GET operations.",2012/03/27 5:56 AM
+ISPN-1909,"I'm getting the following exception when running Infinispan testsuite on Solaris with NFS (Network File System):
+
+{code}
+java.lang.IllegalArgumentException: bucketId: .nfs073116 (expected: integer)
+	at org.infinispan.loaders.bucket.Bucket.setBucketId(Bucket.java:77)
+	at org.infinispan.loaders.file.FileCacheStore.loadBucket(FileCacheStore.java:323)
+	at org.infinispan.loaders.file.FileCacheStore.loopOverBuckets(FileCacheStore.java:101)
+	at org.infinispan.loaders.bucket.BucketBasedCacheStore.loadAllLockSafe(BucketBasedCacheStore.java:180)
+	at org.infinispan.loaders.LockSupportCacheStore.loadAll(LockSupportCacheStore.java:138)
+	at org.infinispan.loaders.BaseCacheStoreTest.testStreamingAPI(BaseCacheStoreTest.java:561)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:39)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+	at java.lang.reflect.Method.invoke(Method.java:597)
+	at org.testng.internal.MethodHelper.invokeMethod(MethodHelper.java:644)
+	at org.testng.internal.Invoker.invokeMethod(Invoker.java:546)
+	at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:700)
+	at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1002)
+	at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:137)
+	at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:121)
+	at org.testng.TestRunner.runWorkers(TestRunner.java:909)
+	at org.testng.TestRunner.privateRun(TestRunner.java:618)
+	at org.testng.TestRunner.run(TestRunner.java:499)
+	at org.testng.SuiteRunner.runTest(SuiteRunner.java:332)
+	at org.testng.SuiteRunner.access$000(SuiteRunner.java:33)
+	at org.testng.SuiteRunner$SuiteWorker.run(SuiteRunner.java:358)
+	at org.testng.internal.thread.ThreadUtil$CountDownLatchedRunnable.run(ThreadUtil.java:142)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.runTask(ThreadPoolExecutor.java:886)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:908)
+	at java.lang.Thread.run(Thread.java:662)
+{code}
+
+More FileCacheStore tests fail because of this problem: https://hudson.qa.jboss.com/hudson/view/EDG6/view/EDG-QE/job/edg-60-community-testsuite-solaris/jdk=java16_default,label=sol10_x86_64/16/testReport/org.infinispan.loaders.file/
+
+I was not sure what this means and found this explanation on the internet:
+
+The .nfsxxxx files are used by NFS clients to manage
+the deletion of open files. If an open file is deleted
+then the client renames it to .nfsxxxx. If the last
+open to this file is closed then the client should
+send a request to remove it. If the client crashes
+before it can clean up then you'll be left with these
+files. 
+
+I think Infinispan should count with using NFS ans ignore the files with .nsf prefix when loading all buckets into memory.
+",2012/03/13 9:24 AM
+ISPN-1894,"{code}[g@z:~/Go/test/infinispan.git/target/distribution/infinispan-5.2.0-SNAPSHOT]% ./bin/runGuiDemo.sh 
+Skipping non-existing classpath element: /Users/g/Go/test/infinispan.git/target/distribution/infinispan-5.2.0-SNAPSHOT/modules/demos/gui
+[g@z:~/Go/test/infinispan.git/target/distribution/infinispan-5.2.0-SNAPSHOT]% Exception in thread ""main"" java.lang.NoClassDefFoundError: org/infinispan/demo/InfinispanDemo
+Caused by: java.lang.ClassNotFoundException: org.infinispan.demo.InfinispanDemo
+	at java.net.URLClassLoader$1.run(URLClassLoader.java:202)
+	at java.security.AccessController.doPrivileged(Native Method)
+	at java.net.URLClassLoader.findClass(URLClassLoader.java:190)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:306)
+	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:301)
+	at java.lang.ClassLoader.loadClass(ClassLoader.java:247){code}
+
+all distribution works fine.",2012/03/02 5:48 AM
+ISPN-1850,"Happens, when running ISPN inside webapp in Tomcat 6 during shutdown of the server.
+
+java.lang.NullPointerException
+        at org.infinispan.jmx.CacheJmxRegistration.unregisterCacheMBean(CacheJmxRegistration.java:113)
+        at org.infinispan.manager.DefaultCacheManager.unregisterCacheMBean(DefaultCacheManager.java:732)
+        at org.infinispan.manager.DefaultCacheManager.stop(DefaultCacheManager.java:706)
+",2012/02/07 11:50 AM
+ISPN-1828,"On this line
+https://github.com/infinispan/infinispan/blob/master/client/hotrod-client/src/main/java/org/infinispan/client/hotrod/impl/transport/tcp/TcpTransportFactory.java#L208
+
+Shouldn't newServers be replaced with addedServers ?
+At least when logging the message ISPN004014: New server added(xxxx), adding to the pool.
+this causes even the non-changed servers to be reported as newly added.",2012/02/01 6:18 AM
+ISPN-1826,"Another resilience test: 4 nodes node2 goes down and up again:
+http://hudson.qa.jboss.com/hudson/view/EDG6/view/EDG-REPORTS-RESILIENCE/job/edg-60-failover-dist-basic/16/artifact/report/stats-throughput.png
+
+Test timeline goes like this:
+
+2012-02-01 04:39:21,993: 20 hotrod clients started
+2012-02-01 04:42:21,995: node02 killed
+2012-02-01 04:45:27,950: node02 up again
+
+Endpoints:
+172.18.1.1:11222 - node01
+172.18.1.3:11222 - node02
+172.18.1.5:11222 - node03
+172.18.1.7:11222 - node04
+
+in the client side log
+http://hudson.qa.jboss.com/hudson/view/EDG6/view/EDG-REPORTS-RESILIENCE/job/edg-60-failover-dist-basic/16/console-edg-perf06/consoleText
+http://hudson.qa.jboss.com/hudson/view/EDG6/view/EDG-REPORTS-RESILIENCE/job/edg-60-failover-dist-basic/16/console-edg-perf07/consoleText
+
+some warnings about connection refused and then node02 being removed from the pool by Timer thread:
+{code}
+2012-02-01 04:43:15,608 254109 INFO  [org.infinispan.client.hotrod.impl.protocol.Codec11] (Timer-1:) ISPN004006: New topology: [/172.18.1.1:11222, /172.18.1.7:11222, /172.18.1.5:11222]
+2012-02-01 04:43:15,609 254110 INFO  [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Timer-1:) ISPN004014: New server added(/172.18.1.1:11222), adding to the pool.
+2012-02-01 04:43:15,610 254111 INFO  [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Timer-1:) ISPN004014: New server added(/172.18.1.7:11222), adding to the pool.
+2012-02-01 04:43:15,611 254112 INFO  [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Timer-1:) ISPN004014: New server added(/172.18.1.5:11222), adding to the pool.
+2012-02-01 04:43:15,612 254113 INFO  [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Timer-1:) ISPN004016: Server not in cluster anymore(/172.18.1.3:11222), removing from the pool.
+{code}
+
+Log of Client-19
+
+{code}
+2012-02-01 04:39:20,962 19437 DEBUG [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Client-19:) Statically configured servers: [/172.18.1.7:11222, /172.18.1.5:11222, /172.18.1.3:11222, /172.18.1.1:11222]
+2012-02-01 04:39:20,962 19437 DEBUG [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Client-19:) Load balancer class: org.infinispan.client.hotrod.impl.transport.tcp.RoundRobinBalancingStrategy
+2012-02-01 04:39:20,963 19438 DEBUG [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Client-19:) Tcp no delay = true; client socket timeout = 120000 ms; connect timeout = 120000 ms
+2012-02-01 04:39:20,996 19471 INFO  [org.infinispan.client.hotrod.impl.protocol.Codec11] (Client-19:) ISPN004006: New topology: [/172.18.1.1:11222, /172.18.1.3:11222, /172.18.1.7:11222, /172.18.1.5:11222]
+2012-02-01 04:39:20,997 19472 INFO  [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Client-19:) ISPN004014: New server added(/172.18.1.1:11222), adding to the pool.
+2012-02-01 04:39:20,998 19473 INFO  [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Client-19:) ISPN004014: New server added(/172.18.1.3:11222), adding to the pool.
+2012-02-01 04:39:20,999 19474 INFO  [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Client-19:) ISPN004014: New server added(/172.18.1.7:11222), adding to the pool.
+2012-02-01 04:39:21,000 19475 INFO  [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Client-19:) ISPN004014: New server added(/172.18.1.5:11222), adding to the pool.
+2012-02-01 04:45:26,202 384677 INFO  [org.infinispan.client.hotrod.impl.protocol.Codec11] (Client-19:) ISPN004006: New topology: [/172.18.1.1:11222, /172.18.1.7:11222, /172.18.1.5:11222]
+2012-02-01 04:45:26,206 384681 INFO  [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Client-19:) ISPN004014: New server added(/172.18.1.1:11222), adding to the pool.
+2012-02-01 04:45:26,207 384682 INFO  [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Client-19:) ISPN004014: New server added(/172.18.1.7:11222), adding to the pool.
+2012-02-01 04:45:26,208 384683 INFO  [org.infinispan.client.hotrod.impl.transport.tcp.TcpTransportFactory] (Client-19:) ISPN004014: New server added(/172.18.1.5:11222), adding to the pool.
+{code}
+
+it seems like they get new topology update but without newly started node02
+
+",2012/02/01 5:25 AM
+ISPN-1781,"Even though I disable l1 configuration via:
+
+{code}      return new ConfigurationBuilder()
+            .clustering()
+               .cacheMode(CacheMode.DIST_SYNC)
+               .l1().disable(){code}
+
+L1 is enabled.",2012/01/23 9:39 AM
+ISPN-1739,NoData,2012/01/17 2:46 AM
+ISPN-1696,"A user complaint: 
+
+{quote}
+I needed to enable versioning.  Looking at http://docs.jboss.org/infinispan/5.1/apidocs/config.html#ce_default_versioning I tried to add 
+
+<versioning versioningScheme=""SIMPLE"" enabled=""true"" />
+
+to the <default> section in the configuration file, but apparently I'm doing something wrong, because then I get this exception from the parser:
+
+    Caused by: javax.xml.stream.XMLStreamException: ParseError at [row,col]:[35,5]
+    Message: Unexpected element 'versioning' encountered
+{quote}",2012/01/09 6:57 AM
+ISPN-1637,"Documentation http://docs.jboss.org/infinispan/5.1/apidocs/config.html#ce_loader_async :
+
+""modificationQueueSize	int	1024	Sets the size of the modification queue for the async store. If updates are made at a rate that is faster than the underlying cache store can process this queue, then the async store behaves like a synchronous store for that period, blocking until the queue can accept more elements. (Javadoc)""
+
+However the async store doesn't ""behaves like synchronous [...] blocking until the queue can accept more elements"" because AsyncStore.enqueue() calls 
+
+changesDeque.add(mod); 
+
+But I guess it should call put() to wait queue to accept more elements.
+",2011/12/20 9:40 AM
+ISPN-1630,"When a node leaves, {{KeyGeneratorWorker}} can get in an infinite loop because the consistent hash doesn't return the leaver any more and {{KeyGeneratorWorker}} will never be able to generate the required number of keys.
+
+{{KeyAffinityServiceImpl}} installs a listener for {{TopologyChangeEvents}} that is supposed to adjust the queues and prevent this problem. However, it doesn't work if {{KeyGeneratorWorker}} is already generating keys, because it needs to acquire the {{maxNumberInvariant}} write lock and KeyGeneratorWorker is never going to release the {{maxNumberInvariant}} read lock.
+
+What's worse, because the listener is synchronous, it also blocks the cache view installation and other cluster changes will be ignored.",2011/12/20 4:01 AM
+ISPN-1601,"I am not sure if this is the right place to post this, and just want to you gouys know that the GUI demo in 5.1.0.CR1 is broken.
+
+ 
+
+The configureation files might be outdated.
+
+ 
+
+In paritcular, whe I run with ""./runGuiDemo.sh config-samples/relay1.xml"", it gives me the following errors:
+
+ 
+
+Caused by: java.lang.reflect.InvocationTargetException
+
+    at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+
+    at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+
+    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+
+    at java.lang.reflect.Method.invoke(Method.java:601)
+
+    at org.infinispan.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:203)
+
+    ... 12 more
+
+Caused by: org.infinispan.CacheException: java.lang.IllegalArgumentException: the following properties in pbcast.NAKACK are not recognized: {gc_lag=0}
+
+    at org.infinispan.remoting.transport.jgroups.JGroupsTransport.buildChannel(JGroupsTransport.java:306)
+
+    at org.infinispan.remoting.transport.jgroups.JGroupsTransport.initChannel(JGroupsTransport.java:238)
+
+    at org.infinispan.remoting.transport.jgroups.JGroupsTransport.initChannelAndRPCDispatcher(JGroupsTransport.java:266)
+
+    at org.infinispan.remoting.transport.jgroups.JGroupsTransport.start(JGroupsTransport.java:156)
+
+    ... 17 more",2011/12/08 12:58 PM
+ISPN-1576,"Because of an empty AbstractConfigurationBeanVisitor.visitCacheLoaderConfig() method, ComponentRegistry is not injected into CacheLoaderConfig instances and therefore cacheloaders don't use the appropriate classloader (if one has been specified in configuration),",2011/11/29 3:49 PM
+ISPN-1529,"It throws:
+
+Caused by: com.sun.xml.internal.bind.api.AccessorException: The property has a getter ""public java.lang.Boolean org.infinispan.config.Configuration$TransactionType.isAutoCommit()"" but no setter. For unmarshalling, please define setters. (Or if this is a collection property, make sure that the getter returns a collection instance.)
+	at com.sun.xml.internal.bind.v2.runtime.reflect.Accessor$GetterOnlyReflection.set(Accessor.java:379)
+	at com.sun.xml.internal.bind.v2.runtime.reflect.TransducedAccessor$CompositeTransducedAccessorImpl.parse(TransducedAccessor.java:230)
+	at com.sun.xml.internal.bind.v2.runtime.unmarshaller.StructureLoader.startElement(StructureLoader.java:191)",2011/11/16 10:38 AM
+ISPN-1509,"Using the maven dependencies from Gradle doesn't pull any artifacts or sub-dependencies. It seems this is because Gradle.Ivy isn't picking up the ${packaging} variable inherited from the parent pom when resolving. If I replace all the ${packaging} references with 'jar' and rebuild Infinispan then it works, at least for infinispan-core - org.infinispan:infinispan still doesn't grab anything, not sure if it should though.
+
+Fixes appropriate for ivy/ant don't work for Gradle i.e. it doesn't pick up ivy config files.",2011/11/06 9:02 PM
+ISPN-1465,"Looking at the CommandAwareRpcDispatcher.handle(Message) (line 139):
+  cmd = (ReplicableCommand) req_marshaller.objectFromBuffer(req.getBuffer(), req.getOffset(), req.getLength());
+
+Message.getBuffer() already returns a copy of the message buffer that takes into account the offset and length.  So, it would seem the above code will return a subset of the desired buffer if the offset > 0.
+
+Either this code should operate on the raw buffer (i.e. req.getRawBuffer()), or pass 0 as the offset to objectFromBuffer(...).",2011/10/18 3:48 PM
+ISPN-1462,"When the JGroups channel is connected outside Infinispan, before passing it to JGroupsTransport, the member list is not initialized.
+
+This can lead to strange errors like this one:
+
+java.lang.IllegalArgumentException: Invalid cache list for consistent hash: []
+	at org.infinispan.distribution.ch.AbstractWheelConsistentHash.setCaches(AbstractWheelConsistentHash.java:96)
+	at org.infinispan.distribution.ch.ConsistentHashHelper.createConsistentHash(ConsistentHashHelper.java:122)
+	at org.infinispan.statetransfer.ReplicatedStateTransferManagerImpl.createConsistentHash(ReplicatedStateTransferManagerImpl.java:56)
+	at org.infinispan.statetransfer.BaseStateTransferManagerImpl.start(BaseStateTransferManagerImpl.java:143)
+",2011/10/18 5:10 AM
+ISPN-1434,"We should allow locking mode to be configured through XML as follows:
+<transaction lockingMode=""OPTIMISTIC""/> ",2011/10/03 2:35 PM
+ISPN-1433,"This is a blocker as it prevent the lucene-directory to work fine.
+
+To test, please use the lucene integration tests.",2011/09/30 1:18 PM
+ISPN-1432,A simple testcase is _org.infinispan.lucene.SimpleLuceneTest_ from the lucene-directory module.,2011/09/30 12:36 PM
+ISPN-1332,"If enabled persistence in treecache - using treecache leads to serialization issue:
+
+ERROR:
+
+org.infinispan.CacheException: Unable to invoke method public void org.infinispan.eviction.PassivationManagerImpl.passivateAll() throws org.infinispan.loaders.CacheLoaderException on object
+at org.infinispan.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:173)
+at org.infinispan.factories.AbstractComponentRegistry$PrioritizedMethod.invoke(AbstractComponentRegistry.java:890)
+at org.infinispan.factories.AbstractComponentRegistry.internalStop(AbstractComponentRegistry.java:716)
+at org.infinispan.factories.AbstractComponentRegistry.stop(AbstractComponentRegistry.java:603)
+at org.infinispan.factories.ComponentRegistry.stop(ComponentRegistry.java:205)
+at org.infinispan.CacheImpl.stop(CacheImpl.java:378)
+at org.infinispan.manager.DefaultCacheManager.stop(DefaultCacheManager.java:599)
+at eu.ysoft.cache.replicator.IfspnReplicationBuffer.stop(IfspnReplicationBuffer.java:178)
+at eu.ysoft.cache.replicator.IfspnReplicationBufferTestsBase.destroy(IfspnReplicationBufferTestsBase.java:51)
+at eu.ysoft.cache.replicator.IfspnReplicationBufferTests.destroy(IfspnReplicationBufferTests.java:35)
+at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:39)
+at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+at java.lang.reflect.Method.invoke(Method.java:597)
+at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:80)
+at org.testng.internal.Invoker.invokeConfigurationMethod(Invoker.java:525)
+at org.testng.internal.Invoker.invokeConfigurations(Invoker.java:202)
+at org.testng.internal.Invoker.invokeMethod(Invoker.java:753)
+at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:842)
+at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1166)
+at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:125)
+at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:109)
+at org.testng.TestRunner.runWorkers(TestRunner.java:1178)
+at org.testng.TestRunner.privateRun(TestRunner.java:757)
+at org.testng.TestRunner.run(TestRunner.java:608)
+at org.testng.SuiteRunner.runTest(SuiteRunner.java:334)
+at org.testng.SuiteRunner.runSequentially(SuiteRunner.java:329)
+at org.testng.SuiteRunner.privateRun(SuiteRunner.java:291)
+at org.testng.SuiteRunner.run(SuiteRunner.java:240)
+at org.testng.SuiteRunnerWorker.runSuite(SuiteRunnerWorker.java:52)
+at org.testng.SuiteRunnerWorker.run(SuiteRunnerWorker.java:86)
+at org.testng.TestNG.runSuitesSequentially(TestNG.java:1158)
+at org.testng.TestNG.runSuitesLocally(TestNG.java:1083)
+at org.testng.TestNG.run(TestNG.java:999)
+at org.testng.remote.RemoteTestNG.run(RemoteTestNG.java:111)
+at org.testng.remote.RemoteTestNG.initAndRun(RemoteTestNG.java:203)
+at org.testng.remote.RemoteTestNG.main(RemoteTestNG.java:174)
+at org.testng.RemoteTestNGStarter.main(RemoteTestNGStarter.java:106)
+at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:39)
+at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+at java.lang.reflect.Method.invoke(Method.java:597)
+at com.intellij.rt.execution.application.AppMain.main(AppMain.java:120)
+Caused by: java.lang.reflect.InvocationTargetException
+at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:39)
+at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+at java.lang.reflect.Method.invoke(Method.java:597)
+at org.infinispan.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:170)
+... 42 more
+Caused by: org.infinispan.loaders.CacheLoaderException: java.io.NotSerializableException: org.infinispan.tree.NodeKey
+at org.infinispan.loaders.jdbm.JdbmCacheStore.store0(JdbmCacheStore.java:317)
+at org.infinispan.loaders.jdbm.JdbmCacheStore.store(JdbmCacheStore.java:292)
+at org.infinispan.eviction.PassivationManagerImpl.passivateAll(PassivationManagerImpl.java:108)
+... 47 more
+Caused by: java.io.NotSerializableException: org.infinispan.tree.NodeKey
+at java.io.ObjectOutputStream.writeObject0(ObjectOutputStream.java:1164)
+at java.io.ObjectOutputStream.writeObject(ObjectOutputStream.java:330)
+at jdbm.htree.HashBucket.writeExternal(HashBucket.java:270)
+at java.io.ObjectOutputStream.writeExternalData(ObjectOutputStream.java:1429)
+at java.io.ObjectOutputStream.writeOrdinaryObject(ObjectOutputStream.java:1398)
+at java.io.ObjectOutputStream.writeObject0(ObjectOutputStream.java:1158)
+at java.io.ObjectOutputStream.writeObject(ObjectOutputStream.java:330)
+at jdbm.helper.Serialization.serialize(Serialization.java:75)
+at jdbm.helper.DefaultSerializer.serialize(DefaultSerializer.java:82)
+at jdbm.recman.BaseRecordManager.insert(BaseRecordManager.java:202)
+at jdbm.recman.CacheRecordManager.insert(CacheRecordManager.java:156)
+at jdbm.recman.CacheRecordManager.insert(CacheRecordManager.java:140)
+at jdbm.htree.HashDirectory.put(HashDirectory.java:233)
+at jdbm.htree.HTree.put(HTree.java:129)
+at org.infinispan.loaders.jdbm.JdbmCacheStore.store0(JdbmCacheStore.java:313)
+... 49 more
+",2011/08/12 9:36 AM
+ISPN-1323,"Because of https://issues.jboss.org/browse/JGRP-1336, sometimes a node is ""resurrected"" and TEST_PING.findInitialMembers() is called even after the channel has been stopped.
+
+If that happens the node is not removed from the discovery registry and the next node to start from the same test will hang trying to contact the dead node and elect a coordinator.",2011/08/09 4:29 AM
+ISPN-1250,The TestNG dependency for the CDI Integration module should have the scope test.,2011/07/18 1:32 PM
+ISPN-1217,"The Hotrod Client Server architecture does not support Virtual Nodes, configuring this option prevents start up.
+Without virtual nodes data distribution across the cluster is unpredictable and results in uneven load.
+",2011/07/04 4:23 PM
+ISPN-1135,"Summary of things to fix as a result of the Klockwork report:
+
+- -DataContainerFactory-: (http://goo.gl/dqn5D)
+- BdbjeCacheStoreConfig and CassandraCacheStoreConfig: InputStream should be closed in a finally statement (http://goo.gl/WzMvk and http://goo.gl/RaCzX)
+- JClouds BlobStore.getBlob could return null and so the bucket could be null, protect against it (http://goo.gl/hcLNP , http://goo.gl/DI2yQ and http://goo.gl/hmQKY)
+- ...
+
+More to come...",2011/05/24 12:39 PM
+ISPN-1108,"""mvn test"" doesn't run the test TransactionsSpanningReplicatedCaches.
+It does run though other tests from that package, ex: TransactionsSpanningDistributedCachesTest.
+
+TransactionsSpanningReplicatedCaches is marked as sequential = true (which is redundant). I've tried removing the sequential attribute, but the same thing happened: the test was not run.
+The test runs successfully when specified through: mvn test -Dtest=TransactionsSpanningReplicatedCaches
+
+While here, also consider removing the mandatory ""testName"" attribute from @Tests. TestNG now has an @Test (singleThreaded) attribute that: ""If set to true, all the methods on this test class are guaranteed to run sequentially, even if the tests are currently being run with parallel=""true"". This attribute can only be used at the class level and will be ignored if used at the method level.""
+ ",2011/05/13 1:38 PM
+ISPN-1092,"See org.infinispan.distribution.vnodes.VNodesCHPerfTest.testSpeed(), it fails when numNodes == 1 and numOwners == 2.",2011/05/09 11:36 AM
+ISPN-3694,"The ActivationInterceptor currently attempts to remove entries from the cache store during the invocation of a get.  However the actual committing of the data to the Data Container doesn't occur until the EntryWrappingInterceptor (non-tx) or when the CommitCommand (tx) is invoked, both of which is after the entry is removed from the loader.  This can cause a momentary lapse where the entry is no longer in the data container or the loader.  Also if you rolled back the tx containing the activation you would lose the entry completely.",2013/11/08 12:13 PM
+ISPN-3592,"The problem is a very recent regression, so relative to 6.0.0.CR1 only.
+{noformat}
+java.lang.NullPointerException
+	at org.apache.lucene.index.SegmentInfos.getLastCommitGeneration(SegmentInfos.java:160)
+	at org.apache.lucene.index.SegmentInfos$FindSegmentsFile.run(SegmentInfos.java:605)
+	at org.apache.lucene.index.SegmentInfos$FindSegmentsFile.run(SegmentInfos.java:554)
+	at org.apache.lucene.index.SegmentInfos.read(SegmentInfos.java:359)
+	at org.apache.lucene.index.SegmentInfos.readCurrentVersion(SegmentInfos.java:483)
+	at org.apache.lucene.index.DirectoryReader.isCurrent(DirectoryReader.java:891)
+	at org.apache.lucene.index.DirectoryReader.doOpenNoWriter(DirectoryReader.java:455)
+	at org.apache.lucene.index.DirectoryReader.doOpenIfChanged(DirectoryReader.java:434)
+	at org.apache.lucene.index.DirectoryReader.doOpenIfChanged(DirectoryReader.java:375)
+	at org.apache.lucene.index.IndexReader.openIfChanged(IndexReader.java:508)
+	at org.apache.lucene.index.IndexReader.reopen(IndexReader.java:695)
+	at org.infinispan.lucene.profiling.LuceneReaderThread.refreshIndexReader(LuceneReaderThread.java:58)
+{noformat}",2013/10/05 4:58 PM
+ISPN-3560,"{code}
+   public void testSizeAfterClearInBranchedTransaction() throws Exception {
+      cache.put(1, ""v1"");
+      tm().begin();
+      try {
+         assertEquals(""v1"", cache.get(1));
+         Transaction suspended = tm().suspend();
+         tm().begin();
+         try {
+            cache.clear();
+         } finally {
+            tm().commit();
+            tm().resume(suspended);
+
+            assertEquals(1, cache.size()); // assertion fails
+            assertEquals(""v1"", cache.get(1));
+         }
+      } finally {
+         tm().commit();
+      }
+   }
+{code}",2013/09/26 11:55 AM
+ISPN-3555,"java.lang.IllegalStateException: ProtobufMetadataManager not initialised yet!
+	at org.infinispan.query.remote.ProtobufMetadataManager.getSerializationContext(ProtobufMetadataManager.java:132)
+	at org.infinispan.query.remote.indexing.ProtobufWrapperIndexingTest.createCacheManager(ProtobufWrapperIndexingTest.java:47)
+	at org.infinispan.test.SingleCacheManagerTest.setup(SingleCacheManagerTest.java:31)
+	at org.infinispan.test.SingleCacheManagerTest.createBeforeClass(SingleCacheManagerTest.java:44)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:606)
+	at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:80)
+	at org.testng.internal.Invoker.invokeConfigurationMethod(Invoker.java:564)
+	at org.testng.internal.Invoker.invokeConfigurations(Invoker.java:213)
+	at org.testng.internal.Invoker.invokeConfigurations(Invoker.java:138)
+	at org.testng.internal.TestMethodWorker.invokeBeforeClassMethods(TestMethodWorker.java:175)
+	at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:107)
+	at org.testng.TestRunner.privateRun(TestRunner.java:767)
+	at org.testng.TestRunner.run(TestRunner.java:617)
+	at org.testng.SuiteRunner.runTest(SuiteRunner.java:334)
+	at org.testng.SuiteRunner.access$000(SuiteRunner.java:37)
+	at org.testng.SuiteRunner$SuiteWorker.run(SuiteRunner.java:368)
+	at org.testng.internal.thread.ThreadUtil$2.call(ThreadUtil.java:64)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:262)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615)
+	at java.lang.Thread.run(Thread.java:724)
+Add link to jenkins jobs
+https://jenkins.mw.lab.eng.bos.redhat.com/hudson/view/JDG/view/FUNC/job/edg-60-ispn-testsuite-solaris/75/#showFailuresLink
+",2013/09/26 5:51 AM
+ISPN-3505,The dependency is already marked optional but in reality it is still required at runtime by RemoteCacheImpl. These need to be separated properly.,2013/09/13 9:49 AM
+ISPN-3416,"This leaks open file handles. Would classify it as critical, but it only affects the clustered queries which are flagged experimental.",2013/08/15 1:58 PM
+ISPN-3366,"  Looks like a problem in entry forwarding.
+
+Here is test scenario:
+
+* DIST numOwners=2, start with 4 nodes cluster then normal shutdown 1 node during load
+* HotRod putIfAbsent accesses from 40 threads (1 process, 1 remote cache instance), 40000 entries total
+
+After the test run, the numberOfEntries on each node are:
+
+* node1: 26608
+* node2: 26622
+* node3: 26746
+* node4: 0
+
+Total is 79976 and HotRod client received 11 errors, so 79976 + (11 * 2) = 79998. It means 1 entry is completely missing.
+
+Let's take a look at the missing entry, hash(thread16key59) = 574ff563.
+
+Current CH: owners(574ff563) are [node4, node1]
+
+The events sequence is:
+
+* hotrod -> node1
+* node1 forwarding it to primary owner node4
+* node4 doesn't process the forwarded entry, shutdown
+
+Result owners(7c29bccb) is [] empty. This entry is completely lost without any errors.",2013/07/25 1:02 AM
+ISPN-3360,"When building infinispan on windows machines there are test failures in org.infinispan.query.blackbox.LocalCacheFSDirectoryTest with assertion error
+org.infinispan.query.blackbox.LocalCacheFSDirectoryTest.testLazyIteratorWithOffset
+org.infinispan.query.blackbox.LocalCacheFSDirectoryTest.testMaxResults
+org.infinispan.query.blackbox.LocalCacheFSDirectoryTest.testModified
+org.infinispan.query.blackbox.LocalCacheFSDirectoryTest.testMultipleResults
+org.infinispan.query.blackbox.LocalCacheFSDirectoryTest.testRemoved
+org.infinispan.query.blackbox.LocalCacheFSDirectoryTest.testSearchKeyTransformer
+org.infinispan.query.blackbox.LocalCacheFSDirectoryTest.testSearchManagerWithInstantiation
+org.infinispan.query.blackbox.LocalCacheFSDirectoryTest.testSetFilter
+org.infinispan.query.blackbox.LocalCacheFSDirectoryTest.testSetSort
+org.infinispan.query.blackbox.LocalCacheFSDirectoryTest.testSimple
+org.infinispan.query.blackbox.LocalCacheFSDirectoryTest.testTypeFiltering
+org.infinispan.query.blackbox.LocalCacheFSDirectoryTest.testUpdated
+
+Add link to jenkins job https://jenkins.mw.lab.eng.bos.redhat.com/hudson/view/JDG/view/FUNC/job/edg-60-ispn-testsuite-windows/85/jdk=java17_default,label_exp=w2k8r2%20%26%26%20x86_64/testReport/junit/org.infinispan.query.blackbox/",2013/07/24 4:10 AM
+ISPN-3357,"Here is test scenario:
+
+* DIST numOwners=2, start with 3 nodes cluster then join 1 node during load
+* HotRod putIfAbsent accesses from 40 threads (1 process, 1 remote cache instance), 40000 entries total
+
+After the test run, the numberOfEntries on each node are:
+
+* node1: 20074
+* node2: 19888
+* node3: 20114
+* node4: 18885
+
+Total is 78961, 1039 entries are missing. No error on HotRod client side so 80000 entries should be there.
+
+Let's take a look at example missing entry, hash(thread01key151) = 7c29bccb.
+
+Current CH: owners(7c29bccb) are [node1, node2]
+Pending CH: owners(7c29bccb) are [node1, node2, node4]
+Balanced CH: owners(7c29bccb) are [node1, node4]
+
+The events sequence is:
+
+* hotrod -> node1
+* node1 -> node2, node4
+* node2 committed entry
+* node4 performed clustered get before write, got a value from node2 and will not commit the entry because this node thinks it's not changed/created
+* node1 committed entry
+* node2 invalidates the entry because it's no longer an owner
+
+Result owners(7c29bccb) are only node1 and node4 is missing. This entry may be completely lost by further rebalances when node4 is donor for this segment.
+",2013/07/23 11:17 AM
+ISPN-3197,"This is based off of discussion here: https://issues.jboss.org/browse/ISPN-2990?focusedCommentId=12779491&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-12779491
+
+This can occur with a synchronous cache.
+
+1. A reads k1. This is an OOB call.
+2. B processes the read message and sends back the response
+3. C updates k1, at this stage B sends the invalidation message to A (OOB call)
+4. A processes(ignores) the invalidation message
+5. A puts the stale value sent at 2 in L1
+
+The OOB portions don't actually matter that they are OOB as even if B's messages were ordered it sill could process the get and update in a different order since they originate from different nodes.
+
+The initial thought is to solve this with some type of tombstone to sygnal the removal of the L1 cache, but this also still doesn't catch the problem if A did not have key k1 in it's L1 cache to receive an invalidation message.",2013/06/06 9:11 AM
+ISPN-3120,"This causes random failures in  ConcurrentOverlappingLeaveTest and ConcurrentNonOverlappingLeaveTest.
+
+1. Starting with a 4-node cluster: [E, F, G, H] (topology 7). 
+2. F leaves, and E sends a REBALANCE_START command with nodes [E, G, H] (topology 8). Some segments are owned by [H] in the current CH and by [H, G] in the pending CH.
+3. E reports that it finished receiving state with a REBAlANCE_CONFIRM command.
+4. H leaves, and E sends a CH_UPDATE command with nodes [E, G] (topology 9).
+The segments that were owned by [H] in the previous currentCH are assigned to [E, G] in the new currentCH (otherwise they wouldn't have any owners).
+5. The StateConsumerImpl on E requests state for the ""lost"" segments from G.
+6. G confirms the end of the rebalance as well, and E sends a CH_UPDATE command to end the rebalance (topology 10).
+7. E sends a REBALANCE_START command to assign all segments for [E, G] (topology 11).
+8. While the StateConsumerImpl on E is starting the state transfer, it also receives a StateResponseCommand for the lost segments from G. 
+9. Because the structures keeping track of the received state are not properly initialized, E considers it finished receiving state for topology 11.
+10. E receives a StateResponseCommand from G with actual data, but it ignores it because {{StateConsumerImpl.updatedKeys == null}}.
+
+
+{noformat}
+11:30:39,807 DEBUG (transport-thread-4,NodeE:dist) [LocalTopologyManagerImpl] Updating local consistent hash(es) for cache dist: new topology = CacheTopology{id=7, currentCH=DefaultConsistentHash{numSegments=60, numOwners=2, members=[NodeE-51027, NodeG-6339, NodeH-47370]}, pendingCH=null}
+11:30:39,810 DEBUG (transport-thread-3,NodeE:dist) [LocalTopologyManagerImpl] Starting local rebalance for cache dist, topology = CacheTopology{id=8, currentCH=DefaultConsistentHash{numSegments=60, numOwners=2, members=[NodeE-51027, NodeG-6339, NodeH-47370]}, pendingCH=DefaultConsistentHash{numSegments=60, numOwners=2, members=[NodeE-51027, NodeG-6339, NodeH-47370]}}
+11:30:39,817 DEBUG (transport-thread-3,NodeE:dist) [StateConsumerImpl] Finished receiving of segments for cache dist for topology 8.
+11:30:39,832 DEBUG (transport-thread-4,NodeE:dist) [LocalTopologyManagerImpl] Updating local consistent hash(es) for cache dist: new topology = CacheTopology{id=9, currentCH=DefaultConsistentHash{numSegments=60, numOwners=2, members=[NodeE-51027, NodeG-6339]}, pendingCH=DefaultConsistentHash{numSegments=60, numOwners=2, members=[NodeE-51027, NodeG-6339]}}
+11:30:39,834 DEBUG (transport-thread-4,NodeE:dist) [StateConsumerImpl] Adding inbound state transfer for segments [38, 36, 47, 44, 45] of cache dist
+11:30:39,853 DEBUG (transport-thread-3,NodeE:dist) [LocalTopologyManagerImpl] Starting local rebalance for cache dist, topology = CacheTopology{id=11, currentCH=DefaultConsistentHash{numSegments=60, numOwners=2, members=[NodeE-51027, NodeG-6339]}, pendingCH=DefaultConsistentHash{numSegments=60, numOwners=2, members=[NodeE-51027, NodeG-6339]}}
+11:30:39,859 TRACE (remote-thread-1,NodeE:) [InboundInvocationHandlerImpl] Calling perform() on StateResponseCommand{cache=dist, origin=NodeG-6339, topologyId=9}
+11:30:39,864 DEBUG (remote-thread-1,NodeE:dist) [StateConsumerImpl] Finished receiving of segments for cache dist for topology 11.
+11:30:39,866 TRACE (transport-thread-5,NodeE:dist) [LocalTopologyManagerImpl] Ignoring consistent hash update 10 for cache dist, we have already received a newer topology 11
+11:30:39,868 TRACE (remote-thread-1,NodeE:) [InboundInvocationHandlerImpl] Calling perform() on StateResponseCommand{cache=dist, origin=NodeG-6339, topologyId=11}
+11:30:39,872 TRACE (remote-thread-1,NodeE:dist dist) [EntryWrappingInterceptor] State transfer will not write key/value MagicKey#k3{672f69c9@NodeG-6339}/v3 because it was already updated by somebody else
+11:30:40,582 ERROR (testng-ConcurrentNonOverlappingLeaveTest:) [UnitTestTestNGListener] Test testTransactional(org.infinispan.distribution.rehash.ConcurrentNonOverlappingLeaveTest) failed.
+java.lang.AssertionError: Fail on owner cache NodeE-51027: dc.get(MagicKey#k3{672f69c9@NodeG-6339}) returned null!
+{noformat}",2013/05/20 3:21 AM
+ISPN-3114,"The command fails to execute and the exception is logged but it is not propagated to caller:
+
+{code}
+2013-05-17 10:58:58,911 TRACE [InvocationContextInterceptor] (main) Exception while executing code, failing silently...
+java.lang.ClassCastException: org.infinispan.context.SingleKeyNonTxInvocationContext cannot be cast to org.infinispan.context.impl.TxInvocationContext
+	at org.infinispan.interceptors.locking.PessimisticLockingInterceptor.visitPutKeyValueCommand(PessimisticLockingInterceptor.java:113)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:82)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:120)
+	at org.infinispan.interceptors.base.CommandInterceptor.handleDefault(CommandInterceptor.java:134)
+	at org.infinispan.commands.AbstractVisitor.visitPutKeyValueCommand(AbstractVisitor.java:54)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:82)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:120)
+	at org.infinispan.interceptors.TxInterceptor.enlistWriteAndInvokeNext(TxInterceptor.java:257)
+	at org.infinispan.interceptors.TxInterceptor.visitPutKeyValueCommand(TxInterceptor.java:193)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:82)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:120)
+	at org.infinispan.interceptors.base.CommandInterceptor.handleDefault(CommandInterceptor.java:134)
+	at org.infinispan.commands.AbstractVisitor.visitPutKeyValueCommand(AbstractVisitor.java:54)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:82)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:120)
+	at org.infinispan.statetransfer.StateTransferInterceptor.handleTopologyAffectedCommand(StateTransferInterceptor.java:216)
+	at org.infinispan.statetransfer.StateTransferInterceptor.handleWriteCommand(StateTransferInterceptor.java:194)
+	at org.infinispan.statetransfer.StateTransferInterceptor.visitPutKeyValueCommand(StateTransferInterceptor.java:136)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:82)
+	at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:120)
+	at org.infinispan.interceptors.InvocationContextInterceptor.handleAll(InvocationContextInterceptor.java:128)
+	at org.infinispan.interceptors.InvocationContextInterceptor.handleDefault(InvocationContextInterceptor.java:92)
+	at org.infinispan.commands.AbstractVisitor.visitPutKeyValueCommand(AbstractVisitor.java:54)
+	at org.infinispan.commands.write.PutKeyValueCommand.acceptVisitor(PutKeyValueCommand.java:82)
+	at org.infinispan.interceptors.InterceptorChain.invoke(InterceptorChain.java:343)
+	at org.infinispan.CacheImpl.executeCommandAndCommitIfNeeded(CacheImpl.java:1251)
+	at org.infinispan.CacheImpl.putIfAbsentInternal(CacheImpl.java:838)
+	at org.infinispan.CacheImpl.putIfAbsent(CacheImpl.java:823)
+	at org.infinispan.CacheImpl.putIfAbsent(CacheImpl.java:813)
+	at org.infinispan.CacheImpl.putForExternalRead(CacheImpl.java:413)
+	at org.infinispan.CacheImpl.putForExternalRead(CacheImpl.java:397)
+	at org.infinispan.api.mvcc.PutForExternalReadTest.testBasicPropagation(PutForExternalReadTest.java:204)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:39)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+	at java.lang.reflect.Method.invoke(Method.java:597)
+	at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:80)
+	at org.testng.internal.Invoker.invokeMethod(Invoker.java:714)
+	at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:901)
+	at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1231)
+	at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
+	at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
+	at org.testng.TestRunner.privateRun(TestRunner.java:767)
+	at org.testng.TestRunner.run(TestRunner.java:617)
+{code}",2013/05/17 3:58 AM
+ISPN-3095,TxDistributionInterceptor.ignorePreviousValueOnBackup() should return true to force backups to apply the update (unless write skew check is enabled). Not doing so might lead to a situation where the key is not available locally yet (state transfer in progress) and will be fetched remotely from another owner that has already executed the conditional command. The previous value check would fail then. The check adds little value on backup owners so it should not be done at all.,2013/05/13 11:10 AM
+ISPN-3094,"Since the context is non transactional, no command is enqueued in the transaction's modification list to be replicated at prepare time and also TxDistributionInterceptor does not explicitly replicate the command to other owners immediately after local execution. The command end up executing only on originator. This bug seems to be caused by the DistributionInterceptor class hierarchy refactoring in 5.2.",2013/05/13 10:31 AM
+ISPN-3002,"The parameter added for Total Order based protocol has broken Hibernate Search API. Create new methods for Total Order instead of changing the old.
+
+In addition, create a new class (e.g. RpcOptions) to have the rpc options instead of a bunch of methods.",2013/04/08 11:01 AM
+ISPN-2981,"I have been trying to use Infinispan as a Lucene directory provider under Hibernate Search. A single node writes to the index via JMS. A configuration that uses Infinispan in distributed mode seems to work under development, but under load results in an exception that looks like the following. 
+
+Caused by: java.io.IOException: No sub-file with id .fnm found (fileName=_3.cfs files: [.fdt, .fdx])
+        at org.apache.lucene.index.CompoundFileReader.openInput(CompoundFileReader.java:156)
+        at org.apache.lucene.index.CompoundFileReader.openInput(CompoundFileReader.java:145)
+        at org.apache.lucene.index.FieldInfos.<init>(FieldInfos.java:74)
+        at org.apache.lucene.index.SegmentCoreReaders.<init>(SegmentCoreReaders.java:73)
+        at org.apache.lucene.index.SegmentReader.get(SegmentReader.java:115)
+        at org.apache.lucene.index.SegmentReader.get(SegmentReader.java:93)
+        at org.apache.lucene.index.DirectoryReader.<init>(DirectoryReader.java:235)
+        at org.apache.lucene.index.ReadOnlyDirectoryReader.<init>(ReadOnlyDirectoryReader.java:34)
+        at org.apache.lucene.index.DirectoryReader.doOpenIfChanged(DirectoryReader.java:506)
+        at org.apache.lucene.index.DirectoryReader.access$000(DirectoryReader.java:45)
+        at org.apache.lucene.index.DirectoryReader$2.doBody(DirectoryReader.java:498)
+        at org.apache.lucene.index.SegmentInfos$FindSegmentsFile.run(SegmentInfos.java:754)
+        at org.apache.lucene.index.DirectoryReader.doOpenNoWriter(DirectoryReader.java:493)
+        at org.apache.lucene.index.DirectoryReader.doOpenIfChanged(DirectoryReader.java:450)
+        at org.apache.lucene.index.DirectoryReader.doOpenIfChanged(DirectoryReader.java:391)
+        at org.apache.lucene.index.IndexReader.openIfChanged(IndexReader.java:497)
+        at org.apache.lucene.index.IndexReader.reopen(IndexReader.java:681)
+        at org.hibernate.search.indexes.impl.SharingBufferReaderProvider$PerDirectoryLatestReader.refreshAndGet(SharingBufferReaderProvider.java:227)
+        ... 117 more
+",2013/04/01 2:41 PM
+ISPN-2885,NoData,2013/03/04 10:44 AM
+ISPN-2883,NoData,2013/03/04 10:08 AM
+ISPN-2868,Several commands' help does not match the actual documentation. Also the internal AEsh alias command should be disabled until AEsh supports alias persistence.,2013/02/27 8:55 AM
+ISPN-2814,"We currently use some custom commands with Infinispan.  We have since moved over to wanting to use a custom command with a return value for the response.
+
+We have tried using the various methods on the RpcManager and have found a few issues.
+
+  1. Map<Address, Response> invokeRemotely(Collection<Address> recipients, ReplicableCommand rpc, boolean sync, boolean usePriorityQueue) throws RpcException;
+
+This method always returns a null for cluster responses.  This is a simple issue that can be solved with the following diff
+
+{code}
+diff --git a/core/src/main/java/org/infinispan/commands/remote/SingleRpcCommand.
+index bf369bc..79bc02e 100644
+--- a/core/src/main/java/org/infinispan/commands/remote/SingleRpcCommand.java
++++ b/core/src/main/java/org/infinispan/commands/remote/SingleRpcCommand.java
+@@ -107,6 +107,6 @@ public ReplicableCommand getCommand() {
+ 
+    @Override
+    public boolean isReturnValueExpected() {
+-      return false;
++      return command.isReturnValueExpected();
+    }
+ }
+{code}
+
+The SingleRpcCommand wraps the given command always forcing the return value expectation to be false.
+
+  2. Map<Address, Response> invokeRemotely(Collection<Address> recipients, ReplicableCommand rpcCommand, ResponseMode mode, long timeout);
+
+This method doesn't wrap the return value in a Response thus causing a ClassCastException when the client node gets the response back.  I haven't looked into detail with this one yet.
+
+If needed I can send a sample project that shows the behavior.",2013/02/11 4:31 PM
+ISPN-2790,"ReplCommandForwardingTest seems to fail every single time in CloudBees. 
+
+As I have never seen it fail on my machine, I'm assuming this is a timing issue and I'm going to increase the timeouts in the test.",2013/02/04 9:44 AM
+ISPN-2784,"{noformat}
+Failed
+
+org.infinispan.statetransfer.ReplStateTransferCacheLoaderTest.createBeforeMethod (from TestSuite)
+Failing for the past 5 builds (Since Unstable#1028 )
+Took 0.22 sec.
+Error Message
+
+Unable to invoke method public void org.infinispan.loaders.CacheLoaderManagerImpl.start() on object of type CacheLoaderManagerImpl
+
+Stacktrace
+
+org.infinispan.CacheException: Unable to invoke method public void org.infinispan.loaders.CacheLoaderManagerImpl.start() on object of type CacheLoaderManagerImpl
+	at org.infinispan.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:205)
+	at org.infinispan.factories.AbstractComponentRegistry$PrioritizedMethod.invoke(AbstractComponentRegistry.java:883)
+	at org.infinispan.factories.AbstractComponentRegistry.invokeStartMethods(AbstractComponentRegistry.java:654)
+	at org.infinispan.factories.AbstractComponentRegistry.internalStart(AbstractComponentRegistry.java:643)
+	at org.infinispan.factories.AbstractComponentRegistry.start(AbstractComponentRegistry.java:546)
+	at org.infinispan.factories.ComponentRegistry.start(ComponentRegistry.java:199)
+	at org.infinispan.CacheImpl.start(CacheImpl.java:559)
+	at org.infinispan.manager.DefaultCacheManager.wireAndStartCache(DefaultCacheManager.java:686)
+	at org.infinispan.manager.DefaultCacheManager.createCache(DefaultCacheManager.java:649)
+	at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:545)
+	at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:518)
+	at org.infinispan.test.MultipleCacheManagersTest.getCaches(MultipleCacheManagersTest.java:283)
+	at org.infinispan.test.MultipleCacheManagersTest.waitForClusterToForm(MultipleCacheManagersTest.java:292)
+	at org.infinispan.test.MultipleCacheManagersTest.waitForClusterToForm(MultipleCacheManagersTest.java:301)
+	at org.infinispan.statetransfer.ReplStateTransferCacheLoaderTest.createCacheManagers(ReplStateTransferCacheLoaderTest.java:80)
+	at org.infinispan.test.MultipleCacheManagersTest.callCreateCacheManagers(MultipleCacheManagersTest.java:91)
+	at org.infinispan.test.MultipleCacheManagersTest.createBeforeMethod(MultipleCacheManagersTest.java:101)
+	at sun.reflect.GeneratedMethodAccessor163.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+	at java.lang.reflect.Method.invoke(Method.java:597)
+	at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:80)
+	at org.testng.internal.Invoker.invokeConfigurationMethod(Invoker.java:564)
+	at org.testng.internal.Invoker.invokeConfigurations(Invoker.java:213)
+	at org.testng.internal.Invoker.invokeMethod(Invoker.java:653)
+	at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:901)
+	at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1231)
+	at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
+	at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
+	at org.testng.TestRunner.privateRun(TestRunner.java:767)
+	at org.testng.TestRunner.run(TestRunner.java:617)
+	at org.testng.SuiteRunner.runTest(SuiteRunner.java:334)
+	at org.testng.SuiteRunner.access$000(SuiteRunner.java:37)
+	at org.testng.SuiteRunner$SuiteWorker.run(SuiteRunner.java:368)
+	at org.testng.internal.thread.ThreadUtil$2.call(ThreadUtil.java:64)
+	at java.util.concurrent.FutureTask$Sync.innerRun(FutureTask.java:303)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:138)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.runTask(ThreadPoolExecutor.java:886)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:908)
+	at java.lang.Thread.run(Thread.java:662)
+Caused by: org.infinispan.CacheException: Unable to start cache loaders
+	at org.infinispan.loaders.CacheLoaderManagerImpl.start(CacheLoaderManagerImpl.java:160)
+	at sun.reflect.GeneratedMethodAccessor86.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+	at java.lang.reflect.Method.invoke(Method.java:597)
+	at org.infinispan.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:203)
+	... 38 more
+Caused by: org.infinispan.config.ConfigurationException: Directory /scratch/jenkins/workspace/Infinispan-master-JDK6-tcp/core/./target/tmp/store_0/___defaultcache does not exist and cannot be created!
+	at org.infinispan.loaders.file.FileCacheStore.start(FileCacheStore.java:369)
+	at org.infinispan.loaders.CacheLoaderManagerImpl.start(CacheLoaderManagerImpl.java:152)
+	... 42 more
+
+Standard Output
+
+2013-01-31 13:38:18,555 ERROR [ReplStateTransferCacheLoaderTest] (testng-ReplStateTransferCacheLoaderTest) Error in test setup: 
+org.infinispan.CacheException: Unable to invoke method public void org.infinispan.loaders.CacheLoaderManagerImpl.start() on object of type CacheLoaderManagerImpl
+	at org.infinispan.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:205)
+	at org.infinispan.factories.AbstractComponentRegistry$PrioritizedMethod.invoke(AbstractComponentRegistry.java:883)
+	at org.infinispan.factories.AbstractComponentRegistry.invokeStartMethods(AbstractComponentRegistry.java:654)
+	at org.infinispan.factories.AbstractComponentRegistry.internalStart(AbstractComponentRegistry.java:643)
+	at org.infinispan.factories.AbstractComponentRegistry.start(AbstractComponentRegistry.java:546)
+	at org.infinispan.factories.ComponentRegistry.start(ComponentRegistry.java:199)
+	at org.infinispan.CacheImpl.start(CacheImpl.java:559)
+	at org.infinispan.manager.DefaultCacheManager.wireAndStartCache(DefaultCacheManager.java:686)
+	at org.infinispan.manager.DefaultCacheManager.createCache(DefaultCacheManager.java:649)
+	at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:545)
+	at org.infinispan.manager.DefaultCacheManager.getCache(DefaultCacheManager.java:518)
+	at org.infinispan.test.MultipleCacheManagersTest.getCaches(MultipleCacheManagersTest.java:283)
+	at org.infinispan.test.MultipleCacheManagersTest.waitForClusterToForm(MultipleCacheManagersTest.java:292)
+	at org.infinispan.test.MultipleCacheManagersTest.waitForClusterToForm(MultipleCacheManagersTest.java:301)
+	at org.infinispan.statetransfer.ReplStateTransferCacheLoaderTest.createCacheManagers(ReplStateTransferCacheLoaderTest.java:80)
+	at org.infinispan.test.MultipleCacheManagersTest.callCreateCacheManagers(MultipleCacheManagersTest.java:91)
+	at org.infinispan.test.MultipleCacheManagersTest.createBeforeMethod(MultipleCacheManagersTest.java:101)
+	at sun.reflect.GeneratedMethodAccessor163.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+	at java.lang.reflect.Method.invoke(Method.java:597)
+	at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:80)
+	at org.testng.internal.Invoker.invokeConfigurationMethod(Invoker.java:564)
+	at org.testng.internal.Invoker.invokeConfigurations(Invoker.java:213)
+	at org.testng.internal.Invoker.invokeMethod(Invoker.java:653)
+	at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:901)
+	at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1231)
+	at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
+	at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
+	at org.testng.TestRunner.privateRun(TestRunner.java:767)
+	at org.testng.TestRunner.run(TestRunner.java:617)
+	at org.testng.SuiteRunner.runTest(SuiteRunner.java:334)
+	at org.testng.SuiteRunner.access$000(SuiteRunner.java:37)
+	at org.testng.SuiteRunner$SuiteWorker.run(SuiteRunner.java:368)
+	at org.testng.internal.thread.ThreadUtil$2.call(ThreadUtil.java:64)
+	at java.util.concurrent.FutureTask$Sync.innerRun(FutureTask.java:303)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:138)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.runTask(ThreadPoolExecutor.java:886)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:908)
+	at java.lang.Thread.run(Thread.java:662)
+Caused by: org.infinispan.CacheException: Unable to start cache loaders
+	at org.infinispan.loaders.CacheLoaderManagerImpl.start(CacheLoaderManagerImpl.java:160)
+	at sun.reflect.GeneratedMethodAccessor86.invoke(Unknown Source)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+	at java.lang.reflect.Method.invoke(Method.java:597)
+	at org.infinispan.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:203)
+	... 38 more
+Caused by: org.infinispan.config.ConfigurationException: Directory /scratch/jenkins/workspace/Infinispan-master-JDK6-tcp/core/./target/tmp/store_0/___defaultcache does not exist and cannot be created!
+	at org.infinispan.loaders.file.FileCacheStore.start(FileCacheStore.java:369)
+	at org.infinispan.loaders.CacheLoaderManagerImpl.start(CacheLoaderManagerImpl.java:152)
+	... 42 more
+ 
+{noformat}",2013/02/01 5:26 AM
+ISPN-2764,NoData,2013/01/28 6:45 AM
+ISPN-2759,"In JON we can see changing statistics for caches without any problems. Monitoring looks to be ok. 
+
+Problems occurred while issuing any operation. 
+For example:
+
+*start cache issued on DefaultCacheManager (JON's popup exception window output):*
+
+java.lang.NullPointerException
+	at org.rhq.plugins.jmx.MBeanResourceComponent.loadBean(MBeanResourceComponent.java:175)
+	at org.rhq.plugins.jmx.MBeanResourceComponent.getEmsBean(MBeanResourceComponent.java:137)
+	at org.rhq.plugins.jmx.MBeanResourceComponent.invokeOperation(MBeanResourceComponent.java:524)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:39)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+	at java.lang.reflect.Method.invoke(Method.java:597)
+	at org.rhq.core.pc.inventory.ResourceContainer$ComponentInvocationThread.call(ResourceContainer.java:634)
+	at java.util.concurrent.FutureTask$Sync.innerRun(FutureTask.java:303)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:138)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.runTask(ThreadPoolExecutor.java:886)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:908)
+	at java.lang.Thread.run(Thread.java:662)
+
+
+*stop cache issued on cache*
+
+java.lang.NullPointerException
+	at org.infinispan.rhq.CacheComponent.invokeOperation(CacheComponent.java:190)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:39)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+	at java.lang.reflect.Method.invoke(Method.java:597)
+	at org.rhq.core.pc.inventory.ResourceContainer$ComponentInvocationThread.call(ResourceContainer.java:634)
+	at java.util.concurrent.FutureTask$Sync.innerRun(FutureTask.java:303)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:138)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.runTask(ThreadPoolExecutor.java:886)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:908)
+
+*ISPN console with trace logging enabled says:*
+
+2013-01-25 15:24:27,351 DEBUG [CacheImpl] (RMI TCP Connection(8)-127.0.0.1) Stopping cache ___defaultcache on null
+2013-01-25 15:24:27,357 DEBUG [TransactionTable] (RMI TCP Connection(8)-127.0.0.1) Wait for on-going transactions to finish for 30 seconds.
+2013-01-25 15:24:27,357 DEBUG [TransactionTable] (RMI TCP Connection(8)-127.0.0.1) All transactions terminated
+
+
+Other operations seem to be unavailable too. ",2013/01/25 9:36 AM
+ISPN-2756,"The test RpcManagerMBeanTest.testEnableJmxStats tries to write to the ""StatisticsEnabled"" attribute but fails. The operation doesn't throw an exception, but it does log this WARN message:
+
+{noformat}
+10:43:42,079 WARN  (testng-RpcManagerMBeanTest:) [ResourceDMBean] ISPN000043: Exception while writing value for attribute statisticsEnabled
+java.lang.NullPointerException
+	at org.infinispan.jmx.ResourceDMBean$InvokableSetterBasedMBeanAttributeInfo.invoke(ResourceDMBean.java:391)
+	at org.infinispan.jmx.ResourceDMBean.setNamedAttribute(ResourceDMBean.java:325)
+	at org.infinispan.jmx.ResourceDMBean.setAttribute(ResourceDMBean.java:212)
+	at com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.setAttribute(DefaultMBeanServerInterceptor.java:746)
+	at com.sun.jmx.mbeanserver.JmxMBeanServer.setAttribute(JmxMBeanServer.java:729)
+	at org.infinispan.jmx.RpcManagerMBeanTest.testEnableJmxStats(RpcManagerMBeanTest.java:134)
+{noformat}
+
+Because statistics are still enabled, the test then fails with an assertion error:
+
+{noformat}
+10:43:42,464 ERROR (testng-RpcManagerMBeanTest:) [UnitTestTestNGListener] Test testEnableJmxStats(org.infinispan.jmx.RpcManagerMBeanTest) failed.
+java.lang.AssertionError: expected [-1] but found [1]
+	at org.testng.Assert.fail(Assert.java:94)
+	at org.testng.Assert.failNotEquals(Assert.java:494)
+	at org.testng.Assert.assertEquals(Assert.java:123)
+	at org.testng.Assert.assertEquals(Assert.java:165)
+	at org.infinispan.jmx.RpcManagerMBeanTest.testEnableJmxStats(RpcManagerMBeanTest.java:138)
+{noformat}
+",2013/01/25 6:15 AM
+ISPN-2748,"The {{ExternalizerTable.isMarshallableCandidate(Object)}} method currently looks in its writers to see if there is an externalizer for the supplied class. However, under certain circumstances, a user-friendly externalizer is not registered. So this method should also look for annotations to see if the class has a user-friendly externalizer.
+
+See MODE-1769 for background.",2013/01/23 9:52 AM
+ISPN-2737,"https://jenkins.mw.lab.eng.bos.redhat.com/hudson/view/EDG6/view/EDG-REPORTS-PERF/job/edg-60-perf-client-stress-test-memcached/78/artifact/report/size4/loganalysis/server/categories/cat4_entry1.txt
+
+{code}
+11:47:30,859 ERROR [org.infinispan.interceptors.InvocationContextInterceptor] (MemcachedServerWorker-277) ISPN000136: Execution error: org.infinispan.util.concurrent.TimeoutException: Unable to acquire lock after [3 seconds] on key [memcachedCache#key763328] for requestor [Thread[OOB-127,null,5,Thread Pools]]! Lock held by [Thread[OOB-150,null,5,Thread Pools]]
+	at org.infinispan.util.concurrent.locks.LockManagerImpl.lock(LockManagerImpl.java:217) [infinispan-core-5.2.0.CR1-redhat-1.jar:5.2.0.CR1-redhat-1]
+	at org.infinispan.util.concurrent.locks.LockManagerImpl.acquireLockNoCheck(LockManagerImpl.java:200) [infinispan-core-5.2.0.CR1-redhat-1.jar:5.2.0.CR1-redhat-1]
+	at org.infinispan.interceptors.locking.AbstractLockingInterceptor.lockKey(AbstractLockingInterceptor.java:114) [infinispan-core-5.2.0.CR1-redhat-1.jar:5.2.0.CR1-redhat-1]
+....
+	at org.jgroups.protocols.MERGE2.up(MERGE2.java:205) [jgroups-3.2.5.Final-redhat-1.jar:3.2.5.Final-redhat-1]
+	at org.jgroups.protocols.Discovery.up(Discovery.java:359) [jgroups-3.2.5.Final-redhat-1.jar:3.2.5.Final-redhat-1]
+	at org.jgroups.protocols.TP$ProtocolAdapter.up(TP.java:2640) [jgroups-3.2.5.Final-redhat-1.jar:3.2.5.Final-redhat-1]
+	at org.jgroups.protocols.TP.passMessageUp(TP.java:1287) [jgroups-3.2.5.Final-redhat-1.jar:3.2.5.Final-redhat-1]
+	at org.jgroups.protocols.TP$IncomingPacket.handleMyMessage(TP.java:1850) [jgroups-3.2.5.Final-redhat-1.jar:3.2.5.Final-redhat-1]
+	at org.jgroups.protocols.TP$IncomingPacket.run(TP.java:1823) [jgroups-3.2.5.Final-redhat-1.jar:3.2.5.Final-redhat-1]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.runTask(ThreadPoolExecutor.java:886) [rt.jar:1.6.0_38]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:908) [rt.jar:1.6.0_38]
+	at java.lang.Thread.run(Thread.java:662) [rt.jar:1.6.0_38]
+{code}
+
+note the thread name ""MemcachedServerWorker"" in an operation coming from the JGroups stack...
+",2013/01/22 6:13 AM
+ISPN-2727,"I've added new test, which uses the following Infinispan configuration: REPL_SYNC clustering mode, with transaction enabled, as well as enabled indexing with InfinispanIndexManager.
+
+The test adds several nodes with the described configuration, adds entries to different nodes, and checks that the query for the entries returns the same result for all nodes. 
+
+Then master node is killed, and then again new data is inserted and checked on all nodes. (Similiar test to https://github.com/infinispan/infinispan/blob/master/query/src/test/java/org/infinispan/query/distributed/MultiNodeReplicatedTest.java but with enabled transaction).
+
+When the test tries to insert new entry to one of the caches, after the master node kill, the following exception appears:
+
+{code}
+testIndexingWorkDistribution(org.infinispan.query.distributed.MultiNodeReplicatedTxTest)  Time elapsed: 1.656 sec  <<< FAILURE!
+javax.transaction.RollbackException: ARJUNA016053: Could not commit transaction.
+	at com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionImple.commitAndDisassociate(TransactionImple.java:1177)
+	at com.arjuna.ats.internal.jta.transaction.arjunacore.BaseTransaction.commit(BaseTransaction.java:117)
+	at org.infinispan.query.distributed.MultiNodeDistributedTest.storeOn(MultiNodeDistributedTest.java:78)
+	at org.infinispan.query.distributed.MultiNodeDistributedTest.testIndexingWorkDistribution(MultiNodeDistributedTest.java:102)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:601)
+	at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:80)
+	at org.testng.internal.Invoker.invokeMethod(Invoker.java:715)
+	at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:907)
+	at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1237)
+	at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
+	at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
+	at org.testng.TestRunner.privateRun(TestRunner.java:767)
+	at org.testng.TestRunner.run(TestRunner.java:617)
+	at org.testng.SuiteRunner.runTest(SuiteRunner.java:334)
+	at org.testng.SuiteRunner.access$000(SuiteRunner.java:37)
+	at org.testng.SuiteRunner$SuiteWorker.run(SuiteRunner.java:368)
+	at org.testng.internal.thread.ThreadUtil$2.call(ThreadUtil.java:64)
+	at java.util.concurrent.FutureTask$Sync.innerRun(FutureTask.java:334)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:166)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1110)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:603)
+	at java.lang.Thread.run(Thread.java:722)
+Caused by: org.infinispan.CacheException: Could not prepare. 
+	at org.infinispan.transaction.synchronization.SynchronizationAdapter.beforeCompletion(SynchronizationAdapter.java:70)
+	at com.arjuna.ats.internal.jta.resources.arjunacore.SynchronizationImple.beforeCompletion(SynchronizationImple.java:76)
+	at com.arjuna.ats.arjuna.coordinator.TwoPhaseCoordinator.beforeCompletion(TwoPhaseCoordinator.java:273)
+	at com.arjuna.ats.arjuna.coordinator.TwoPhaseCoordinator.end(TwoPhaseCoordinator.java:93)
+	at com.arjuna.ats.arjuna.AtomicAction.commit(AtomicAction.java:164)
+	at com.arjuna.ats.internal.jta.transaction.arjunacore.TransactionImple.commitAndDisassociate(TransactionImple.java:1165)
+	... 24 more
+Caused by: javax.transaction.xa.XAException
+	at org.infinispan.transaction.TransactionCoordinator.prepare(TransactionCoordinator.java:161)
+	at org.infinispan.transaction.TransactionCoordinator.prepare(TransactionCoordinator.java:123)
+	at org.infinispan.transaction.synchronization.SynchronizationAdapter.beforeCompletion(SynchronizationAdapter.java:68)
+	... 29 more
+{code}
+
+You can find the test attached. The test which fails is MultiNodeReplicatedTxTest.java . The rest are the tests which are the parents and a bit modified compared to the version in infinispan repo.",2013/01/18 8:20 AM
+ISPN-2708,"The definition of element {{marshallerClass}} in {{infinispan-config-5.2.xsd}} says: ??Fully qualified name of the marshaller to use. It must implement org.infinispan.marshall.StreamingMarshaller??.
+
+But if I add a custom marshaller class Infinispan will not start because of a *ClassCastException cannot be cast to org.infinispan.marshall.VersionAwareMarshaller*:
+{noformat}
+Caused by: org.infinispan.config.ConfigurationException: org.infinispan.CacheException: Unable to construct a GlobalComponentRegistry!
+        at org.infinispan.manager.DefaultCacheManager.<init>(DefaultCacheManager.java:379) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        at com.hrs.frw.commons.cache.infinispan.InfinispanCacheFactoryImpl.afterPropertiesSet(InfinispanCacheFactoryImpl.java:159) [frw-thirdparty-infinispan-dev-SNAPSHOT.jar:20920]
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1514) [spring-beans-3.1.1.RELEASE.jar:3.1.1.RELEASE]
+        at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1452) [spring-beans-3.1.1.RELEASE.jar:3.1.1.RELEASE]
+        ... 23 more
+Caused by: org.infinispan.CacheException: Unable to construct a GlobalComponentRegistry!
+        at org.infinispan.factories.GlobalComponentRegistry.<init>(GlobalComponentRegistry.java:146) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        at org.infinispan.manager.DefaultCacheManager.<init>(DefaultCacheManager.java:375) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        ... 26 more
+Caused by: java.lang.ClassCastException: com.....MarshallerImpl cannot be cast to org.infinispan.marshall.VersionAwareMarshaller
+        at org.infinispan.factories.MarshallerFactory.construct(MarshallerFactory.java:48) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        at org.infinispan.factories.AbstractComponentRegistry.getOrCreateComponent(AbstractComponentRegistry.java:290) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        at org.infinispan.factories.AbstractComponentRegistry.invokeInjectionMethod(AbstractComponentRegistry.java:246) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        at org.infinispan.factories.AbstractComponentRegistry.access$000(AbstractComponentRegistry.java:86) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        at org.infinispan.factories.AbstractComponentRegistry$Component.injectDependencies(AbstractComponentRegistry.java:811) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        at org.infinispan.factories.AbstractComponentRegistry.registerComponentInternal(AbstractComponentRegistry.java:220) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        at org.infinispan.factories.AbstractComponentRegistry.registerComponent(AbstractComponentRegistry.java:175) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        at org.infinispan.factories.AbstractComponentRegistry.getOrCreateComponent(AbstractComponentRegistry.java:295) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        at org.infinispan.factories.AbstractComponentRegistry.getOrCreateComponent(AbstractComponentRegistry.java:272) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        at org.infinispan.factories.GlobalComponentRegistry.<init>(GlobalComponentRegistry.java:140) [infinispan-core-5.2.0.CR1.jar:5.2.0.CR1]
+        ... 27 more
+{noformat}",2013/01/14 10:19 AM
+ISPN-2699,"Ping on startup in TransportObjectFactory.makeObject does not check the return value of ping operation, neither the tcpTransport.isValid().
+Therefore, if a HotRodClientException is thrown when the response header is read from socket, the socket is left in a dirty state.
+In our case this resulted in reading response to previous request (the request was written but the response was not read due to some timeout and then, when another request was executed it read the response to the first request). This caused {{ISPN004004: Invalid message id. Expected 2930 and received 212}}",2013/01/08 12:09 PM
+ISPN-2693,"When a ByteArrayKey is printed out, the format is {{ByteArrayKey{data=ByteArray{size=..., hashCode=..., array=...}}}}
+
+However, ByteArray computes hashCode using array.hashCode() instead of Arrays.hashCode(array) and, therefore, two equal ByteArrayKeys have different hashCode when printed out.
+
+Another way to fix that could be using Arrays.hashCode(array) in Util.printArray() (although I am not sure whether this could break anything).
+
+As the result is pretty unexpected, I consider this a bug rather than a feature request.",2013/01/08 4:26 AM
+ISPN-2666,"{code}testStateTransfer(org.infinispan.statetransfer.StateTransferPessimisticTest)  Time elapsed: 0.323 sec  <<< FAILURE!
+java.lang.AssertionError: expected:<1> but was:<2>
+	at org.junit.Assert.fail(Assert.java:93)
+	at org.junit.Assert.failNotEquals(Assert.java:647)
+	at org.junit.Assert.assertEquals(Assert.java:128)
+	at org.junit.Assert.assertEquals(Assert.java:472)
+	at org.junit.Assert.assertEquals(Assert.java:456)
+	at org.infinispan.statetransfer.StateTransferPessimisticTest.testStateTransfer(StateTransferPessimisticTest.java:104)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:39)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:25)
+	at java.lang.reflect.Method.invoke(Method.java:597)
+	at org.testng.internal.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:80)
+	at org.testng.internal.Invoker.invokeMethod(Invoker.java:715)
+	at org.testng.internal.Invoker.invokeTestMethod(Invoker.java:907)
+	at org.testng.internal.Invoker.invokeTestMethods(Invoker.java:1237)
+	at org.testng.internal.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:127)
+	at org.testng.internal.TestMethodWorker.run(TestMethodWorker.java:111)
+	at org.testng.TestRunner.privateRun(TestRunner.java:767)
+	at org.testng.TestRunner.run(TestRunner.java:617)
+	at org.testng.SuiteRunner.runTest(SuiteRunner.java:334)
+	at org.testng.SuiteRunner.access$000(SuiteRunner.java:37)
+	at org.testng.SuiteRunner$SuiteWorker.run(SuiteRunner.java:368)
+	at org.testng.internal.thread.ThreadUtil$2.call(ThreadUtil.java:64)
+	at java.util.concurrent.FutureTask$Sync.innerRun(FutureTask.java:303)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:138)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.runTask(ThreadPoolExecutor.java:886)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:908)
+	at java.lang.Thread.run(Thread.java:680){code}",2012/12/20 10:46 AM
+ISPN-2662,Trace logging reveals that in {{org.infinispan.commands.remote.recovery.TxCompletionNotificationCommand.forwardCommandRemotely}} is a typo - {{%w}} instead of {{%s}},2012/12/19 9:31 AM
+ISPN-2660,"JDBC Cache store tests are failing in case of using Oracle DB as a store, and having edg/bin as a tableNamePrefix. 
+
+The following exception is thrown (although the table doesn't exist in DB, as it passes the check for tableExists() ):
+
+{code}
+[java] 13:16:52,163 ERROR [org.infinispan.loaders.jdbc.TableManipulation] (pool-3-thread-1) ISPN008011: Error while creating table; used DDL statement: 'CREATE TABLE ""edg/bin____defaultcache""(id VARCHAR2(255) NOT NULL, datum RAW(1000), timestamp NUMBER, PRIMARY KEY (id))': java.sql.SQLSyntaxErrorException: ORA-00955: name is already used by an existing object
+     [java] 	at oracle.jdbc.driver.T4CTTIoer.processError(T4CTTIoer.java:445) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4CTTIoer.processError(T4CTTIoer.java:396) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4C8Oall.processError(T4C8Oall.java:879) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4CTTIfun.receive(T4CTTIfun.java:450) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4CTTIfun.doRPC(T4CTTIfun.java:192) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4C8Oall.doOALL(T4C8Oall.java:531) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4CStatement.doOall8(T4CStatement.java:193) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4CStatement.executeForRows(T4CStatement.java:1033) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.OracleStatement.doExecuteWithTimeout(OracleStatement.java:1329) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.OracleStatement.executeUpdateInternal(OracleStatement.java:1838) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.OracleStatement.executeUpdate(OracleStatement.java:1803) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.OracleStatementWrapper.executeUpdate(OracleStatementWrapper.java:294) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at org.jboss.jca.adapters.jdbc.WrappedStatement.executeUpdate(WrappedStatement.java:371)
+     [java] 	at org.infinispan.loaders.jdbc.TableManipulation.executeUpdateSql(TableManipulation.java:153) [infinispan-cachestore-jdbc.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.loaders.jdbc.TableManipulation.createTable(TableManipulation.java:129) [infinispan-cachestore-jdbc.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.loaders.jdbc.TableManipulation.start(TableManipulation.java:231) [infinispan-cachestore-jdbc.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.loaders.jdbc.binary.JdbcBinaryCacheStore.doConnectionFactoryInitialization(JdbcBinaryCacheStore.java:514) [infinispan-cachestore-jdbc.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.loaders.jdbc.binary.JdbcBinaryCacheStore.start(JdbcBinaryCacheStore.java:102) [infinispan-cachestore-jdbc.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.loaders.CacheLoaderManagerImpl.start(CacheLoaderManagerImpl.java:151) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.infinispan.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:203) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.factories.AbstractComponentRegistry$PrioritizedMethod.invoke(AbstractComponentRegistry.java:883) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.factories.AbstractComponentRegistry.invokeStartMethods(AbstractComponentRegistry.java:654) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.factories.AbstractComponentRegistry.internalStart(AbstractComponentRegistry.java:643) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.factories.AbstractComponentRegistry.start(AbstractComponentRegistry.java:546) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.factories.ComponentRegistry.start(ComponentRegistry.java:199) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.CacheImpl.start(CacheImpl.java:557) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at com.jboss.datagrid.test.jdbcstore.BinaryCacheStoreTest.testPutGetRemoveWithoutPassivationWithPreload(BinaryCacheStoreTest.java:98) [classes:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:44) [arquillian-service:]
+     [java] 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:15) [arquillian-service:]
+     [java] 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:41) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian$6$1.invoke(Arquillian.java:270) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.container.test.impl.execution.LocalTestExecuter.execute(LocalTestExecuter.java:60) [arquillian-service:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.invokeObservers(EventContextImpl.java:99) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:81) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.ManagerImpl.fire(ManagerImpl.java:135) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.ManagerImpl.fire(ManagerImpl.java:115) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventImpl.fire(EventImpl.java:67) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.container.test.impl.execution.ContainerTestExecuter.execute(ContainerTestExecuter.java:38) [arquillian-service:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.invokeObservers(EventContextImpl.java:99) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:81) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.test.impl.TestContextHandler.createTestContext(TestContextHandler.java:89) [arquillian-service:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:88) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.test.impl.TestContextHandler.createClassContext(TestContextHandler.java:75) [arquillian-service:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:88) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.test.impl.TestContextHandler.createSuiteContext(TestContextHandler.java:60) [arquillian-service:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:88) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.ManagerImpl.fire(ManagerImpl.java:135) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.test.impl.EventTestRunnerAdaptor.test(EventTestRunnerAdaptor.java:111) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian$6.evaluate(Arquillian.java:263) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian$4.evaluate(Arquillian.java:226) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian.multiExecute(Arquillian.java:314) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian.access$100(Arquillian.java:46) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian$5.evaluate(Arquillian.java:240) [arquillian-service:]
+     [java] 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:76) [arquillian-service:]
+     [java] 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:50) [arquillian-service:]
+     [java] 	at org.junit.runners.ParentRunner$3.run(ParentRunner.java:193) [arquillian-service:]
+     [java] 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:52) [arquillian-service:]
+     [java] 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:191) [arquillian-service:]
+     [java] 	at org.junit.runners.ParentRunner.access$000(ParentRunner.java:42) [arquillian-service:]
+     [java] 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:184) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian$2.evaluate(Arquillian.java:185) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian.multiExecute(Arquillian.java:314) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian.access$100(Arquillian.java:46) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian$3.evaluate(Arquillian.java:199) [arquillian-service:]
+     [java] 	at org.junit.runners.ParentRunner.run(ParentRunner.java:236) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian.run(Arquillian.java:147) [arquillian-service:]
+     [java] 	at org.junit.runner.JUnitCore.run(JUnitCore.java:157) [arquillian-service:]
+     [java] 	at org.junit.runner.JUnitCore.run(JUnitCore.java:136) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.container.JUnitTestRunner.execute(JUnitTestRunner.java:65) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.protocol.jmx.JMXTestRunner.runTestMethodInternal(JMXTestRunner.java:128) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.protocol.jmx.JMXTestRunner.runTestMethod(JMXTestRunner.java:107) [arquillian-service:]
+     [java] 	at org.jboss.as.arquillian.service.ArquillianService$ExtendedJMXTestRunner.runTestMethod(ArquillianService.java:213) [arquillian-service:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.mbeanserver.StandardMBeanIntrospector.invokeM2(StandardMBeanIntrospector.java:111) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.mbeanserver.StandardMBeanIntrospector.invokeM2(StandardMBeanIntrospector.java:45) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.mbeanserver.MBeanIntrospector.invokeM(MBeanIntrospector.java:235) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.mbeanserver.PerInterface.invoke(PerInterface.java:138) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.mbeanserver.MBeanSupport.invoke(MBeanSupport.java:250) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.invoke(DefaultMBeanServerInterceptor.java:819) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.mbeanserver.JmxMBeanServer.invoke(JmxMBeanServer.java:791) [rt.jar:1.7.0_04]
+     [java] 	at org.jboss.as.jmx.PluggableMBeanServerImpl$TcclMBeanServer.invoke(PluggableMBeanServerImpl.java:498)
+     [java] 	at org.jboss.as.jmx.PluggableMBeanServerImpl.invoke(PluggableMBeanServerImpl.java:246)
+     [java] 	at org.jboss.remotingjmx.protocol.v1.ServerProxy$InvokeHandler.handle(ServerProxy.java:1034)
+     [java] 	at org.jboss.remotingjmx.protocol.v1.ServerProxy$MessageReciever$1.run(ServerProxy.java:215)
+     [java] 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1110) [rt.jar:1.7.0_04]
+     [java] 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:603) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.Thread.run(Thread.java:722) [rt.jar:1.7.0_04]
+     [java] 13:16:52,209 ERROR [org.jboss.arquillian.protocol.jmx.JMXTestRunner] (pool-3-thread-1) Failed: com.jboss.datagrid.test.jdbcstore.BinaryCacheStoreTest.testPutGetRemoveWithoutPassivationWithPreload: org.infinispan.CacheException: Unable to invoke method public void org.infinispan.loaders.CacheLoaderManagerImpl.start() on object of type CacheLoaderManagerImpl
+     [java] 	at org.infinispan.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:205) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.factories.AbstractComponentRegistry$PrioritizedMethod.invoke(AbstractComponentRegistry.java:883) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.factories.AbstractComponentRegistry.invokeStartMethods(AbstractComponentRegistry.java:654) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.factories.AbstractComponentRegistry.internalStart(AbstractComponentRegistry.java:643) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.factories.AbstractComponentRegistry.start(AbstractComponentRegistry.java:546) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.factories.ComponentRegistry.start(ComponentRegistry.java:199) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.CacheImpl.start(CacheImpl.java:557) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at com.jboss.datagrid.test.jdbcstore.BinaryCacheStoreTest.testPutGetRemoveWithoutPassivationWithPreload(BinaryCacheStoreTest.java:98) [classes:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:44) [arquillian-service:]
+     [java] 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:15) [arquillian-service:]
+     [java] 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:41) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian$6$1.invoke(Arquillian.java:270) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.container.test.impl.execution.LocalTestExecuter.execute(LocalTestExecuter.java:60) [arquillian-service:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.invokeObservers(EventContextImpl.java:99) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:81) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.ManagerImpl.fire(ManagerImpl.java:135) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.ManagerImpl.fire(ManagerImpl.java:115) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventImpl.fire(EventImpl.java:67) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.container.test.impl.execution.ContainerTestExecuter.execute(ContainerTestExecuter.java:38) [arquillian-service:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.invokeObservers(EventContextImpl.java:99) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:81) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.test.impl.TestContextHandler.createTestContext(TestContextHandler.java:89) [arquillian-service:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:88) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.test.impl.TestContextHandler.createClassContext(TestContextHandler.java:75) [arquillian-service:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:88) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.test.impl.TestContextHandler.createSuiteContext(TestContextHandler.java:60) [arquillian-service:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.jboss.arquillian.core.impl.ObserverImpl.invoke(ObserverImpl.java:90) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.EventContextImpl.proceed(EventContextImpl.java:88) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.core.impl.ManagerImpl.fire(ManagerImpl.java:135) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.test.impl.EventTestRunnerAdaptor.test(EventTestRunnerAdaptor.java:111) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian$6.evaluate(Arquillian.java:263) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian$4.evaluate(Arquillian.java:226) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian.multiExecute(Arquillian.java:314) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian.access$100(Arquillian.java:46) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian$5.evaluate(Arquillian.java:240) [arquillian-service:]
+     [java] 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:76) [arquillian-service:]
+     [java] 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:50) [arquillian-service:]
+     [java] 	at org.junit.runners.ParentRunner$3.run(ParentRunner.java:193) [arquillian-service:]
+     [java] 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:52) [arquillian-service:]
+     [java] 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:191) [arquillian-service:]
+     [java] 	at org.junit.runners.ParentRunner.access$000(ParentRunner.java:42) [arquillian-service:]
+     [java] 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:184) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian$2.evaluate(Arquillian.java:185) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian.multiExecute(Arquillian.java:314) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian.access$100(Arquillian.java:46) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian$3.evaluate(Arquillian.java:199) [arquillian-service:]
+     [java] 	at org.junit.runners.ParentRunner.run(ParentRunner.java:236) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.Arquillian.run(Arquillian.java:147) [arquillian-service:]
+     [java] 	at org.junit.runner.JUnitCore.run(JUnitCore.java:157) [arquillian-service:]
+     [java] 	at org.junit.runner.JUnitCore.run(JUnitCore.java:136) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.junit.container.JUnitTestRunner.execute(JUnitTestRunner.java:65) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.protocol.jmx.JMXTestRunner.runTestMethodInternal(JMXTestRunner.java:128) [arquillian-service:]
+     [java] 	at org.jboss.arquillian.protocol.jmx.JMXTestRunner.runTestMethod(JMXTestRunner.java:107) [arquillian-service:]
+     [java] 	at org.jboss.as.arquillian.service.ArquillianService$ExtendedJMXTestRunner.runTestMethod(ArquillianService.java:213) [arquillian-service:]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.mbeanserver.StandardMBeanIntrospector.invokeM2(StandardMBeanIntrospector.java:111) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.mbeanserver.StandardMBeanIntrospector.invokeM2(StandardMBeanIntrospector.java:45) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.mbeanserver.MBeanIntrospector.invokeM(MBeanIntrospector.java:235) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.mbeanserver.PerInterface.invoke(PerInterface.java:138) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.mbeanserver.MBeanSupport.invoke(MBeanSupport.java:250) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.invoke(DefaultMBeanServerInterceptor.java:819) [rt.jar:1.7.0_04]
+     [java] 	at com.sun.jmx.mbeanserver.JmxMBeanServer.invoke(JmxMBeanServer.java:791) [rt.jar:1.7.0_04]
+     [java] 	at org.jboss.as.jmx.PluggableMBeanServerImpl$TcclMBeanServer.invoke(PluggableMBeanServerImpl.java:498)
+     [java] 	at org.jboss.as.jmx.PluggableMBeanServerImpl.invoke(PluggableMBeanServerImpl.java:246)
+     [java] 	at org.jboss.remotingjmx.protocol.v1.ServerProxy$InvokeHandler.handle(ServerProxy.java:1034)
+     [java] 	at org.jboss.remotingjmx.protocol.v1.ServerProxy$MessageReciever$1.run(ServerProxy.java:215)
+     [java] 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1110) [rt.jar:1.7.0_04]
+     [java] 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:603) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.Thread.run(Thread.java:722) [rt.jar:1.7.0_04]
+     [java] Caused by: org.infinispan.CacheException: Unable to start cache loaders
+     [java] 	at org.infinispan.loaders.CacheLoaderManagerImpl.start(CacheLoaderManagerImpl.java:159) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:57) [rt.jar:1.7.0_04]
+     [java] 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) [rt.jar:1.7.0_04]
+     [java] 	at java.lang.reflect.Method.invoke(Method.java:601) [rt.jar:1.7.0_04]
+     [java] 	at org.infinispan.util.ReflectionUtil.invokeAccessibly(ReflectionUtil.java:203) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	... 99 more
+     [java] Caused by: org.infinispan.loaders.CacheLoaderException: java.sql.SQLSyntaxErrorException: ORA-00955: name is already used by an existing object
+     [java] 	at org.infinispan.loaders.jdbc.TableManipulation.executeUpdateSql(TableManipulation.java:156) [infinispan-cachestore-jdbc.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.loaders.jdbc.TableManipulation.createTable(TableManipulation.java:129) [infinispan-cachestore-jdbc.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.loaders.jdbc.TableManipulation.start(TableManipulation.java:231) [infinispan-cachestore-jdbc.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.loaders.jdbc.binary.JdbcBinaryCacheStore.doConnectionFactoryInitialization(JdbcBinaryCacheStore.java:514) [infinispan-cachestore-jdbc.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.loaders.jdbc.binary.JdbcBinaryCacheStore.start(JdbcBinaryCacheStore.java:102) [infinispan-cachestore-jdbc.jar:5.2.0.Beta6-redhat-1]
+     [java] 	at org.infinispan.loaders.CacheLoaderManagerImpl.start(CacheLoaderManagerImpl.java:151) [infinispan-core.jar:5.2.0.Beta6-redhat-1]
+     [java] 	... 104 more
+     [java] Caused by: java.sql.SQLSyntaxErrorException: ORA-00955: name is already used by an existing object
+     [java] 	at oracle.jdbc.driver.T4CTTIoer.processError(T4CTTIoer.java:445) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4CTTIoer.processError(T4CTTIoer.java:396) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4C8Oall.processError(T4C8Oall.java:879) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4CTTIfun.receive(T4CTTIfun.java:450) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4CTTIfun.doRPC(T4CTTIfun.java:192) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4C8Oall.doOALL(T4C8Oall.java:531) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4CStatement.doOall8(T4CStatement.java:193) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.T4CStatement.executeForRows(T4CStatement.java:1033) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.OracleStatement.doExecuteWithTimeout(OracleStatement.java:1329) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.OracleStatement.executeUpdateInternal(OracleStatement.java:1838) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.OracleStatement.executeUpdate(OracleStatement.java:1803) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at oracle.jdbc.driver.OracleStatementWrapper.executeUpdate(OracleStatementWrapper.java:294) [ojdbc6.jar:11.2.0.3.0]
+     [java] 	at org.jboss.jca.adapters.jdbc.WrappedStatement.executeUpdate(WrappedStatement.java:371)
+     [java] 	at org.infinispan.loaders.jdbc.TableManipulation.executeUpdateSql(TableManipulation.java:153) [infinispan-cachestore-jdbc.jar:5.2.0.Beta6-redhat-1]
+     [java] 	... 109 more
+{code}
+
+The failing test is:
+
+https://svn.devel.redhat.com/repos/jboss-qa/jdg/jdg-functional-tests/trunk/invm/jdbc-cache-store/src/test/java/com/jboss/datagrid/test/jdbcstore/BinaryCacheStoreTest.java
+
+Please note, that as soon as I remove - ""/"" sign from table name prefix, the test succeeds.",2012/12/19 7:45 AM
+ISPN-2646,NoData,2012/12/17 2:48 AM
+ISPN-2620,"ConcurrentNonOverlappingLeaveTest is de facto disabled because of RehashTestBase doesn't have the @Test annotation (see ISPN-2534).
+
+I tried to enable it, but rehash wouldn't finish because NodeA wouldn't confirm receiving segment 38 from NodeC (the initial cluster was [NodeA, NodeB, NodeC, NodeD]). I think this is because segment 38 appears in two InboundTransferTasks:
+
+{noformat}
+17:12:37,211 TRACE (OOB-5,ISPN,NodeA-49710:dist) [StateConsumerImpl] Segments not received yet for cache dist: {NodeC-40582=[
+InboundTransferTask{segments=[38], finishedSegments=[], unfinishedSegments=[38], source=NodeC-40582, isCancelled=false, topologyId=7, timeout=240000, cacheName=dist}, 
+InboundTransferTask{segments=[38, 42, 43, 40, 41, 51, 50, 49, 55, 54, 53, 52, 59, 58, 57, 56], finishedSegments=[40], unfinishedSegments=[38, 42, 43, 41, 51, 50, 49, 55, 54, 53, 52, 59, 58, 57, 56], source=NodeC-40582, isCancelled=false, topologyId=9, timeout=240000, cacheName=dist}]}
+17:12:37,211 DEBUG (OOB-5,ISPN,NodeA-49710:dist) [StateConsumerImpl] Applying new state for segment 38 of cache dist from node NodeC-40582: received 0 cache entries
+17:12:37,211 TRACE (OOB-5,ISPN,NodeA-49710:dist) [StateConsumerImpl] Segments not received yet for cache dist: {NodeC-40582=[
+InboundTransferTask{segments=[38], finishedSegments=[], unfinishedSegments=[38], source=NodeC-40582, isCancelled=false, topologyId=7, timeout=240000, cacheName=dist}, 
+InboundTransferTask{segments=[38, 42, 43, 40, 41, 51, 50, 49, 55, 54, 53, 52, 59, 58, 57, 56], finishedSegments=[40, 57, 38], unfinishedSegments=[42, 43, 41, 51, 50, 49, 55, 54, 53, 52, 59, 58, 56], source=NodeC-40582, isCancelled=false, topologyId=9, timeout=240000, cacheName=dist}]}
+{noformat}
+",2012/12/11 1:27 PM
+ISPN-2619,"DistSyncCacheStoreNotSharedTest fails (pretty rarely) with this exception:
+
+{noformat}
+09:29:51,069 ERROR (testng-DistSyncCacheStoreNotSharedTest:) [UnitTestTestNGListener] Test testAtomicPutIfAbsentFromNonOwner(org.infinispan.distribution.DistSyncCacheStoreNotSharedTest) failed.
+java.lang.AssertionError
+	at org.infinispan.distribution.DistSyncCacheStoreNotSharedTest.testAtomicPutIfAbsentFromNonOwner(DistSyncCacheStoreNotSharedTest.java:293)
+{noformat}
+
+What happens is that at the end of the previous test there is a get() that goes remotely, and one of the ClusteredGetCommands (to node C) is delayed. The test framework then clears the cache store and the data container on node C, but the get command already had the entry in its context and will write it to the data container when it finishes executing, so that the data container is not empty when testAtomicPutIfAbsentFromNonOwner starts.
+
+{noformat}
+09:29:51,033 TRACE (OOB-1,ISPN,NodeC-33167:) [CommandAwareRpcDispatcher] Attempting to execute command: ClusteredGetCommand{key=k2, flags=null} [sender=NodeB-52644]
+09:29:51,062 TRACE (testng-DistSyncCacheStoreNotSharedTest:) [DummyInMemoryCacheStore] Clear store
+09:29:51,062 DEBUG (testng-DistSyncCacheStoreNotSharedTest:) [TestingUtil] Cleaning data for cache 'dist' on a cache manager at address NodeC-33167
+09:29:51,065 DEBUG (testng-DistSyncCacheStoreNotSharedTest:) [TestingUtil] removeInMemoryData(): dataContainerBefore == []
+09:29:51,062 TRACE (OOB-1,ISPN,NodeC-33167:dist) [ReadCommittedEntry] Updating entry (key=k2 removed=false valid=true changed=true created=false value=value2]
+09:29:51,065 TRACE (OOB-1,ISPN,NodeC-33167:dist) [EntryWrappingInterceptor] Committed entry ReadCommittedEntry(64d90a46){key=k2, value=value2, oldValue=null, isCreated=false, isChanged=false, isRemoved=false, isValid=true}
+09:29:51,065 DEBUG (testng-DistSyncCacheStoreNotSharedTest:) [TestingUtil] removeInMemoryData(): dataContainerAfter == []
+{noformat}
+",2012/12/11 7:40 AM
+ISPN-2589,"The used cache is an REPL_SYNC one w/o L1 and Optimistic TX.
+
+Can't provide unit test, just saw it in my logs.
+
+
+ WARN 05.12.12 20:08:22,746 [OOB-173,IBIS-2147] CacheTopologyControlCommand ISPN000071: Caught exception when handling command CacheTopologyControlCommand{cache=MODULE_PROPERTIES_VERSION, type=CH_UPDATE, sender=IBIS-57850, joinInfo=null, topologyId=14, currentCH=ReplicatedConsistentHash{members=[IBIS-57850, IBIS-15651, IBIS-14611, IBIS-7942, IBIS-4256, IBIS-25472, IBIS-32523]}, pendingCH=null, throwable=null, viewId=8}
+java.lang.NullPointerException
+        at org.infinispan.commands.write.InvalidateL1Command.perform(InvalidateL1Command.java:109)
+        at org.infinispan.interceptors.CallInterceptor.handleDefault(CallInterceptor.java:110)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateCommand(AbstractVisitor.java:141)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateL1Command(AbstractVisitor.java:146)
+        at org.infinispan.commands.write.InvalidateL1Command.acceptVisitor(InvalidateL1Command.java:192)
+        at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:118)
+        at org.infinispan.interceptors.base.CommandInterceptor.handleDefault(CommandInterceptor.java:132)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateCommand(AbstractVisitor.java:141)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateL1Command(AbstractVisitor.java:146)
+        at org.infinispan.commands.write.InvalidateL1Command.acceptVisitor(InvalidateL1Command.java:192)
+        at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:118)
+        at org.infinispan.interceptors.base.CommandInterceptor.handleDefault(CommandInterceptor.java:132)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateCommand(AbstractVisitor.java:141)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateL1Command(AbstractVisitor.java:146)
+        at org.infinispan.commands.write.InvalidateL1Command.acceptVisitor(InvalidateL1Command.java:192)
+        at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:118)
+        at org.infinispan.interceptors.CacheLoaderInterceptor.visitInvalidateCommand(CacheLoaderInterceptor.java:127)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateL1Command(AbstractVisitor.java:146)
+        at org.infinispan.commands.write.InvalidateL1Command.acceptVisitor(InvalidateL1Command.java:192)
+        at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:118)
+        at org.infinispan.interceptors.EntryWrappingInterceptor.invokeNextAndApplyChanges(EntryWrappingInterceptor.java:211)
+        at org.infinispan.interceptors.EntryWrappingInterceptor.visitInvalidateL1Command(EntryWrappingInterceptor.java:143)
+        at org.infinispan.commands.write.InvalidateL1Command.acceptVisitor(InvalidateL1Command.java:192)
+        at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:118)
+        at org.infinispan.interceptors.locking.AbstractLockingInterceptor.visitInvalidateL1Command(AbstractLockingInterceptor.java:99)
+        at org.infinispan.commands.write.InvalidateL1Command.acceptVisitor(InvalidateL1Command.java:192)
+        at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:118)
+        at org.infinispan.interceptors.base.CommandInterceptor.handleDefault(CommandInterceptor.java:132)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateCommand(AbstractVisitor.java:141)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateL1Command(AbstractVisitor.java:146)
+        at org.infinispan.commands.write.InvalidateL1Command.acceptVisitor(InvalidateL1Command.java:192)
+        at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:118)
+        at org.infinispan.interceptors.TxInterceptor.enlistWriteAndInvokeNext(TxInterceptor.java:256)
+        at org.infinispan.interceptors.TxInterceptor.visitInvalidateCommand(TxInterceptor.java:224)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateL1Command(AbstractVisitor.java:146)
+        at org.infinispan.commands.write.InvalidateL1Command.acceptVisitor(InvalidateL1Command.java:192)
+        at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:118)
+        at org.infinispan.statetransfer.StateTransferInterceptor.visitInvalidateL1Command(StateTransferInterceptor.java:172)
+        at org.infinispan.commands.write.InvalidateL1Command.acceptVisitor(InvalidateL1Command.java:192)
+        at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:118)
+        at org.infinispan.interceptors.base.CommandInterceptor.handleDefault(CommandInterceptor.java:132)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateCommand(AbstractVisitor.java:141)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateL1Command(AbstractVisitor.java:146)
+        at org.infinispan.commands.write.InvalidateL1Command.acceptVisitor(InvalidateL1Command.java:192)
+        at org.infinispan.interceptors.base.CommandInterceptor.invokeNextInterceptor(CommandInterceptor.java:118)
+        at org.infinispan.interceptors.InvocationContextInterceptor.handleAll(InvocationContextInterceptor.java:128)
+        at org.infinispan.interceptors.InvocationContextInterceptor.handleDefault(InvocationContextInterceptor.java:92)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateCommand(AbstractVisitor.java:141)
+        at org.infinispan.commands.AbstractVisitor.visitInvalidateL1Command(AbstractVisitor.java:146)
+        at org.infinispan.commands.write.InvalidateL1Command.acceptVisitor(InvalidateL1Command.java:192)
+        at org.infinispan.interceptors.InterceptorChain.invoke(InterceptorChain.java:343)
+        at org.infinispan.statetransfer.StateConsumerImpl.invalidateSegments(StateConsumerImpl.java:592)
+        at org.infinispan.statetransfer.StateConsumerImpl.onTopologyUpdate(StateConsumerImpl.java:239)
+        at org.infinispan.statetransfer.StateTransferManagerImpl.doTopologyUpdate(StateTransferManagerImpl.java:191)
+        at org.infinispan.statetransfer.StateTransferManagerImpl.access$000(StateTransferManagerImpl.java:58)
+        at org.infinispan.statetransfer.StateTransferManagerImpl$1.updateConsistentHash(StateTransferManagerImpl.java:117)
+        at org.infinispan.topology.LocalTopologyManagerImpl.handleConsistentHashUpdate(LocalTopologyManagerImpl.java:194)
+        at org.infinispan.topology.CacheTopologyControlCommand.doPerform(CacheTopologyControlCommand.java:165)
+        at org.infinispan.topology.CacheTopologyControlCommand.perform(CacheTopologyControlCommand.java:137)
+        at org.infinispan.remoting.transport.jgroups.CommandAwareRpcDispatcher.executeCommandFromLocalCluster(CommandAwareRpcDispatcher.java:252)
+        at org.infinispan.remoting.transport.jgroups.CommandAwareRpcDispatcher.handle(CommandAwareRpcDispatcher.java:219)
+        at org.jgroups.blocks.RequestCorrelator.handleRequest(RequestCorrelator.java:483)
+        at org.jgroups.blocks.RequestCorrelator.receiveMessage(RequestCorrelator.java:390)
+        at org.jgroups.blocks.RequestCorrelator.receive(RequestCorrelator.java:248)
+        at org.jgroups.blocks.MessageDispatcher$ProtocolAdapter.up(MessageDispatcher.java:598)
+        at org.jgroups.JChannel.up(JChannel.java:703)
+        at org.jgroups.stack.ProtocolStack.up(ProtocolStack.java:1020)
+        at org.jgroups.protocols.RSVP.up(RSVP.java:172)
+        at org.jgroups.protocols.FRAG2.up(FRAG2.java:181)
+        at org.jgroups.protocols.FC.up(FC.java:479)
+        at org.jgroups.protocols.pbcast.GMS.up(GMS.java:896)
+        at org.jgroups.protocols.pbcast.STABLE.up(STABLE.java:244)
+        at org.jgroups.protocols.UNICAST2.up(UNICAST2.java:432)
+        at org.jgroups.protocols.pbcast.NAKACK2.handleMessage(NAKACK2.java:721)
+        at org.jgroups.protocols.pbcast.NAKACK2.up(NAKACK2.java:574)
+        at org.jgroups.protocols.VERIFY_SUSPECT.up(VERIFY_SUSPECT.java:143)
+        at org.jgroups.protocols.FD_ALL.up(FD_ALL.java:187)
+        at org.jgroups.protocols.FD_SOCK.up(FD_SOCK.java:288)
+        at org.jgroups.protocols.MERGE3.up(MERGE3.java:290)
+        at org.jgroups.protocols.Discovery.up(Discovery.java:359)
+        at org.jgroups.protocols.TP.passMessageUp(TP.java:1287)
+        at org.jgroups.protocols.TP$IncomingPacket.handleMyMessage(TP.java:1850)
+        at org.jgroups.protocols.TP$IncomingPacket.run(TP.java:1823)
+        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1110)
+        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:603)
+        at java.lang.Thread.run(Thread.java:722)
+",2012/12/05 2:21 PM
+ISPN-2551,Some of the HotRod client tests don't kill some of the RemoteCacheManagers and/or HotRodServers they create,2012/11/26 3:27 PM
+ISPN-2549,"An invalidation mode cluster with two nodes A and B. Node A is coordinator.
+Putting a key on node B results in a remote lock being acquired on A. But the lock on A is not released when the TX commits. Subsequent attempts to lock the key on A will fail with TimeoutException.
+
+The key aspects to reproduce this are: 
+1. pessimistic locking
+2. the transaction starts on a node different than the coordinator
+
+This scenario does not involve any state transfer, so it should not be related to the already known issues with stale locks caused by state-transfer.",2012/11/26 3:49 AM
+ISPN-2546,"During a state transfer the entries are sent batched to chunks. However, if all entries are sent in the non-last chunk, the list in entriesBySegment.get(segmentId) is empty. The code for sending last chunks is following:
+
+{code:title=OutboundTransferTask.sendEntries(...)}
+...
+if (isLast) {
+         for (int segmentId : segments) {
+            List<InternalCacheEntry> entries = entriesBySegment.get(segmentId);
+            if (entries == null) {
+               chunks.add(new StateChunk(segmentId, InfinispanCollections.<InternalCacheEntry>emptyList(), true));
+            }
+         }
+      }
+...
+{code}
+
+See that the check is {{entries == null}} but not {{entries.isEmpty()}}.
+This causes to leave some segments unfinished, never finishing the state transfer.",2012/11/23 5:16 AM
+ISPN-2537,"LockCleanupStateTransferTest assumes that once the tx is done on one remote node it's done on all of them (and on the originator as well).
+
+It sometimes fails with this stack trace:
+
+{noformat}
+java.lang.AssertionError: For cache 0 expected:<0> but was:<1>
+	at org.junit.Assert.fail(Assert.java:93)
+	at org.junit.Assert.failNotEquals(Assert.java:647)
+	at org.junit.Assert.assertEquals(Assert.java:128)
+	at org.junit.Assert.assertEquals(Assert.java:472)
+	at org.infinispan.tx.LockCleanupStateTransferTest.testLockReleasedCorrectly(LockCleanupStateTransferTest.java:164)
+	at org.infinispan.tx.LockCleanupStateTransferTest.testBelatedCommit(LockCleanupStateTransferTest.java:76)
+{noformat}
+
+",2012/11/22 8:23 AM
+ISPN-2534,"Surefire picks up tests named {{\*Test.java}} and {{Test*.java}}, but not {{\*Test\*.java}}.
+
+There are some tests that don't follow the {{*Test.java}} naming convention, and because of that they don't run in the test suite:
+
+./query/src/test/java/org/infinispan/query/config/MultipleCachesTests.java
+./query/src/test/java/org/infinispan/query/indexedembedded/BooksExampleTests.java
+./cli/cli-server/src/test/java/org/infinispan/cli/interpreter/ClusteredCLITests.java
+./cachestore/jdbc/src/test/java/org/infinispan/loaders/jdbc/stringbased/JdbcStringBasedCacheStoreTest2.java
+./cachestore/jdbc/src/test/java/org/infinispan/loaders/jdbc/stringbased/JdbcStringBasedCacheStoreVamTest2.java
+./cachestore/jdbc/src/test/java/org/infinispan/loaders/jdbc/mixed/JdbcMixedCacheStoreTest2.java
+./cachestore/jdbc/src/test/java/org/infinispan/loaders/jdbc/mixed/JdbcMixedCacheStoreVamTest2.java",2012/11/22 4:33 AM
+ISPN-2507,"The case is the following:
+
+There is 2 node cluster. The first is up and running. The second node starts and puts data into the cache. The cache is configured with DIST_ASYNC clustering mode.
+
+The test checks that the data is rehashed, i.e. state transfer has done, but the @DataRehashed event was not triggered.
+
+You can find the failing test results here:
+
+http://jenkins.mw.lab.eng.bos.redhat.com/hudson/job/edg-60-jdbc-cache-stores-tomcat7/DATABASE=mysql51,jdk=java16_default,label=RHEL6_x86_64/101/testReport/com.jboss.datagrid.test.asyncnotif.clustered/DistributionNotificationTest/testDataRehashEventNode1Verifying/
+
+and here:
+
+http://jenkins.mw.lab.eng.bos.redhat.com/hudson/job/edg-60-jdbc-cache-stores-tomcat7/DATABASE=mysql51,jdk=java16_default,label=RHEL6_x86_64/101/testReport/com.jboss.datagrid.test.asyncnotif.clustered/DistributionNotificationTest/testDataRehashEventNode2Rehash/
+
+The test is located here:
+https://svn.devel.redhat.com/repos/jboss-qa/jdg/jdg-functional-tests/trunk/invm/async-notif/src/test/java/com/jboss/datagrid/test/asyncnotif/clustered/DistributionNotificationTest.java
+
+Best regards,
+Anna.",2012/11/15 5:31 AM
+ISPN-2495,"Situation: REPL cache with Cache Loader and ~500k entries and preload = true, and shared cache store.
+
+Problem: 1st node starts and the startup (until cache loaded all entries and so on) takes lets say 2min. When starting the 2nd node after e.g. 30s, then state is requested, but contains no results. cache loader is also not used, since its not the 1st node. Log from 2nd node is attached.
+So I've REPL cache over two (or more ) nodes, where only the 1st node contains the entries.
+
+When starting all other nodes later, then state transfer works and the data gets replicated.
+
+Maybe startup of all other nodes should be blocked until warm start of first node has finished?",2012/11/12 5:42 AM
+ISPN-2492,NoData,2012/11/09 10:04 AM
+ISPN-2441,"I'm not sure if this is really a problem or if it's just a superfluous error message, but I'm seeing about 6000 of these during a typical test suite run:
+
+{noformat}
+ISPN000173: Custom interceptor org.infinispan.interceptors.ActivationInterceptor has used @Inject, @Start or @Stop. These methods will not be processed. Please extend org.infinispan.interceptors.base.BaseCustomInterceptor instead, and your custom interceptor will have access to a cache and cacheManager.  Override stop() and start() for lifecycle methods.
+ISPN000173: Custom interceptor org.infinispan.interceptors.CacheMgmtInterceptor has used @Inject, @Start or @Stop. These methods will not be processed. Please extend org.infinispan.interceptors.base.BaseCustomInterceptor instead, and your custom interceptor will have access to a cache and cacheManager.  Override stop() and start() for lifecycle methods.
+ISPN000173: Custom interceptor org.infinispan.interceptors.DistCacheStoreInterceptor has used @Inject, @Start or @Stop. These methods will not be processed. Please extend org.infinispan.interceptors.base.BaseCustomInterceptor instead, and your custom interceptor will have access to a cache and cacheManager.  Override stop() and start() for lifecycle methods.
+ISPN000173: Custom interceptor org.infinispan.interceptors.InvalidationInterceptor has used @Inject, @Start or @Stop. These methods will not be processed. Please extend org.infinispan.interceptors.base.BaseCustomInterceptor instead, and your custom interceptor will have access to a cache and cacheManager.  Override stop() and start() for lifecycle methods.
+{noformat}",2012/10/24 11:15 AM
+ISPN-2418,"Copied from ISPN-2297:
+
+{quote}
+If a cache is stopped via {{Cache.stop()}} it will still be returned by {{DefaultCacheManager.getCache()}}. Cache {{start()}} and {{stop()}} are not synchronized in any way, so a {{start()}} call may return before the cache was properly started - just because another thread is in the process of starting it.
+
+Also, the documentation of {{EmbeddedCacheManager.getCache()}} should say that it will start the cache only if it doesn't exist yet - if the cache is stopped it will return the cache as it was. Alternatively we could change the behaviour of {{getCache()}} to always start the cache.
+{quote}
+",2012/10/18 9:48 AM
+ISPN-2405,NoData,2012/10/15 9:58 AM
+ISPN-2401,"They only check the segments that are in progress, so they return false if state transfer started but didn't add any segment to the in-progress list yet.
+
+If isStateTransferInProgressForKey is fixed, DistributionManagerImpl.getLocality should be changed to use it again.",2012/10/15 5:42 AM
+ISPN-2383,"- tx runs on N1, prepare a single-key tx (k1) on N2 
+- block commit execution on N2 and start N3 so that k1 node maps to N3
+- the StaleTransactionCleanupService[1] removes the transaction from N2
+- when commit is executed there's no tx on N2 to forward the commit to so it simply does nothing
+- the TxCompletionNotification arrives on N3 and rollbacks the uncommitted data 
+- data is lost!
+
+
+Solution: the StaleTransactionCleanupService should not run concurrently with the NBST but only after the NBST is finished. I.e. it should no longer be an topology listener, but should be invoked explicitly during the NBST-complete RPC.  
+",2012/10/11 2:30 PM
+ISPN-2381,"In OwnableReentrantLock: 
+If in the tryRelease(int) the owner != requestor the lock is not unlocked, it is still removed from AbstractPerEntryLockContainer.locks causing that is effectively unlocked.
+
+https://github.com/infinispan/infinispan/blob/master/core/src/main/java/org/infinispan/util/concurrent/locks/containers/AbstractPerEntryLockContainer.java#L102
+https://github.com/infinispan/infinispan/blob/master/core/src/main/java/org/infinispan/util/concurrent/locks/OwnableReentrantLock.java#L154",2012/10/11 6:44 AM
+ISPN-2372,"{{AbstractJBossMarshaller.marshallerTL}} is leaking {{PerThreadInstanceHolder}} instances. These hold a reference to {{MarshallingConfiguration}}, which indirectly holds a reference to the classloader, which of course holds a truckload of stuff.
+
+The cause of the leak is the fact that noone ever calls {{remove()}} on {{marshallerTL}}. 
+
+I've tried adding {{marshallerTL.remove()}} to {{AbstractJBossMarshaller.stop()}}, but this only removed references from JBossAS' MSC Service threads. Other threads (in my case only one thread - ""http-/127.0.0.1:8080-2"") are still causing the leak.
+
+Here's the complete path from Thread to ModuleClassLoader:
+{code}
+classes of org.jboss.modules.ModuleClassLoader
+value of java.util.Hashtable$Entry
+[4] of java.util.Hashtable$Entry[23]
+table of org.infinispan.util.Immutables$ImmutableTypedProperties
+configurationProperties of org.hibernate.search.impl.ImmutableSearchFactory
+delegate of org.hibernate.search.impl.MutableSearchFactory""
+searchFactoryImplementor of org.infinispan.query.CommandInitializer
+value of java.util.HashMap$Entry
+[0] of java.util.HashMap$Entry[4]
+table of java.util.HashMap
+commandInitializers of org.infinispan.util.ModuleProperties
+moduleProperties of org.infinispan.factories.GlobalComponentRegistry
+gcr of org.infinispan.marshall.jboss.ExternalizerTable
+objectTable of org.jboss.marshalling.MarshallingConfiguration
+configuration of org.infinispan.marshall.jboss.AbstractJBossMarshaller$PerThreadInstanceHolder
+value of java.lang.ThreadLocal$ThreadLocalMap$Entry
+[3462] of java.lang.ThreadLocal$ThreadLocalMap$Entry[4096]
+table of java.lang.ThreadLocal$ThreadLocalMap
+threadLocals of java.lang.Thread [Stack Local, Thread]  """"http-/127.0.0.1:8080-2"""" native ID: 0x1B18"", ""28""
+{code}",2012/10/08 10:25 AM
+ISPN-2368,"There is a bug in ClusterTopologyManagerImpl on line 353: the reference to cache topology is obtained prior to entering to the synchronized block, causing that two rebalances can start in parallel, effectively broking the state transfer.",2012/10/04 6:10 AM
+ISPN-2362,"The NBST functionality leaves place to inconsistencies during removals:
+1. the joiner first requests transaction data
+2. after all transaction data is integrated (i.e. tx is prepared on the state receiver node) it requests the rest(data container) of the data 
+3. in order not to override the data from transactions which is more recent (transactions at step 1 might commit during step 2), the insertion at 2 happens with putIfAbsent. Whilst this prevents from overriding newer values (written by transactions), it doesn't guard against the situation in which the tx at step 1 removed data. So it is possible for deleted data a to resurrect. 
+
+A solution to this inconsistency issue is to use tombstones for the duration of the state transfer. ",2012/10/02 12:17 PM

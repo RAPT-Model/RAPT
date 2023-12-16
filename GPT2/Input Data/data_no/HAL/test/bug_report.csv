@@ -1,0 +1,445 @@
+bug_report_id,bug_report_desc,bug_report_time
+HAL-1747,"Web DeploymentColumn view can't switch between servers. (see Steps to Reproduce).
+
+It seems https://github.com/hal/console/blob/3.3.4.Final/app/src/main/java/org/jboss/hal/client/runtime/subsystem/undertow/DeploymentColumn.java#L107 is wrong.
+
+{code:java}
+actions.add(itemActionFactory.view(
+        places.selectedProfile(NameTokens.UNDERTOW_RUNTIME_DEPLOYMENT_VIEW)
+                .with(DEPLOYMENT, item.getDeployment())
+                .with(SUBDEPLOYMENT, item.getSubdeployment())
+                .build()));
+{code}
+
+The request place builder should check selected server rather than selected profile for runtime undertow deployment.
+
+
+
+",2021/04/20 6:10 AM
+HAL-1742,"The following error is shown in the browser console clicking on runtime -> server groups -> main-server-group -> server-one -> Messaging after changing the server-group profile from full to full-ha:
+
+""Unable to load required resources for column 'msg-server-r': Error: java.lang.IllegalArgumentException: Duplicate key [server] found""
+
+consequently, the default server for the messaging subsystem is not shown. After closing the browser and starting it again or clearing the browser cache the error disappears.
+",2021/04/05 6:10 AM
+HAL-1740,NoData,2021/03/19 6:44 AM
+HAL-1738,When trying to create a credential store via console an internal error message is popping up.,2021/03/18 8:42 AM
+HAL-1736,"The session table at 
+ # Server ⇒ Standalone Server
+ # Monitor ⇒ Web
+ # Web ⇒ Deployment
+ # Deployment ⇒ <deployment>
+
+shows the timestamps for session creation and last access time. For some sessions these time stamps get mixed up, so that session last access time is before session creation time.",2021/03/02 10:03 AM
+HAL-1735,"* Create a management user,
+* start EAP in domain mode,
+* deploy ejb-remote-server-side.jar from ejb-remote Wildfly quickstart on main-server-group,
+* go to HAL -> Runtime -> Server Groups -> main-server-group -> server-one -> EJB -> CalculatorBean -> View
+
+After clicking View button, I can see ""Internal error"" popup, with details ""Empty columns in data table builder!"".",2021/02/22 8:15 AM
+HAL-1732,"The MicroProfile Health view in HAL Management Console shows:
+
+_The health check outcome is DOWN._
+
+And all states are listed as ""undefined"" though for example data of deployment-status shows ""OK"" and also server-state data is ""running"".
+
+ 
+
+Directly accessing the health endpoint via HTTP ([http://localhost:9990/health)] shows this instead:
+
+{{{""status"":""UP"",""checks"":[\{""name"":""deployments-status"",""status"":""UP"",""data"":{""test.ear"":""OK"",""test2.ear"":""OK""}},\{""name"":""boot-errors"",""status"":""UP""},\{""name"":""server-state"",""status"":""UP"",""data"":{""value"":""running""}},\{""name"":""ready-deployment.test2.ear.test2-web.war"",""status"":""UP""},\{""name"":""ready-deployment.test.ear.test-web.war"",""status"":""UP""}]}}}
+
+So the endpoint shows all states as ""UP"" instead of HAL showing all states as ""undefined"" or ""DOWN"" (for the overall outcome).
+
+I would expect HAL to show the same output as the health endpoint.
+
+ ",2021/01/20 3:16 AM
+HAL-1731,"When adding a new Authentication Configuration in wildfly-22.0.0.Final it is not possible to change the Credential Reference anymore. A window is displayed with a message 'No resource found'. When pushing the Add-Button the operation fails with the message ""WFLYCTL0476: Value for attribute 'credential-reference' is invalid: either 'clear-text' must be specified on its own or 'store' needs to be specified with at least one of 'clear-text' or 'alias'"" .
+This was working in WildFly 20.0.0 Final",2021/01/17 8:35 AM
+HAL-1730,"Internal error:
+
+(TypeError) : this.org_jboss_hal_client_configuration_subsystem_ejb_EjbView_serviceRemoteForm.getFormItem__Ljava_lang_String_2Lorg_jboss_hal_ballroom_form_FormItem_2(...) is null",2020/12/11 7:09 AM
+HAL-1726,"Hi,
+
+It seems that EJB Runtime monitor at Management Console is broken.
+
+I cannot monitor EJBs deployed at server because an error happens when the option is selected.
+
+ ",2020/12/08 12:16 PM
+HAL-1723,"Default Connection URL on wizard of add datasource is `jdbc:microsoft:sqlserver://localhost:1433;DatabaseName=MyDatabase`, that is old format.
+The current format should be `jdbc:sqlserver://localhost:1433;DatabaseName=MyDatabase`.
+",2020/11/26 12:33 AM
+HAL-1716,"In WildFly 21.0.0, tried to create a simple Oracle XA datasource.
+
+At step 3 (JDBC Driver), there is an optional field for ""Driver Class Name"" and the default supplied is ""oracle.jdbc.driver.OracleDriver""
+
+A driver class (i.e. an implementation of {{java.sql.Driver}}) *cannot be used* with an XA DataSource.
+ * Instead an implementation of {{javax.sql.XADataSource}} must be supplied.
+ * An XA DataSource class is required (it is *mandatory* not optional).
+ * Even if the field retained the class (it doesn't - see below), it is confusing to call it a ""Driver Class Name"" as a ""Driver Class"" is distinctly different from an ""XADataSource Class"" (these are different Java interfaces). The two types cannot be used interchangeably.
+
+Users should be prompted to provide an appropriate class for their specific driver (e.g. {{oracle.jdbc.xa.client.OracleXADataSource}}). Supplying a default is not a good idea as it may change with driver releases.
+
+I tried to substitute the XA class in the ""Driver Class Name"" field but the required configuration is missing (looks like the field is ignored). The required configuration needs to appear as below (with the provided class):
+{code:xml}
+                    <xa-datasource-class>SUPPLIED_CLASS_HERE</xa-datasource-class>
+{code}
+Note that I'm not creating a module (which might work differently), I'm selecting the Oracle JDBC driver jar file (which I pre-copied to the WildFly {{standalone/deployments}} directory) from the drop down and I'm removing the module name as module deployments are a bit more complex than needed in most cases.",2020/11/10 2:29 PM
+HAL-1714,"After to applying the 7.3. Update 3, the ""Patching"" tab option is no longer displayed at domain mode from Management Console.
+
+It is shown when running EAP in standalone mode, but, *not* when in domain mode, although the Patching tab could be reached via [http://localhost:9990/console/index.html#patching]",2020/11/05 8:24 AM
+HAL-1711,"When navigating to (equivalent of) the following path in web console ""Runtimes"" tab:
+
+/host=load-balancer/server=load-balancer/subsystem=undertow/configuration=filter/mod-cluster=load-balancer/balancer=mycluster
+
+the console fails to load resource information, due to wrongly constructed resource path. See EAPSUP-282 for details.
+
+
+*Reproduction*
+
+* Deploy [ejb-multi-server|https://github.com/jboss-developer/jboss-eap-quickstarts/tree/7.3.x/ejb-multi-server] quickstart (configure domain according to quickstart instructions, deploy apps),
+* create another server ""load-balancer"", which belongs to ""load-balancer"" group,
+* in EAP web console, navigate to Runtimes > Hosts > master > load-balancer > Web > ModCluster > load-balancer > mycluster
+
+Expected result:
+
+Some nodes are listed in the Node column (the last column).
+
+Actual result:
+
+Error popup appears: ""Last Operation Failed"" ""Unable to parse response with unexpected content-type text/html""
+No nodes are listed in the Node column.",2020/09/30 9:25 AM
+HAL-1708,"Customer can see a specific DS dropdown under runtime instance #1 but when they go to instance #2 its unavailable. If they shift-f5 and reload it appears. When they navigate back to instance #1 its no longer available, until they also shift-f5 refresh... and so on.  See attached screenshot.
+
+Customer running in domain mode, one domain node and two host nodes.
+Behavior is the same in Chrome 84.x and IE 11.959.x
+
+Issue occurs on EAP 7.2.8, hal-console-3.0.21.Final-redhat-00001-resources.jar, didn't see that version 3.0.21 on dropdown .",2020/08/10 1:39 PM
+HAL-1705,"The implementation of HAL-1669 modifies attributes it shouldn't, e.g. those that can be handled by PropertiesItem.",2020/07/31 1:34 PM
+HAL-1703,"It seems drag and drop or selecting the file option in web console doesn't work with IE when we try to apply patches. I tried with my Windows 10 in IE 
+Internet Explorer 11.737.17763.0 Update Version 11.0.145.
+and a couple VMs for testing, not sure if this applies to all IE versions. 
+
+No logs are shown, the only message seen is that when we use drag-and-drop the file do shows in screen but then it shows: ""No patch file specified. Please select a file patch to uploadddddd""
+
+ 
+
+Could this be some incompatibility with IE? ",2020/07/27 7:03 AM
+HAL-1702,"The EAP management system should avoid ""Patching"" tab feature in an RPM installation to prevent misutilization since the recommended approach is to use the standard RHEL yum update command-line.",2020/07/23 6:06 AM
+HAL-1698,"EAP 7.3.1 IE browser : Unable to add new server-group via management console
+
+ 
+
+IE 11 (and older) does not support direct method instantiation
+{code:java}
+new KeyboardEvent(""keyup""){code}
+One affected component is Autocomplete but there might be others.",2020/07/15 12:18 PM
+HAL-1688,"Unmanaged deploys show a checkmark that they are ""managed"" if you view the deployment under Server Groups. The deployment does however show correctly that it is un-managed in the Content Repository section.",2020/07/08 1:11 AM
+HAL-1684,"When adding the jvm option ""-Xloggc:${jboss.domain.servers.dir}/server1/log/gc.log"" a java.lang.IllegalArgumentException is thrown and the operation fails.",2020/05/13 7:58 AM
+HAL-1683,"I browse the management model for an EAR file with two subdeployments (EJB jar and Web WAR).
+
+First I expand the EJB jar (""subsystem"" =>  ""ejb3"") - screenshot ""hal1.png""
+Then I click the Web war and expand the node ""subsystem"": the details from the EJB jar are displayed - screenshot ""hal2.png""
+After a click on ""refresh"", everything is fine again - screenshot ""hal3.png""
+
+I can provide the sample EAR if required.",2020/04/25 3:18 PM
+HAL-1682,"in the JBoss admin console, browse the messaging/queues/DLQ, can see the message ID's (not contents), chose and ticked a message, pressed 'move ' and chose another queue, but it reported that  'Last operation failed' with '""WFLYCTL0155: 'new-priority' may not be null"". 
+
+
+",2020/04/16 11:28 PM
+HAL-1681,"If you use properties in your configuration XML-s (standalone.xml, domain.xml, ...) than several functions become unusable in HAL.
+In the source code of HAL, when it creates an operation for example like this
+
+{code:java}
+Operation operation = new Operation.Builder(address, READ_RESOURCE_OPERATION)
+{code}
+
+I couldn't find a case when it contains the line
+
+{code:java}
+.param(RESOLVE_EXPRESSIONS, true)
+{code}
+
+This will cause unresolved expressions to be returned and later numeric errors to be thrown while trying to read them. I attached two examples of this kind of error, which appeared on my console. Bellow I give full details of the case which is related to display runtime batch infos. If you check the following: 
+
+[BatchPreview.java on GITHUB |https://github.com/hal/console/blob/develop/app/src/main/java/org/jboss/hal/client/runtime/subsystem/batch/BatchPreview.java]
+
+{code:java}
+    @Override
+    public void update(SubsystemMetadata item) {
+        ResourceAddress address = BATCH_SUBSYSTEM_TEMPLATE.resolve(statementContext);
+        Operation operation = new Operation.Builder(address, READ_RESOURCE_OPERATION)
+                .param(INCLUDE_RUNTIME, true)
+                .param(RECURSIVE, true)
+                .build();
+        dispatcher.execute(operation, result -> {
+            attributes.refresh(result);
+            if (result.hasDefined(DEFAULT_THREAD_POOL)) {
+                String name = result.get(DEFAULT_THREAD_POOL).asString();
+                ModelNode threadPool = failSafeGet(result, THREAD_POOL + ""/"" + name);
+                if (threadPool.isDefined()) {
+                    Elements.setVisible(details, true);
+                    int max = threadPool.get(MAX_THREADS).asInt();
+                    int current = threadPool.get(CURRENT_THREAD_COUNT).asInt();
+                    int largest = threadPool.get(LARGEST_THREAD_COUNT).asInt();
+                    currentThreadCount.update(current, max);
+                    largestThreadCount.update(largest, max);
+                }
+            }
+        });
+    }
+{code}
+
+You can see the line:
+ 
+{code:java}
+int max = threadPool.get(MAX_THREADS).asInt();
+{code}
+
+which causes the numeric error in the HAL browser app. If you add some logging this way:
+
+{code:java}
+logger.debug(""Batch CLI command: {} "", operation.asCli());
+{code}
+
+you can check the CLI equivalent of the operation:
+
+{code:java}
+/subsystem=batch-jberet:read-resource(include-runtime=true,recursive=true)
+{code}
+
+The right command should be:
+
+{code:java}
+/subsystem=batch-jberet:read-resource(include-runtime=true,recursive=true,resolve-expressions=true)
+{code}
+
+With the resolved expressions the asInt() method would not throw a numeric exception. To achieve this we should add:
+
+{code:java}
+.param(RESOLVE_EXPRESSIONS, true)
+{code}
+
+Unfortunately another error in the wildfly core must be corrected also, to fix this problem. In the wildfly core the read-resource operation does not resolve expressions recursively. An example for this:
+ 
+{code:json}
+[standalone@localhost:9992 /] /subsystem=batch-jberet:read-resource(include-runtime=true,recursive=true,resolve-expressions=true)
+{
+    ""outcome"" => ""success"",
+    ""result"" => {
+        ""restart-jobs-on-resume"" => true,
+        ""security-domain"" => undefined,
+        ""default-job-repository"" => ""in-memory"",
+        ""default-thread-pool"" => ""batch"",
+        ""in-memory-job-repository"" => {""in-memory"" => {}},
+        ""jdbc-job-repository"" => undefined,
+        ""thread-factory"" => undefined,
+        ""thread-pool"" => {""batch"" => {
+            ""active-count"" => 0,
+            ""completed-task-count"" => 0L,
+            ""current-thread-count"" => 0,
+            ""keepalive-time"" => {
+                ""time"" => 30L,
+                ""unit"" => ""SECONDS""
+            },
+            ""largest-thread-count"" => 0,
+            ""max-threads"" => expression ""${batch-max-threads}"",
+            ""name"" => ""batch"",
+            ""queue-size"" => 0,
+            ""rejected-count"" => 0,
+            ""task-count"" => 0L,
+            ""thread-factory"" => undefined
+        }}
+    }
+}
+{code}
+
+If you change location in the CLI, it will resolve the expression on the current level:
+
+{code:json}
+[standalone@localhost:9992 thread-pool=batch] :read-resource(include-runtime=true,resolve-expressions=true)
+{
+    ""outcome"" => ""success"",
+    ""result"" => {
+        ""active-count"" => 0,
+        ""completed-task-count"" => 0L,
+        ""current-thread-count"" => 0,
+        ""keepalive-time"" => {
+            ""time"" => 30L,
+            ""unit"" => ""SECONDS""
+        },
+        ""largest-thread-count"" => 0,
+        ""max-threads"" => ""111"",
+        ""name"" => ""batch"",
+        ""queue-size"" => 0,
+        ""rejected-count"" => 0,
+        ""task-count"" => 0L,
+        ""thread-factory"" => undefined
+    }
+}
+{code}
+ 
+",2020/04/15 4:30 PM
+HAL-1680,"When using the ""Take a Tour"" option in web console, user needs to click for several resources manually to reveal hints provided by the ""Take a Tour"" functionality. The root cause is probably wrong URL paths, that this functionality requires when dealing RBAC pages, when the tour expects {{path=access-control-browse-by~users}} in the URL but the information is shown at {{path=access-control-browse-by~access-control-browse-by-users}}, same goes for {{roles}}",2020/04/13 6:52 AM
+HAL-1679,"When running in domain mode and trying to undeploy from the ""Browse By: Server Groups"" column, the deployment is not being undeployed. User is encountered with an alert saying: {code}
+{""domain-failure-description"" => ""WFLYCTL0216: Management resource '[(\""deployment\"" => \""main-server-group\"")]' not found""}
+{code}",2020/04/13 4:56 AM
+HAL-1671,"
+URL=jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=xxx.xxx.xx)(PORT=1521))(CONNECT_DATA=(SERVER=dedicated)(SERVICE_NAME=xxxx)))
+
+Invalid format. Add new properties as key=value pairs, the special character allowed in the value are: - . : @ ; = ? ! # $ % & [ ]
+
+Although ""(,),*"":have been added to list as part of HAL-1670,""_""is still not added to the list which could be part of schema,xa-datasource property etc.
+",2020/03/04 12:11 AM
+HAL-1670,"When using the admin console to add a new XA datasource, entering an Oracle formatted datasource URL like below fails with the following message:
+
+
+{code:java}
+URL=jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=xxx.xxx.xx)(PORT=1521))(CONNECT_DATA=(SERVER=dedicated)(SERVICE_NAME=xxxx)))
+{code}
+
+{code:java}
+Invalid format. Add new properties as key=value pairs, the special character allowed in the value are: - . : @ ; = ? ! # $ % & [ ]
+{code}
+
+This is a valid Oracle URL that should be allowed in the configuration. ",2020/02/25 12:52 PM
+HAL-1668,"See reproduction steps.
+
+The Restart/reload dialog is always shown independently if the reload/restart operation is rejected by the DC, making the console unusable because the dialog never disappears.
+
+A logical way to handle this could be to show the dialog only if an error does not occur when the Restart/reload operation returns, or always dismiss the dialog as soon as an error is returned by the host.
+
+The workaround is to refresh the console accessing to it again.
+
+This behavior does not compromise the servers/host lifecycle.",2020/02/17 5:22 AM
+HAL-1663,"When the DC is starting, any lifecycle operation on a server that belongs to a slave shows two error dialogs, one with a description and the other without any explanation. 
+
+This is more a user experience issue. Only one message dialog should be displayed under this scenario.
+
+In order to correctly test this scenario, ensure that these two issues are merged: WFCORE-4830 and WFCORE-4764",2020/02/03 11:02 AM
+HAL-1662,"The following error is shown if a server is stopped with an element of the Monitor tab selected:
+
+{noformat}
+{""WFLYCTL0062: Composite operation failed and was rolled back. Steps that failed:"" => {""Operation step-1"" => ""WFLYCTL0202: No known child type named subsystem""}}
+{noformat}
+
+
+Additionally, any additional click on any of the Monitor elements will continue showing errors.
+
+It looks like the Monitor tab should be closed if a server is stopped.
+",2020/02/03 4:53 AM
+HAL-1660,"This is happening always when we are coming back to the runtime view from a view opened from the monitor tab.
+
+The host list gets mixed up and the host from the master are shown in the slave and vice versa.",2020/01/31 11:12 AM
+HAL-1657,"Simple domain, just a master, the steps to reproduce explains the issue.",2020/01/22 11:48 AM
+HAL-1653,When the domain is restarted the topology is not refreshed with the current servers and host status when the console is connected again to the domain,2020/01/17 12:16 PM
+HAL-1649,"* Not able see Management Console
+* Blank Browser screen, but works in other browsers
+* Browser Console shows Syntax Error in ""polyfill.min.js"" (85,1) and ""'fetch' is undefined"" external.min.js (15660,52015) among other errors
+
+At that line in polyfill.min.js, there appears to be a ""export function Headers(headers)"". I don't think that's valid syntax.
+
+It seems related to this issue with fetch https://github.com/github/fetch/issues/656, which they said can be fixed by using the UMD version.
+
+This issue  https://issues.jboss.org/browse/HAL-1484, suggests that the polyfills were added for IE 11, but it clearly doesn't work even in 7.2.0.",2019/12/19 5:02 PM
+HAL-1648,"When opening
+Configuration => Subsystems => Configuration => Security (Elytron) => Security Realms => JDBC Realm => Principal Query
+the field ""Attribute Mapping"" shows only the first attribute
+
+via cli this looks correct
+
+/subsystem=elytron/jdbc-realm=MySqlJDBCRealm:read-resource
+{
+    ""outcome"" => ""success"",
+    ""result"" => {""principal-query"" => [{
+        ""sql"" => ""SELECT u.password, r.role FROM users u, roles r WHERE u.username =? AND u.username = r.username"",
+        ""data-source"" => ""MySQLTestDS"",
+        ""attribute-mapping"" => [{
+            ""to"" => ""groups"",
+            ""index"" => 2
+        }],
+        ""clear-password-mapper"" => {""password-index"" => 1}
+    }]}
+}
+
+",2019/12/04 8:33 AM
+HAL-1646,"If you configure some profiles, the gui has not the correct focus after you switch to another profile.",2019/11/28 3:24 AM
+HAL-1644,NoData,2019/11/14 6:40 AM
+HAL-1642,NoData,2019/11/11 9:50 PM
+HAL-1640,"when a host/server requires a reload, the control functionality of the host/server are unavailable in the console.. Basically there is no way to stop/start/restart from the console. This happens frequently when applying any patches. I also just had it happen to me when I only added a few JVM Options to a server-group",2019/10/23 9:31 AM
+HAL-1639,"Console does not display destination list, if the messaging server name is in caps .
+
+CLI command displays the correct details.
+
+{code:java}
+[standalone@localhost:9990 /] ls /subsystem=messaging-activemq/server=JMSServer/jms-queue=
+Queue1  Queue2  Queue3  Queue4  Queue5
+{code}
+ 
+
+
+",2019/10/14 12:53 AM
+HAL-1635,"HAL 3.2.1
+
+Web Console/Configuration/Subsystem/Distributable Web/HotRod/Infinispan Session
+
+It looks like it is not possible to configure session affinity.
+
+In CLI: 
+{code}
+/subsystem=distributable-web/hotrod-session-management=test/affinity=local:add()
+{code}",2019/08/29 7:46 AM
+HAL-1628,"
+
+Log files created via logging-profile in EAP 7.2 release are not able to view in admin console. It failed with below error:
+
+~~~~
+WFLYCTL0216: Management resource '[
+(\""subsystem\"" => \""logging\""),
+(\""log-file\"" => \""application.log\"")
+]' not found""
+~~~~
+",2019/08/22 11:10 AM
+HAL-1621,"This issue can be easily reproduced in domain mode where there is a master and a slave which contains a large list of servers.
+
+Following the steps to reproduce, the following error is shown when ""Configuration Changes"" menu entry is clicked:
+
+
+{noformat}
+""WFLYCTL0030: No resource definition is registered for address [
+    (\""host\"" => \""master\""),
+    (\""server\"" => \""server-one-10\""),
+    (\""subsystem\"" => \""core-management\""),
+    (\""service\"" => \""configuration-changes\"")
+]""
+{noformat}
+
+The problem looks like it is the latest server visited is appended to compose the management operation generated from the configuration changes menu entry. In this case, the server belongs to the slave but it is appended as a resource from master HC.
+",2019/08/08 2:58 AM
+HAL-1623,"There are some old javascript libraries included in 'externla.min.js' resource which is fetched for 'console/index.html':
+
+Out-­of-­date Version (Bootstrap)
+Identified Version
+{{3.3.7}}
+Latest Version
+{{3.4.1 (in this branch)}}
+----
+Known Vulnerabilities in this Version:
+
+* bootstrap.js Cross­Site Scripting (XSS) Vulnerability
+External References
+[CVE­2018­14040|https://nvd.nist.gov/vuln/detail/CVE-2018-14040]
+* bootstrap.js Cross­Site Scripting (XSS) Vulnerability
+External References
+[CVE­2018­14042|https://nvd.nist.gov/vuln/detail/CVE-2018-14042]
+* bootstrap.js Cross­Site Scripting (XSS) Vulnerability
+External References
+[CVE­2016­10735|https://nvd.nist.gov/vuln/detail/CVE-2016-10735]
+
+----
+jQuery v3.3.1, contains CVE - https://www.cvedetails.com/cve/CVE-2019-11358/
+current version v3.4.1
+
+----
+
+To be honest, I am not expert in this area, I have not deeply investigate these CVE thus it is possible that our Web Console is not affected by them and as such there is no urgent need to perform bootstrap or jQuery libraries update. Not sure though...",2019/08/01 7:39 AM
