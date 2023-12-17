@@ -9,6 +9,8 @@ The structure of this folder is as follows：
 - GPT2: Contains the source code and dataset to reproduce the result of GPT2 baseline.
 - RAT: Contains the source code and dataset to reproduce the result of RAT baseline.
 
+For some large models and data, please download from the link https://figshare.com/s/7951d254edebbb1b1232.
+
 ## Environment Requirements
 
 * Python >= 3.8 
